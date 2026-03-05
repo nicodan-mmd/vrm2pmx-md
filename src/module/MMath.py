@@ -8,6 +8,11 @@ import math
 import numpy as np
 from math import sin, cos, acos, atan2, asin, pi, sqrt, degrees, radians
 
+if not hasattr(np, "float"):
+    np.float = float
+if not hasattr(np, "int"):
+    np.int = int
+
 from utils.MLogger import MLogger # noqa
 
 logger = MLogger(__name__)

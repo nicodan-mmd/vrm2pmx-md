@@ -971,7 +971,7 @@ class VrmReader(PmxReader):
         # ウェイト
         org_weights = node_weight.data()[np.where(joint.data() > 0)]
         # ジョイント添え字からジョイントINDEXを取得(floatになってるのでint)
-        org_joint_idxs = joint.data()[valiable_joints].astype(np.int)
+        org_joint_idxs = joint.data()[valiable_joints].astype(np.int64)
         # 現行ボーンINDEXに置き換えたINDEX
         dest_joint_list = []
         for jidx in org_joint_idxs.tolist():
@@ -1223,7 +1223,8 @@ class VrmReader(PmxReader):
         node_pairs[node_idx] = jp_bone_name
 
         # 位置
-        position = MVector3D(node["translation"]) * MIKU_METER * MVector3D(-1, 1, 1)
+        translation = node["translation"] if "translation" in node else [0, 0, 0]
+        position = MVector3D(translation) * MIKU_METER * MVector3D(-1, 1, 1)
 
         if parent_name:
             position += bones[parent_name].position
