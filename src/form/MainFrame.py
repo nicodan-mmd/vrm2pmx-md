@@ -3,30 +3,39 @@
 import os
 import sys
 from typing import Any
+
 import wx
 import wx.lib.newevent
 
 from form.panel.ExportPanel import ExportPanel
-from form.panel.RigidbodyPanel import RigidbodyPanel
 from form.panel.PhysicsPanel import PhysicsPanel
-from module.MMath import MRect, MVector3D, MVector4D, MQuaternion, MMatrix4x4 # noqa
-from utils import MFormUtils, MFileUtils # noqa
-from utils.MLogger import MLogger # noqa
+from form.panel.RigidbodyPanel import RigidbodyPanel
+from module.MMath import MMatrix4x4, MQuaternion, MRect, MVector3D, MVector4D  # noqa
+from utils import MFileUtils, MFormUtils  # noqa
+from utils.MLogger import MLogger  # noqa
 
 if os.name == "nt":
-    import winsound     # Windows版のみインポート
+    import winsound  # Windows版のみインポート
 
 logger = MLogger(__name__)
 
 
 # イベント
-(SizingThreadEvent, EVT_SIZING_THREAD) = wx.lib.newevent.NewEvent()
-(LoadThreadEvent, EVT_LOAD_THREAD) = wx.lib.newevent.NewEvent()
+SizingThreadEvent, EVT_SIZING_THREAD = wx.lib.newevent.NewEvent()
+LoadThreadEvent, EVT_LOAD_THREAD = wx.lib.newevent.NewEvent()
 
 
 class MainFrame(wx.Frame):
 
-    def __init__(self, parent, mydir_path: str, version_name: str, logging_level: int, is_saving: bool, is_out_log: bool):
+    def __init__(
+        self,
+        parent,
+        mydir_path: str,
+        version_name: str,
+        logging_level: int,
+        is_saving: bool,
+        is_out_log: bool,
+    ):
         self.version_name = version_name
         self.logging_level = logging_level
         self.is_out_log = is_out_log
@@ -34,12 +43,19 @@ class MainFrame(wx.Frame):
         self.mydir_path = mydir_path
         self.elapsed_time = 0
         self.popuped_finger_warning = False
-        
+
         self.worker = None
         self.load_worker = None
 
-        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"Vrm2Pmxコンバーター ローカル版 {0}".format(self.version_name), \
-                          pos=wx.DefaultPosition, size=wx.Size(600, 650), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
+        wx.Frame.__init__(
+            self,
+            parent,
+            id=wx.ID_ANY,
+            title="Vrm2Pmxコンバーター ローカル版 {0}".format(self.version_name),
+            pos=wx.DefaultPosition,
+            size=wx.Size(600, 650),
+            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL,
+        )
 
         # ファイル履歴読み込み
         self.file_hitories = MFileUtils.read_history(self.mydir_path)
@@ -50,8 +66,13 @@ class MainFrame(wx.Frame):
 
         bSizer1 = wx.BoxSizer(wx.VERTICAL)
 
-        self.note_ctrl = wx.Notebook(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
-        if self.logging_level == MLogger.FULL or self.logging_level == MLogger.DEBUG_FULL:
+        self.note_ctrl = wx.Notebook(
+            self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0
+        )
+        if (
+            self.logging_level == MLogger.FULL
+            or self.logging_level == MLogger.DEBUG_FULL
+        ):
             # フルデータの場合
             self.note_ctrl.SetBackgroundColour(wx.Colour("RED"))
         elif self.logging_level == MLogger.DEBUG:
@@ -67,21 +88,23 @@ class MainFrame(wx.Frame):
             # ログありの場合、色変え
             self.note_ctrl.SetBackgroundColour(wx.Colour("AQUAMARINE"))
         else:
-            self.note_ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNSHADOW))
+            self.note_ctrl.SetBackgroundColour(
+                wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNSHADOW)
+            )
 
         # ---------------------------------------------
 
         # PMX変換タブ
         self.export_panel_ctrl = ExportPanel(self, self.note_ctrl, 0)
-        self.note_ctrl.AddPage(self.export_panel_ctrl, u"PMX変換", False)
+        self.note_ctrl.AddPage(self.export_panel_ctrl, "PMX変換", False)
 
         # 剛体設定タブ
         self.rigidbody_panel_ctrl = RigidbodyPanel(self, self.note_ctrl, 1)
-        self.note_ctrl.AddPage(self.rigidbody_panel_ctrl, u"準標準剛体", False)
+        self.note_ctrl.AddPage(self.rigidbody_panel_ctrl, "準標準剛体", False)
 
         # 物理設定タブ
         self.physics_panel_ctrl = PhysicsPanel(self, self.note_ctrl, 2)
-        self.note_ctrl.AddPage(self.physics_panel_ctrl, u"物理", False)
+        self.note_ctrl.AddPage(self.physics_panel_ctrl, "物理", False)
 
         # ---------------------------------------------
 
@@ -99,7 +122,7 @@ class MainFrame(wx.Frame):
         self.Layout()
 
         self.Centre(wx.BOTH)
-    
+
     def on_idle(self, event: wx.Event):
         pass
 
@@ -135,8 +158,8 @@ class MainFrame(wx.Frame):
             # Windows
             try:
                 winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("終了音の再生に失敗しました。", e)
 
     def on_wheel_spin_ctrl(self, event: Any, inc=0.1):
         # スピンコントロール変更時

@@ -1,14 +1,34 @@
 # -*- coding: utf-8 -*-
 #
-from typing import Any, cast
-import struct
 import hashlib
+import struct
+from typing import Any, cast
 
-from mmd.PmxData import PmxModel, Bone, RigidBody, Vertex, Material, Morph, DisplaySlot, RigidBody, Joint, Ik, IkLink # noqa
-from mmd.PmxData import Bdef1, Bdef2, Bdef4, Sdef, Qdef, GroupMorphData, VertexMorphOffset, BoneMorphData, UVMorphData, MaterialMorphData # noqa
-from module.MMath import MRect, MVector3D, MVector4D, MQuaternion, MMatrix4x4 # noqa
-from utils.MLogger import MLogger # noqa
-from utils.MException import SizingException, MKilledException, MParseException
+from mmd.PmxData import (  # noqa
+    Bdef1,
+    Bdef2,
+    Bdef4,
+    Bone,
+    BoneMorphData,
+    DisplaySlot,
+    GroupMorphData,
+    Ik,
+    IkLink,
+    Joint,
+    Material,
+    MaterialMorphData,
+    Morph,
+    PmxModel,
+    Qdef,
+    RigidBody,
+    Sdef,
+    UVMorphData,
+    Vertex,
+    VertexMorphOffset,
+)
+from module.MMath import MMatrix4x4, MQuaternion, MRect, MVector3D, MVector4D  # noqa
+from utils.MException import MKilledException, MParseException, SizingException
+from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__, level=1)
 
@@ -44,7 +64,11 @@ class PmxReader:
 
             if signature[:3] != b"PMX" or (version != 2.0 and version != 2.1):
                 # 整合性チェック
-                raise MParseException("PMX2.0/2.1形式外のデータです。signature: {0}, version: {1} ".format(signature, version))
+                raise MParseException(
+                    "PMX2.0/2.1形式外のデータです。signature: {0}, version: {1} ".format(
+                        signature, version
+                    )
+                )
 
             # flag
             flag_bytes = self.read_int(1)
@@ -62,18 +86,28 @@ class PmxReader:
 
             # 頂点Indexサイズ
             self.vertex_index_size = self.read_int(1)
-            logger.test("vertex_index_size: %s (%s)", self.vertex_index_size, self.offset)
+            logger.test(
+                "vertex_index_size: %s (%s)", self.vertex_index_size, self.offset
+            )
             self.read_vertex_index_size = lambda: self.read_int(self.vertex_index_size)
 
             # テクスチャIndexサイズ
             self.texture_index_size = self.read_int(1)
-            logger.test("texture_index_size: %s (%s)", self.texture_index_size, self.offset)
-            self.read_texture_index_size = lambda: self.read_int(self.texture_index_size)
+            logger.test(
+                "texture_index_size: %s (%s)", self.texture_index_size, self.offset
+            )
+            self.read_texture_index_size = lambda: self.read_int(
+                self.texture_index_size
+            )
 
             # 材質Indexサイズ
             self.material_index_size = self.read_int(1)
-            logger.test("material_index_size: %s (%s)", self.material_index_size, self.offset)
-            self.read_material_index_size = lambda: self.read_int(self.material_index_size)
+            logger.test(
+                "material_index_size: %s (%s)", self.material_index_size, self.offset
+            )
+            self.read_material_index_size = lambda: self.read_int(
+                self.material_index_size
+            )
 
             # ボーンIndexサイズ
             self.bone_index_size = self.read_int(1)
@@ -87,8 +121,12 @@ class PmxReader:
 
             # 剛体Indexサイズ
             self.rigidbody_index_size = self.read_int(1)
-            logger.test("rigidbody_index_size: %s (%s)", self.rigidbody_index_size, self.offset)
-            self.read_rigidbody_index_size = lambda: self.read_int(self.rigidbody_index_size)
+            logger.test(
+                "rigidbody_index_size: %s (%s)", self.rigidbody_index_size, self.offset
+            )
+            self.read_rigidbody_index_size = lambda: self.read_int(
+                self.rigidbody_index_size
+            )
 
             # モデル名（日本語）
             model_name = self.read_text()
@@ -117,7 +155,11 @@ class PmxReader:
 
                 if signature[:3] != b"PMX" or (version != 2.0 and version != 2.1):
                     # 整合性チェック
-                    raise MParseException("PMX2.0/2.1形式外のデータです。signature: {0}, version: {1} ".format(signature, version))
+                    raise MParseException(
+                        "PMX2.0/2.1形式外のデータです。signature: {0}, version: {1} ".format(
+                            signature, version
+                        )
+                    )
 
                 # flag
                 flag_bytes = self.read_int(1)
@@ -135,33 +177,59 @@ class PmxReader:
 
                 # 頂点Indexサイズ
                 self.vertex_index_size = self.read_int(1)
-                logger.test("vertex_index_size: %s (%s)", self.vertex_index_size, self.offset)
-                self.read_vertex_index_size = lambda: self.read_int(self.vertex_index_size)
+                logger.test(
+                    "vertex_index_size: %s (%s)", self.vertex_index_size, self.offset
+                )
+                self.read_vertex_index_size = lambda: self.read_int(
+                    self.vertex_index_size
+                )
 
                 # テクスチャIndexサイズ
                 self.texture_index_size = self.read_int(1)
-                logger.test("texture_index_size: %s (%s)", self.texture_index_size, self.offset)
-                self.read_texture_index_size = lambda: self.read_int(self.texture_index_size)
+                logger.test(
+                    "texture_index_size: %s (%s)", self.texture_index_size, self.offset
+                )
+                self.read_texture_index_size = lambda: self.read_int(
+                    self.texture_index_size
+                )
 
                 # 材質Indexサイズ
                 self.material_index_size = self.read_int(1)
-                logger.test("material_index_size: %s (%s)", self.material_index_size, self.offset)
-                self.read_material_index_size = lambda: self.read_int(self.material_index_size)
+                logger.test(
+                    "material_index_size: %s (%s)",
+                    self.material_index_size,
+                    self.offset,
+                )
+                self.read_material_index_size = lambda: self.read_int(
+                    self.material_index_size
+                )
 
                 # ボーンIndexサイズ
                 self.bone_index_size = self.read_int(1)
-                logger.test("bone_index_size: %s (%s)", self.bone_index_size, self.offset)
+                logger.test(
+                    "bone_index_size: %s (%s)", self.bone_index_size, self.offset
+                )
                 self.read_bone_index_size = lambda: self.read_int(self.bone_index_size)
 
                 # モーフIndexサイズ
                 self.morph_index_size = self.read_int(1)
-                logger.test("morph_index_size: %s (%s)", self.morph_index_size, self.offset)
-                self.read_morph_index_size = lambda: self.read_int(self.morph_index_size)
+                logger.test(
+                    "morph_index_size: %s (%s)", self.morph_index_size, self.offset
+                )
+                self.read_morph_index_size = lambda: self.read_int(
+                    self.morph_index_size
+                )
 
                 # 剛体Indexサイズ
                 self.rigidbody_index_size = self.read_int(1)
-                logger.test("rigidbody_index_size: %s (%s)", self.rigidbody_index_size, self.offset)
-                self.read_rigidbody_index_size = lambda: self.read_int(self.rigidbody_index_size)
+                logger.test(
+                    "rigidbody_index_size: %s (%s)",
+                    self.rigidbody_index_size,
+                    self.offset,
+                )
+                self.read_rigidbody_index_size = lambda: self.read_int(
+                    self.rigidbody_index_size
+                )
 
                 # モデル名（日本語）
                 pmx.name = self.read_text()
@@ -177,7 +245,9 @@ class PmxReader:
 
                 # コメント（英語）
                 pmx.english_comment = self.read_text()
-                logger.test("english_comment: %s (%s)", pmx.english_comment, self.offset)
+                logger.test(
+                    "english_comment: %s (%s)", pmx.english_comment, self.offset
+                )
 
                 # 頂点データリスト
                 for vertex_idx in range(self.read_int(4)):
@@ -195,7 +265,15 @@ class PmxReader:
                     edge_factor = self.read_float()
 
                     # 頂点をウェイトボーンごとに分けて保持する
-                    vertex = Vertex(vertex_idx, position, normal, uv, extended_uvs, deform, edge_factor)
+                    vertex = Vertex(
+                        vertex_idx,
+                        position,
+                        normal,
+                        uv,
+                        extended_uvs,
+                        deform,
+                        edge_factor,
+                    )
                     for bone_idx in vertex.deform.get_idx_list():
                         if bone_idx not in pmx.vertices:
                             pmx.vertices[bone_idx] = []
@@ -213,7 +291,7 @@ class PmxReader:
                     else:
                         pmx.indices.append(self.read_int(self.vertex_index_size))
                 logger.debug("len(indices): %s", len(pmx.indices))
-                
+
                 logger.info("-- PMX 面読み込み完了")
 
                 # テクスチャデータリスト
@@ -239,7 +317,7 @@ class PmxReader:
                         texture_index=self.read_texture_index_size(),
                         sphere_texture_index=self.read_texture_index_size(),
                         sphere_mode=self.read_int(1),
-                        toon_sharing_flag=self.read_int(1)
+                        toon_sharing_flag=self.read_int(1),
                     )
                     material.index = material_idx
 
@@ -248,7 +326,11 @@ class PmxReader:
                     elif material.toon_sharing_flag == 1:
                         material.toon_texture_index = self.read_int(1)
                     else:
-                        raise MParseException("unknown toon_sharing_flag {0}".format(material.toon_sharing_flag))
+                        raise MParseException(
+                            "unknown toon_sharing_flag {0}".format(
+                                material.toon_sharing_flag
+                            )
+                        )
                     material.comment = self.read_text()
                     material.vertex_count = self.read_int(4)
 
@@ -259,7 +341,9 @@ class PmxReader:
                 logger.info("-- PMX 材質読み込み完了")
 
                 # サイジング用ルートボーン
-                sizing_root_bone = Bone("SIZING_ROOT_BONE", "SIZING_ROOT_BONE", MVector3D(), -1, 0, 0)
+                sizing_root_bone = Bone(
+                    "SIZING_ROOT_BONE", "SIZING_ROOT_BONE", MVector3D(), -1, 0, 0
+                )
                 sizing_root_bone.index = -999
 
                 pmx.bones[sizing_root_bone.name] = sizing_root_bone
@@ -274,7 +358,7 @@ class PmxReader:
                         position=self.read_Vector3D(),
                         parent_index=self.read_bone_index_size(),
                         layer=self.read_int(4),
-                        flag=self.read_int(2)
+                        flag=self.read_int(2),
                     )
 
                     if not bone.getConnectionFlag():
@@ -282,9 +366,16 @@ class PmxReader:
                     elif bone.getConnectionFlag():
                         bone.tail_index = self.read_bone_index_size()
                     else:
-                        raise MParseException("unknown bone conenction flag: {0}".format(bone.getConnectionFlag()))
+                        raise MParseException(
+                            "unknown bone conenction flag: {0}".format(
+                                bone.getConnectionFlag()
+                            )
+                        )
 
-                    if bone.getExternalRotationFlag() or bone.getExternalTranslationFlag():
+                    if (
+                        bone.getExternalRotationFlag()
+                        or bone.getExternalTranslationFlag()
+                    ):
                         bone.effect_index = self.read_bone_index_size()
                         bone.effect_factor = self.read_float()
 
@@ -302,16 +393,13 @@ class PmxReader:
                         bone.ik = Ik(
                             target_index=self.read_bone_index_size(),
                             loop=self.read_int(4),
-                            limit_radian=self.read_float()
+                            limit_radian=self.read_float(),
                         )
 
                         # IKリンク取得
                         for _ in range(self.read_int(4)):
 
-                            link = IkLink(
-                                self.read_bone_index_size(),
-                                self.read_int(1)
-                            )
+                            link = IkLink(self.read_bone_index_size(), self.read_int(1))
 
                             if link.limit_angle == 0:
                                 pass
@@ -319,7 +407,11 @@ class PmxReader:
                                 link.limit_min = self.read_Vector3D()
                                 link.limit_max = self.read_Vector3D()
                             else:
-                                raise MParseException("invalid ik link limit_angle: {0}".format(link.limit_angle))
+                                raise MParseException(
+                                    "invalid ik link limit_angle: {0}".format(
+                                        link.limit_angle
+                                    )
+                                )
 
                             bone.ik.link.append(link)
 
@@ -331,7 +423,7 @@ class PmxReader:
                         pmx.bones[bone.name] = bone
                         # インデックス逆引きも登録
                         pmx.bone_indexes[bone.index] = bone.name
-                
+
                 logger.test("len(bones): %s", len(pmx.bones))
 
                 logger.info("-- PMX ボーン読み込み完了")
@@ -353,40 +445,61 @@ class PmxReader:
                         name=self.read_text(),
                         english_name=self.read_text(),
                         panel=self.read_int(1),
-                        morph_type=self.read_int(1)
+                        morph_type=self.read_int(1),
                     )
 
                     offset_size = self.read_int(4)
 
                     if morph.morph_type == 0:
                         # group
-                        morph.offsets = [self.read_group_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_group_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 1:
                         # vertex
-                        morph.offsets = [self.read_vertex_position_morph_offset() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_vertex_position_morph_offset()
+                            for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 2:
                         # bone
-                        morph.offsets = [self.read_bone_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_bone_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 3:
                         # uv
-                        morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_uv_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 4:
                         # uv extended1
-                        morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_uv_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 5:
                         # uv extended2
-                        morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_uv_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 6:
                         # uv extended3
-                        morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_uv_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 7:
                         # uv extended4
-                        morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_uv_morph_data() for _ in range(offset_size)
+                        ]
                     elif morph.morph_type == 8:
                         # material
-                        morph.offsets = [self.read_material_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [
+                            self.read_material_morph_data() for _ in range(offset_size)
+                        ]
                     else:
-                        raise MParseException("unknown morph type: {0}".format(morph.morph_type))
+                        raise MParseException(
+                            "unknown morph type: {0}".format(morph.morph_type)
+                        )
 
                     # モーフのINDEXは、先頭から順番に設定
                     morph.index = morph_idx
@@ -413,7 +526,7 @@ class PmxReader:
                     display_slot = DisplaySlot(
                         name=self.read_text(),
                         english_name=self.read_text(),
-                        special_flag=self.read_int(1)
+                        special_flag=self.read_int(1),
                     )
 
                     display_count = self.read_int(4)
@@ -436,7 +549,9 @@ class PmxReader:
                                     v.display = True
                                 # logger.test("v: %s, display: %s", v.name, v.display)
                         else:
-                            raise MParseException("unknown display_type: {0}".format(display_type))
+                            raise MParseException(
+                                "unknown display_type: {0}".format(display_type)
+                            )
 
                     pmx.display_slots[display_slot.name] = display_slot
 
@@ -461,7 +576,7 @@ class PmxReader:
                         angular_damping=self.read_float(),
                         restitution=self.read_float(),
                         friction=self.read_float(),
-                        mode=self.read_int(1)
+                        mode=self.read_int(1),
                     )
 
                     # ボーンのINDEX
@@ -476,7 +591,7 @@ class PmxReader:
                 logger.info("-- PMX 剛体読み込み完了")
 
                 # ジョイントデータリスト
-                for joint_idx in range(self.read_int(4)):
+                for _ in range(self.read_int(4)):
                     joint = Joint(
                         name=self.read_text(),
                         english_name=self.read_text(),
@@ -490,7 +605,7 @@ class PmxReader:
                         rotation_limit_min=self.read_Vector3D(),
                         rotation_limit_max=self.read_Vector3D(),
                         spring_constant_translation=self.read_Vector3D(),
-                        spring_constant_rotation=self.read_Vector3D()
+                        spring_constant_rotation=self.read_Vector3D(),
                     )
 
                     pmx.joints[joint.name] = joint
@@ -517,36 +632,51 @@ class PmxReader:
             # 終了命令
             raise ke
         except SizingException as se:
-            logger.error("サイジング処理が処理できないデータで終了しました。\n\n%s", se.message, decoration=MLogger.DECORATION_BOX)
+            logger.error(
+                "サイジング処理が処理できないデータで終了しました。\n\n%s",
+                se.message,
+                decoration=MLogger.DECORATION_BOX,
+            )
             return se
         except Exception as e:
             import traceback
-            logger.critical("サイジング処理が意図せぬエラーで終了しました。\n\n%s", traceback.format_exc(), decoration=MLogger.DECORATION_BOX)
+
+            logger.critical(
+                "サイジング処理が意図せぬエラーで終了しました。\n\n%s",
+                traceback.format_exc(),
+                decoration=MLogger.DECORATION_BOX,
+            )
             raise e
 
     def hexdigest(self):
-        sha1 = hashlib.sha1()
+        sha1 = hashlib.sha1(usedforsecurity=False)
         chunk = b""
 
-        with open(self.file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(2048 * sha1.block_size), b''):
+        with open(self.file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(2048 * sha1.block_size), b""):
                 sha1.update(chunk)
 
         sha1.update(chunk)
 
         # ファイルパスをハッシュに含める
-        sha1.update(self.file_path.encode('utf-8'))
+        sha1.update(self.file_path.encode("utf-8"))
 
         return sha1.hexdigest()
 
     def calc_bone_length(self, bones, bone_indexes):
         for k, v in bones.items():
-            if k in ["左足ＩＫ", "右足ＩＫ", "右足ＩＫ親", "左足ＩＫ親"] and v.getIkFlag():
+            if (
+                k in ["左足ＩＫ", "右足ＩＫ", "右足ＩＫ親", "左足ＩＫ親"]
+                and v.getIkFlag()
+            ):
                 #   足IKの場合、ひざボーンの位置を採用する
                 knee_pos = MVector3D(0, 0, 0)
                 for lk in v.ik.link:
                     logger.test("k %s, link %s", k, lk)
-                    if lk.bone_index in bone_indexes and "ひざ" in bones[bone_indexes[lk.bone_index]].name:
+                    if (
+                        lk.bone_index in bone_indexes
+                        and "ひざ" in bones[bone_indexes[lk.bone_index]].name
+                    ):
                         # 存在するボーンで、大きい方を採用
                         knee_pos = bones[bone_indexes[lk.bone_index]].position
                 v.len_1d = knee_pos.length()
@@ -556,10 +686,16 @@ class PmxReader:
                 farer_pos = MVector3D(0, 0, 0)
                 for lk in v.ik.link:
                     logger.test("k %s, link %s", k, lk)
-                    if lk.bone_index in bone_indexes and farer_pos.length() < bones[bone_indexes[lk.bone_index]].position.length():
+                    if (
+                        lk.bone_index in bone_indexes
+                        and farer_pos.length()
+                        < bones[bone_indexes[lk.bone_index]].position.length()
+                    ):
                         # 存在するボーンで、大きい方を採用
                         farer_pos = bones[bone_indexes[lk.bone_index]].position
-                        logger.test("farer: %s", bones[bone_indexes[lk.bone_index]].position)
+                        logger.test(
+                            "farer: %s", bones[bone_indexes[lk.bone_index]].position
+                        )
                 # 最も大きな値（離れている）のを採用
                 v.len_1d = farer_pos.length()
 
@@ -572,19 +708,42 @@ class PmxReader:
                     v.len_3d = MVector3D(1, 1, 1)
             else:
                 # IK以外の場合、親ボーンとの間の長さを「親ボーン」に設定する
-                if v.parent_index is not None and v.parent_index in bone_indexes and not bone_indexes[v.parent_index] in ["腰", "グルーブ", "センター", "左足ＩＫ", "右足ＩＫ", "左つま先ＩＫ", "右つま先ＩＫ", "右足ＩＫ親", "左足ＩＫ親"]:
+                if (
+                    v.parent_index is not None
+                    and v.parent_index in bone_indexes
+                    and bone_indexes[v.parent_index]
+                    not in [
+                        "腰",
+                        "グルーブ",
+                        "センター",
+                        "左足ＩＫ",
+                        "右足ＩＫ",
+                        "左つま先ＩＫ",
+                        "右つま先ＩＫ",
+                        "右足ＩＫ親",
+                        "左足ＩＫ親",
+                    ]
+                ):
                     # 親ボーンを採用
                     pos = v.position - bones[bone_indexes[v.parent_index]].position
                     if v.len_1d > 0:
                         # 既にある場合、平均値を求めて設定する
-                        bones[bone_indexes[v.parent_index]].len_1d = (v.len_1d + pos.length()) / 2
-                        bones[bone_indexes[v.parent_index]].len_3d = (v.len_3d + pos) / 2
+                        bones[bone_indexes[v.parent_index]].len_1d = (
+                            v.len_1d + pos.length()
+                        ) / 2
+                        bones[bone_indexes[v.parent_index]].len_3d = (
+                            v.len_3d + pos
+                        ) / 2
                     else:
                         # 0の場合はそのまま追加
                         bones[bone_indexes[v.parent_index]].len_1d = pos.length()
                         bones[bone_indexes[v.parent_index]].len_3d = pos
 
-                    logger.test("bone: %s, len_3d: %s", bone_indexes[v.parent_index], bones[bone_indexes[v.parent_index]].len_3d)
+                    logger.test(
+                        "bone: %s, len_3d: %s",
+                        bone_indexes[v.parent_index],
+                        bones[bone_indexes[v.parent_index]].len_3d,
+                    )
                 else:
                     # 自分が最親の場合、そのまま長さ
                     v.len_1d = v.position.length()
@@ -593,20 +752,14 @@ class PmxReader:
                     logger.test("bone: %s, len_3d: %s", v.name, v.len_3d)
 
     def read_group_morph_data(self):
-        return GroupMorphData(
-            self.read_morph_index_size(),
-            self.read_float()
-        )
+        return GroupMorphData(self.read_morph_index_size(), self.read_float())
 
     def read_vertex_position_morph_offset(self):
-        return VertexMorphOffset(
-            self.read_vertex_index_size(), self.read_Vector3D())
+        return VertexMorphOffset(self.read_vertex_index_size(), self.read_Vector3D())
 
     def read_bone_morph_data(self):
         return BoneMorphData(
-            self.read_bone_index_size(),
-            self.read_Vector3D(),
-            self.read_Quaternion()
+            self.read_bone_index_size(), self.read_Vector3D(), self.read_Quaternion()
         )
 
     def read_uv_morph_data(self):
@@ -628,20 +781,34 @@ class PmxReader:
             self.read_float(),
             self.read_Vector4D(),
             self.read_Vector4D(),
-            self.read_Vector4D()
+            self.read_Vector4D(),
         )
 
     def read_RGB(self):
-        return MVector3D(int(self.read_float()), int(self.read_float()), int(self.read_float()))
+        return MVector3D(
+            int(self.read_float()), int(self.read_float()), int(self.read_float())
+        )
 
     def read_RGBA(self):
-        return MVector4D(int(self.read_float()), int(self.read_float()), int(self.read_float()), int(self.read_float()))
+        return MVector4D(
+            int(self.read_float()),
+            int(self.read_float()),
+            int(self.read_float()),
+            int(self.read_float()),
+        )
 
     def read_Vector4D(self):
-        return MVector4D(float(self.read_float()), float(self.read_float()), float(self.read_float()), float(self.read_float()))
+        return MVector4D(
+            float(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
+        )
 
     def read_Vector3D(self):
-        return MVector3D(float(self.read_float()), float(self.read_float()), float(self.read_float()))
+        return MVector3D(
+            float(self.read_float()), float(self.read_float()), float(self.read_float())
+        )
 
     def read_Vector2D(self):
         return [float(self.read_float()), float(self.read_float())]
@@ -664,7 +831,7 @@ class PmxReader:
             return Bdef2(
                 self.read_bone_index_size(),
                 self.read_bone_index_size(),
-                self.read_float()
+                self.read_float(),
             )
         elif deform_type == 2:
             # BDEF4
@@ -676,7 +843,7 @@ class PmxReader:
                 self.read_float(),
                 self.read_float(),
                 self.read_float(),
-                self.read_float()
+                self.read_float(),
             )
         elif deform_type == 3:
             # SDEF
@@ -686,7 +853,7 @@ class PmxReader:
                 self.read_float(),
                 self.read_Vector3D(),
                 self.read_Vector3D(),
-                self.read_Vector3D()
+                self.read_Vector3D(),
             )
         elif deform_type == 4:
             # QDEF
@@ -696,7 +863,7 @@ class PmxReader:
                 self.read_float(),
                 self.read_Vector3D(),
                 self.read_Vector3D(),
-                self.read_Vector3D()
+                self.read_Vector3D(),
             )
         else:
             raise MParseException("unknown deform_type: {0}".format(deform_type))
@@ -704,19 +871,25 @@ class PmxReader:
     # 文字列の解凍（エンコーディングに基づく）
     def define_read_text(self, text_encoding):
         if text_encoding == 0:
+
             def read_text():
                 format_size = self.read_int(4)
                 bresult = self.unpack(format_size, "{0}s".format(format_size))
                 return bresult.decode("utf-16-le") if isinstance(bresult, bytes) else ""
+
             return read_text
         elif text_encoding == 1:
+
             def read_text():
                 format_size = self.read_int(4)
                 bresult = self.unpack(format_size, "{0}s".format(format_size))
                 return bresult.decode("UTF8") if isinstance(bresult, bytes) else ""
+
             return read_text
         else:
-            raise MParseException("define_read_text 定義エラー {0}".format(text_encoding))
+            raise MParseException(
+                "define_read_text 定義エラー {0}".format(text_encoding)
+            )
 
     # 整数の解凍
     def read_int(self, format_size):
@@ -751,7 +924,9 @@ class PmxReader:
         elif format_size == 8:
             format_type = "d"
         else:
-            raise MParseException("read_float format_sizeエラー {0}".format(format_size))
+            raise MParseException(
+                "read_float format_sizeエラー {0}".format(format_size)
+            )
 
         return float(self.unpack(format_size, format_type))
 

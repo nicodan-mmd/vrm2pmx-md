@@ -14,9 +14,9 @@ from fastapi.testclient import TestClient
 def load_app_module():
     sys.modules.pop("backend.app.main", None)
     bone_panel_module = types.ModuleType("form.panel.BonePanel")
-    setattr(bone_panel_module, "BONE_PAIRS", {"root": "Root"})
-    setattr(bone_panel_module, "RIGIDBODY_PAIRS", {"body": "Body"})
-    setattr(bone_panel_module, "MORPH_PAIRS", {"blink": "Blink"})
+    bone_panel_module.BONE_PAIRS = {"root": "Root"}
+    bone_panel_module.RIGIDBODY_PAIRS = {"body": "Body"}
+    bone_panel_module.MORPH_PAIRS = {"blink": "Blink"}
     sys.modules["form.panel.BonePanel"] = bone_panel_module
     return importlib.import_module("backend.app.main")
 
@@ -78,10 +78,14 @@ class MainApiTestCase(unittest.TestCase):
                 (texture_dir / "albedo.png").write_bytes(b"png-binary")
                 return True
 
-        with patch.object(self.app_module, "VrmReader", FakeReader), patch.object(self.app_module, "Vrm2PmxExportService", FakeService):
+        with patch.object(self.app_module, "VrmReader", FakeReader), patch.object(
+            self.app_module, "Vrm2PmxExportService", FakeService
+        ):
             response = self.client.post(
                 "/api/convert",
-                files={"vrm_file": ("avatar.vrm", b"vrm-data", "application/octet-stream")},
+                files={
+                    "vrm_file": ("avatar.vrm", b"vrm-data", "application/octet-stream")
+                },
                 data={"bone_config": json.dumps({"hips": "Hips"})},
             )
 

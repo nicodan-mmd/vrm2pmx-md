@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
 #
 
-from datetime import datetime
-import sys
-import os
-import json
 import glob
-from pathlib import Path
+import json
+import os
 import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
 import _pickle as cPickle
 
-from utils.MLogger import MLogger # noqa
+from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__)
 
 
 # リソースファイルのパス
 def resource_path(relative):
-    meipass = getattr(sys, '_MEIPASS', None)
+    meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         return os.path.join(meipass, relative)
     return os.path.join(relative)
@@ -31,7 +32,7 @@ def read_history(mydir_path):
 
     # 履歴JSONファイルがあれば読み込み
     try:
-        with open(os.path.join(mydir_path, 'history.json'), 'r', encoding="utf-8") as f:
+        with open(os.path.join(mydir_path, "history.json"), "r", encoding="utf-8") as f:
             file_hitories = json.load(f)
             # キーが揃っているかチェック
             for key in base_file_hitories.keys():
@@ -42,7 +43,7 @@ def read_history(mydir_path):
     except Exception:
         # UTF-8で読み込めなかった場合、デフォルトで読み込んでUTF-8変換
         try:
-            with open(os.path.join(mydir_path, 'history.json'), 'r') as f:
+            with open(os.path.join(mydir_path, "history.json"), "r") as f:
                 file_hitories = json.load(f)
                 # キーが揃っているかチェック
                 for key in base_file_hitories.keys():
@@ -50,7 +51,7 @@ def read_history(mydir_path):
                         file_hitories[key] = []
                 # 最大件数は常に上書き
                 file_hitories["max"] = 50
-            
+
             # 一旦UTF-8で出力
             save_history(mydir_path, file_hitories)
 
@@ -65,17 +66,21 @@ def read_history(mydir_path):
 def save_history(mydir_path, file_hitories):
     # 入力履歴を保存
     try:
-        with open(os.path.join(mydir_path, 'history.json'), 'w', encoding="utf-8") as f:
+        with open(os.path.join(mydir_path, "history.json"), "w", encoding="utf-8") as f:
             json.dump(file_hitories, f, ensure_ascii=False)
     except Exception as e:
-        logger.error("履歴ファイルの保存に失敗しました", e, decoration=MLogger.DECORATION_BOX)
+        logger.error(
+            "履歴ファイルの保存に失敗しました", e, decoration=MLogger.DECORATION_BOX
+        )
 
 
 # パス解決
 def get_mydir_path(exec_path):
     logger.test("sys.argv %s", sys.argv)
-    
-    dir_path = Path(exec_path).parent if hasattr(sys, "frozen") else Path(__file__).parent
+
+    dir_path = (
+        Path(exec_path).parent if hasattr(sys, "frozen") else Path(__file__).parent
+    )
     logger.test("get_mydir_path: %s", get_mydir_path)
 
     return dir_path
@@ -95,9 +100,13 @@ def get_dir_path(base_file_path, is_print=True):
         # ファイルパスをオブジェクトとして解決し、親を取得する
         return str(Path(file_path_list[0]).resolve().parents[0])
     except Exception as e:
-        logger.error("ファイルパスの解析に失敗しました。\nパスに使えない文字がないか確認してください。\nファイルパス: {0}\n\n{1}".format(base_file_path, e.with_traceback(sys.exc_info()[2])))
+        logger.error(
+            "ファイルパスの解析に失敗しました。\nパスに使えない文字がないか確認してください。\nファイルパス: {0}\n\n{1}".format(
+                base_file_path, e.with_traceback(sys.exc_info()[2])
+            )
+        )
         raise e
-    
+
 
 # 全親移植VMD出力ファイルパス生成
 # vrm_path: 変換先モデルVRMパス
@@ -112,26 +121,36 @@ def get_output_pmx_path(vrm_path: str, output_pmx_path: str, is_force=False):
     vrm_file_name, _ = os.path.splitext(os.path.basename(vrm_path))
 
     # 出力ディレクトリパス
-    output_dir_name = f'{vrm_file_name}_pmx_{datetime.now():%Y%m%d_%H%M%S}'
+    output_dir_name = f"{vrm_file_name}_pmx_{datetime.now():%Y%m%d_%H%M%S}"
 
     # ディレクトリを作成する
-    os.makedirs(os.path.join(pmx_dir_path, output_dir_name, vrm_file_name), exist_ok=True)
+    os.makedirs(
+        os.path.join(pmx_dir_path, output_dir_name, vrm_file_name), exist_ok=True
+    )
 
     # 出力ファイルパス生成
-    new_output_pmx_path = os.path.join(pmx_dir_path, output_dir_name, vrm_file_name, f'{vrm_file_name}.pmx')
+    new_output_pmx_path = os.path.join(
+        pmx_dir_path, output_dir_name, vrm_file_name, f"{vrm_file_name}.pmx"
+    )
 
     # ファイルパス自体が変更されたか、自動生成ルールに則っている場合、ファイルパス変更
-    if is_force or re.match(r'%s_pmx_\d{8}_\d{6}' % (vrm_file_name), output_pmx_path) is not None:
+    if (
+        is_force
+        or re.match(r"%s_pmx_\d{8}_\d{6}" % (vrm_file_name), output_pmx_path)
+        is not None
+    ):
 
         try:
-            open(new_output_pmx_path, 'w')
+            open(new_output_pmx_path, "w")
             os.remove(new_output_pmx_path)
         except Exception:
-            logger.warning("出力ファイルパスの生成に失敗しました。以下の原因が考えられます。\n" \
-                           + "・ファイルパスが255文字を超えている\n" \
-                           + "・ファイルパスに使えない文字列が含まれている（例) \\　/　:　*　?　\"　<　>　|）" \
-                           + "・出力ファイルパスの親フォルダに書き込み権限がない" \
-                           + "・出力ファイルパスに書き込み権限がない")
+            logger.warning(
+                "出力ファイルパスの生成に失敗しました。以下の原因が考えられます。\n"
+                + "・ファイルパスが255文字を超えている\n"
+                + '・ファイルパスに使えない文字列が含まれている（例) \\　/　:　*　?　"　<　>　|）'
+                + "・出力ファイルパスの親フォルダに書き込み権限がない"
+                + "・出力ファイルパスに書き込み権限がない"
+            )
 
         return new_output_pmx_path
 

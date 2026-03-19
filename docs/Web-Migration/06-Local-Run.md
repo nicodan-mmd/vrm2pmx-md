@@ -1,10 +1,12 @@
 # Local Run Guide
 
 ## Prerequisites
+
 - Python 3.x and local `.venv`
 - Node.js 22+ and npm
 
 ## Backend (FastAPI)
+
 1. Activate virtual env
 2. Install dependencies
 3. Run server
@@ -29,15 +31,18 @@ npm run dev
 ```
 
 Open:
-- http://127.0.0.1:5173/
+
+- <http://127.0.0.1:5173/>
 
 ## Convert flow
+
 1. Select a `.vrm` file.
 2. Click `Convert and Download PMX`.
 3. Wait until conversion ends and file download starts.
 4. Downloaded ZIP contains `result.pmx` and `tex/`.
 
 ## Current PoC contract
+
 - API: `POST /api/convert`
 - Upload field: `vrm_file`
 - Optional fields: `bone_config`, `physics_config` (JSON string)

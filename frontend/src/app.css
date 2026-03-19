@@ -17,7 +17,8 @@
 body {
   margin: 0;
   color: var(--ink);
-  background: radial-gradient(circle at 20% 20%, #fff8dc 0%, transparent 40%),
+  background:
+    radial-gradient(circle at 20% 20%, #fff8dc 0%, transparent 40%),
     linear-gradient(130deg, var(--bg-1), var(--bg-2));
   min-height: 100vh;
 }
@@ -95,7 +96,9 @@ button {
   font-weight: 700;
   background: linear-gradient(120deg, var(--accent), var(--accent-2));
   cursor: pointer;
-  transition: transform 120ms ease, filter 120ms ease;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease;
 }
 
 button:hover:not(:disabled) {

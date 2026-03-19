@@ -9,7 +9,10 @@ export default function App() {
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("VRM file is not selected yet.");
 
-  const disabled = useMemo(() => !file || status === "uploading", [file, status]);
+  const disabled = useMemo(
+    () => !file || status === "uploading",
+    [file, status],
+  );
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -24,20 +27,27 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/api/convert`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
+        const errorBody = await response
+          .json()
+          .catch(() => ({ detail: response.statusText }));
         throw new Error(errorBody.detail ?? "Request failed");
       }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const contentDisposition = response.headers.get("content-disposition") ?? "";
-      const filenameMatch = /filename\*?=(?:UTF-8''|\")?([^\";]+)/i.exec(contentDisposition);
-      const headerFilename = filenameMatch ? decodeURIComponent(filenameMatch[1].replace(/"/g, "")) : null;
+      const contentDisposition =
+        response.headers.get("content-disposition") ?? "";
+      const filenameMatch = /filename\*?=(?:UTF-8''|\")?([^\";]+)/i.exec(
+        contentDisposition,
+      );
+      const headerFilename = filenameMatch
+        ? decodeURIComponent(filenameMatch[1].replace(/"/g, ""))
+        : null;
       const baseName = file.name.replace(/\.[^.]+$/, "") || "converted";
       link.href = url;
       link.download = headerFilename ?? `${baseName}.zip`;
@@ -74,7 +84,9 @@ export default function App() {
           />
 
           <button type="submit" disabled={disabled}>
-            {status === "uploading" ? "Converting..." : "Convert and Download PMX"}
+            {status === "uploading"
+              ? "Converting..."
+              : "Convert and Download PMX"}
           </button>
         </form>
 

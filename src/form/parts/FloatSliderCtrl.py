@@ -2,16 +2,29 @@
 #
 
 import wx
-from utils.MLogger import MLogger # noqa
+
+from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__)
 
 
 class FloatSliderCtrl(wx.Slider):
 
-    def __init__(self, parent, id, value, minval, maxval, res,
-                 label, pos=wx.DefaultPosition, size=wx.DefaultSize, style=wx.SL_HORIZONTAL,
-                 name='floatslider', scrollevt=None):
+    def __init__(
+        self,
+        parent,
+        id,
+        value,
+        minval,
+        maxval,
+        res,
+        label,
+        pos=wx.DefaultPosition,
+        size=wx.DefaultSize,
+        style=wx.SL_HORIZONTAL,
+        name="floatslider",
+        scrollevt=None,
+    ):
         self._value = value
         self._min = minval
         self._max = maxval
@@ -36,9 +49,9 @@ class FloatSliderCtrl(wx.Slider):
             self._value = self._max
         else:
             self._value = ival * self._res
-        
+
         # logger.debug('OnScroll: value=%f, ival=%d', self._value, ival)
-        self._label.SetLabel(u"（{0}）".format(round(self._value, 3)))
+        self._label.SetLabel("（{0}）".format(round(self._value, 3)))
 
         if self._scrollevt:
             self._scrollevt(event)
