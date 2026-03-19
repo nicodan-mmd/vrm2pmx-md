@@ -1,10 +1,13 @@
 {
-  "include": [
-    "src"
-  ],
+  "include": ["src"],
   "exclude": [
     "**/.venv",
+    "**/.venv/**",
+    "**/site-packages/**",
     "**/__pycache__",
-    "archive"
+    "archive",
+    "src/form/parts/SizingFileSet.py",
+    "src/form/parts/TargetBoneDialog.py",
+    "src/module/MMath.py"
   ]
 }

@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 #
-import _pickle as cPickle
 import math
+
+import _pickle as cPickle
 import numpy as np
 
-from module.MMath import MRect, MVector2D, MVector3D, MVector4D, MQuaternion, MMatrix4x4 # noqa
-from utils.MException import SizingException # noqa
-from utils.MLogger import MLogger # noqa
+from module.MMath import (  # noqa
+    MMatrix4x4,
+    MQuaternion,
+    MRect,
+    MVector2D,
+    MVector3D,
+    MVector4D,
+)
+from utils.MException import SizingException  # noqa
+from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__, level=MLogger.DEBUG)
 
@@ -19,10 +27,10 @@ class Deform:
 class Bdef1(Deform):
     def __init__(self, index0):
         self.index0 = index0
-    
+
     def get_idx_list(self, weight=0):
         return [self.index0]
-        
+
     def __str__(self):
         return "<Bdef1 {0}>".format(self.index0)
 
@@ -32,7 +40,7 @@ class Bdef2(Deform):
         self.index0 = index0
         self.index1 = index1
         self.weight0 = weight0
-        
+
     def get_idx_list(self, weight=0):
         idx_list = []
         if self.weight0 >= weight:
@@ -40,13 +48,15 @@ class Bdef2(Deform):
         if (1 - self.weight0) >= weight:
             idx_list.append(self.index1)
         return idx_list
-        
+
     def __str__(self):
         return "<Bdef2 {0}, {1}, {2}>".format(self.index0, self.index1, self.weight0)
 
 
 class Bdef4(Deform):
-    def __init__(self, index0, index1, index2, index3, weight0, weight1, weight2, weight3):
+    def __init__(
+        self, index0, index1, index2, index3, weight0, weight1, weight2, weight3
+    ):
         self.index0 = index0
         self.index1 = index1
         self.index2 = index2
@@ -55,14 +65,27 @@ class Bdef4(Deform):
         self.weight1 = weight1
         self.weight2 = weight2
         self.weight3 = weight3
-        
+
     def get_idx_list(self, weight=0):
-        weight_idxs = np.where(np.array([self.weight0, self.weight1, self.weight2, self.weight3]) >= weight)
-        return (np.array([self.index0, self.index1, self.index2, self.index3])[weight_idxs]).tolist()
+        weight_idxs = np.where(
+            np.array([self.weight0, self.weight1, self.weight2, self.weight3]) >= weight
+        )
+        return (
+            np.array([self.index0, self.index1, self.index2, self.index3])[weight_idxs]
+        ).tolist()
 
     def __str__(self):
-        return "<Bdef4 {0}:{1}, {2}:{3}, {4}:{5}, {6}:{7}>".format(self.index0, self.index1, self.index2, self.index3, self.weight0, self.weight1, self.weight2, self.weight3)
-            
+        return "<Bdef4 {0}:{1}, {2}:{3}, {4}:{5}, {6}:{7}>".format(
+            self.index0,
+            self.index1,
+            self.index2,
+            self.index3,
+            self.weight0,
+            self.weight1,
+            self.weight2,
+            self.weight3,
+        )
+
 
 class Sdef(Deform):
     def __init__(self, index0, index1, weight0, sdef_c, sdef_r0, sdef_r1):
@@ -72,13 +95,20 @@ class Sdef(Deform):
         self.sdef_c = sdef_c
         self.sdef_r0 = sdef_r0
         self.sdef_r1 = sdef_r1
-        
+
     def get_idx_list(self, weight=0):
         return [self.index0, self.index1]
 
     def __str__(self):
-        return "<Sdef {0}, {1}, {2}, {3} {4} {5}>".format(self.index0, self.index1, self.weight0, self.sdef_c, self.sdef_r0, self.sdef_r1)
-    
+        return "<Sdef {0}, {1}, {2}, {3} {4} {5}>".format(
+            self.index0,
+            self.index1,
+            self.weight0,
+            self.sdef_c,
+            self.sdef_r0,
+            self.sdef_r1,
+        )
+
 
 class Qdef(Deform):
     def __init__(self, index0, index1, weight0, sdef_c, sdef_r0, sdef_r1):
@@ -88,12 +118,19 @@ class Qdef(Deform):
         self.sdef_c = sdef_c
         self.sdef_r0 = sdef_r0
         self.sdef_r1 = sdef_r1
-        
+
     def get_idx_list(self, weight=0):
         return [self.index0, self.index1]
 
     def __str__(self):
-        return "<Sdef {0}, {1}, {2}, {3} {4} {5}>".format(self.index0, self.index1, self.weight0, self.sdef_c, self.sdef_r0, self.sdef_r1)
+        return "<Sdef {0}, {1}, {2}, {3} {4} {5}>".format(
+            self.index0,
+            self.index1,
+            self.weight0,
+            self.sdef_c,
+            self.sdef_r0,
+            self.sdef_r1,
+        )
 
 
 # 頂点構造 ----------------------------
@@ -107,10 +144,17 @@ class Vertex:
         self.extended_uvs = extended_uvs or []
         self.deform = deform
         self.edge_factor = edge_factor
-        
+
     def __str__(self):
         return "<Vertex index:{0}, position:{1}, normal:{2}, uv:{3}, extended_uv: {4}, deform:{5}, edge:{6}".format(
-               self.index, self.position, self.normal, self.uv, len(self.extended_uvs), self.deform, self.edge_factor)
+            self.index,
+            self.position,
+            self.normal,
+            self.uv,
+            len(self.extended_uvs),
+            self.deform,
+            self.edge_factor,
+        )
 
     def is_deform_index(self, target_idx):
         if type(self.deform) is Bdef1:
@@ -118,19 +162,30 @@ class Vertex:
         elif type(self.deform) is Bdef2:
             return self.deform.index0 == target_idx or self.deform.index1 == target_idx
         elif type(self.deform) is Bdef4:
-            return self.deform.index0 == target_idx or self.deform.index1 == target_idx \
-                or self.deform.index2 == target_idx or self.deform.index3 == target_idx
+            return (
+                self.deform.index0 == target_idx
+                or self.deform.index1 == target_idx
+                or self.deform.index2 == target_idx
+                or self.deform.index3 == target_idx
+            )
         elif type(self.deform) is Sdef:
             return self.deform.index0 == target_idx or self.deform.index1 == target_idx
         elif type(self.deform) is Qdef:
             return self.deform.index0 == target_idx or self.deform.index1 == target_idx
 
         return False
-    
+
     # 最もウェイトが乗っているボーンINDEX
     def get_max_deform_index(self, head_links_indexes):
-        if type(self.deform) is Bdef2 or type(self.deform) is Sdef or type(self.deform) is Qdef:
-            if self.deform.weight0 >= 0.5 and self.deform.index0 in head_links_indexes.keys():
+        if (
+            type(self.deform) is Bdef2
+            or type(self.deform) is Sdef
+            or type(self.deform) is Qdef
+        ):
+            if (
+                self.deform.weight0 >= 0.5
+                and self.deform.index0 in head_links_indexes.keys()
+            ):
                 return self.deform.index0
             else:
                 if self.deform.index1 in head_links_indexes.keys():
@@ -139,7 +194,7 @@ class Vertex:
                     return self.deform.index0
 
         elif type(self.deform) is Bdef4:
-            
+
             # 上半身系INDEXにウェイトが乗っているボーンのみ対象
             target_weights = []
             if self.deform.index0 in head_links_indexes.keys():
@@ -150,7 +205,7 @@ class Vertex:
                 target_weights.append(self.deform.weight2)
             if self.deform.index3 in head_links_indexes.keys():
                 target_weights.append(self.deform.weight3)
-                    
+
             max_weight = max(target_weights)
 
             if max_weight == self.deform.weight1:
@@ -167,8 +222,27 @@ class Vertex:
 
 # 材質構造-----------------------
 class Material:
-    def __init__(self, name, english_name, diffuse_color, alpha, specular_factor, specular_color, ambient_color, flag, edge_color, edge_size, texture_index,
-                 sphere_texture_index, sphere_mode, toon_sharing_flag, toon_texture_index=0, comment="", vertex_count=0):
+    def __init__(
+        self,
+        name,
+        english_name,
+        diffuse_color,
+        alpha,
+        specular_factor,
+        specular_color,
+        ambient_color,
+        flag,
+        edge_color,
+        edge_size,
+        texture_index,
+        sphere_texture_index,
+        sphere_mode,
+        toon_sharing_flag,
+        toon_texture_index=0,
+        comment="",
+        vertex_count=0,
+    ):
+        self.index = -1
         self.name = name
         self.english_name = english_name
         self.diffuse_color = diffuse_color
@@ -188,14 +262,29 @@ class Material:
         self.vertex_count = vertex_count
 
     def __str__(self):
-        return "<Material name:{0}, english_name:{1}, diffuse_color:{2}, alpha:{3}, specular_color:{4}, " \
-               "ambient_color: {5}, flag: {6}, edge_color: {7}, edge_size: {8}, texture_index: {9}, " \
-               "sphere_texture_index: {10}, sphere_mode: {11}, toon_sharing_flag: {12}, " \
-               "toon_texture_index: {13}, comment: {14}, vertex_count: {15}".format(
-                   self.name, self.english_name, self.diffuse_color, self.alpha, self.specular_color,
-                   self.ambient_color, self.flag, self.edge_color, self.edge_size, self.texture_index,
-                   self.sphere_texture_index, self.sphere_mode, self.toon_sharing_flag,
-                   self.toon_texture_index, self.comment, self.vertex_count)
+        return (
+            "<Material name:{0}, english_name:{1}, diffuse_color:{2}, alpha:{3}, specular_color:{4}, "
+            "ambient_color: {5}, flag: {6}, edge_color: {7}, edge_size: {8}, texture_index: {9}, "
+            "sphere_texture_index: {10}, sphere_mode: {11}, toon_sharing_flag: {12}, "
+            "toon_texture_index: {13}, comment: {14}, vertex_count: {15}".format(
+                self.name,
+                self.english_name,
+                self.diffuse_color,
+                self.alpha,
+                self.specular_color,
+                self.ambient_color,
+                self.flag,
+                self.edge_color,
+                self.edge_size,
+                self.texture_index,
+                self.sphere_texture_index,
+                self.sphere_mode,
+                self.toon_sharing_flag,
+                self.toon_texture_index,
+                self.comment,
+                self.vertex_count,
+            )
+        )
 
 
 class Ik:
@@ -206,8 +295,10 @@ class Ik:
         self.link = link or []
 
     def __str__(self):
-        return "<Ik target_index:{0}, loop:{1}, limit_radian:{2}, link:{3}".format(self.target_index, self.loop, self.limit_radian, self.link)
-        
+        return "<Ik target_index:{0}, loop:{1}, limit_radian:{2}, link:{3}".format(
+            self.target_index, self.loop, self.limit_radian, self.link
+        )
+
 
 class IkLink:
 
@@ -218,13 +309,31 @@ class IkLink:
         self.limit_max = limit_max or MVector3D()
 
     def __str__(self):
-        return "<IkLink bone_index:{0}, limit_angle:{1}, limit_min:{2}, limit_max:{3}".format(self.bone_index, self.limit_angle, self.limit_min, self.limit_max)
-        
-        
+        return "<IkLink bone_index:{0}, limit_angle:{1}, limit_min:{2}, limit_max:{3}".format(
+            self.bone_index, self.limit_angle, self.limit_min, self.limit_max
+        )
+
+
 # ボーン構造-----------------------
 class Bone:
-    def __init__(self, name, english_name, position, parent_index, layer, flag, tail_position=None, tail_index=-1, effect_index=-1, effect_factor=0.0, fixed_axis=None,
-                 local_x_vector=None, local_z_vector=None, external_key=-1, ik=None):
+    def __init__(
+        self,
+        name,
+        english_name,
+        position,
+        parent_index,
+        layer,
+        flag,
+        tail_position=None,
+        tail_index=-1,
+        effect_index=-1,
+        effect_factor=0.0,
+        fixed_axis=None,
+        local_x_vector=None,
+        local_z_vector=None,
+        external_key=-1,
+        ik=None,
+    ):
         self.name = name
         self.english_name = english_name
         self.position = position
@@ -250,7 +359,7 @@ class Bone:
         self.local_offset = MVector3D()
         # IKオフセット(グローバル)
         self.global_ik_offset = MVector3D()
-        
+
         # IK制限角度
         self.ik_limit_min = MVector3D()
         self.ik_limit_max = MVector3D()
@@ -277,7 +386,7 @@ class Bone:
         self.BONEFLAG_HAS_LOCAL_COORDINATE = 0x0800
         self.BONEFLAG_IS_AFTER_PHYSICS_DEFORM = 0x1000
         self.BONEFLAG_IS_EXTERNAL_PARENT_DEFORM = 0x2000
-    
+
     def copy(self):
         return cPickle.loads(cPickle.dumps(self, -1))
 
@@ -327,14 +436,29 @@ class Bone:
         return self.hasFlag(self.BONEFLAG_IS_EXTERNAL_PARENT_DEFORM)
 
     def __str__(self):
-        return "<Bone name:{0}, english_name:{1}, position:{2}, parent_index:{3}, layer:{4}, " \
-               "flag: {5}, tail_position: {6}, tail_index: {7}, effect_index: {8}, effect_factor: {9}, " \
-               "fixed_axis: {10}, local_x_vector: {11}, local_z_vector: {12}, " \
-               "external_key: {13}, ik: {14}, index: {15}".format(
-                   self.name, self.english_name, self.position, self.parent_index, self.layer,
-                   self.flag, self.tail_position, self.tail_index, self.effect_index, self.effect_factor,
-                   self.fixed_axis, self.local_x_vector, self.local_z_vector,
-                   self.external_key, self.ik, self.index)
+        return (
+            "<Bone name:{0}, english_name:{1}, position:{2}, parent_index:{3}, layer:{4}, "
+            "flag: {5}, tail_position: {6}, tail_index: {7}, effect_index: {8}, effect_factor: {9}, "
+            "fixed_axis: {10}, local_x_vector: {11}, local_z_vector: {12}, "
+            "external_key: {13}, ik: {14}, index: {15}".format(
+                self.name,
+                self.english_name,
+                self.position,
+                self.parent_index,
+                self.layer,
+                self.flag,
+                self.tail_position,
+                self.tail_index,
+                self.effect_index,
+                self.effect_factor,
+                self.fixed_axis,
+                self.local_x_vector,
+                self.local_z_vector,
+                self.external_key,
+                self.ik,
+                self.index,
+            )
+        )
 
 
 # モーフ構造-----------------------
@@ -364,7 +488,20 @@ class UVMorphData:
 
 
 class MaterialMorphData:
-    def __init__(self, material_index, calc_mode, diffuse, specular, specular_factor, ambient, edge_color, edge_size, texture_factor, sphere_texture_factor, toon_texture_factor):
+    def __init__(
+        self,
+        material_index,
+        calc_mode,
+        diffuse,
+        specular,
+        specular_factor,
+        ambient,
+        edge_color,
+        edge_size,
+        texture_factor,
+        sphere_texture_factor,
+        toon_texture_factor,
+    ):
         self.material_index = material_index
         self.calc_mode = calc_mode
         self.diffuse = diffuse
@@ -392,8 +529,9 @@ class Morph:
 
     def __str__(self):
         return "<Morph name:{0}, english_name:{1}, panel:{2}, morph_type:{3}, offsets(len): {4}".format(
-               self.name, self.english_name, self.panel, self.morph_type, len(self.offsets))
-    
+            self.name, self.english_name, self.panel, self.morph_type, len(self.offsets)
+        )
+
     # パネルの名称取得
     def get_panel_name(self):
         if self.panel == 1:
@@ -406,11 +544,13 @@ class Morph:
             return "他"
         else:
             return "？"
-            
+
 
 # 表示枠構造-----------------------
 class DisplaySlot:
-    def __init__(self, name, english_name, special_flag, display_type=0, references=None):
+    def __init__(
+        self, name, english_name, special_flag, display_type=0, references=None
+    ):
         self.name = name
         self.english_name = english_name
         self.special_flag = special_flag
@@ -418,13 +558,31 @@ class DisplaySlot:
         self.references = references or []
 
     def __str__(self):
-        return "<DisplaySlots name:{0}, english_name:{1}, special_flag:{2}, references(len):{3}".format(self.name, self.english_name, self.special_flag, len(self.references))
+        return "<DisplaySlots name:{0}, english_name:{1}, special_flag:{2}, references(len):{3}".format(
+            self.name, self.english_name, self.special_flag, len(self.references)
+        )
 
 
 # 剛体構造-----------------------
 class RigidBody:
-    def __init__(self, name, english_name, bone_index, collision_group, no_collision_group, shape_type, shape_size, shape_position, shape_rotation, mass, linear_damping, \
-                 angular_damping, restitution, friction, mode):
+    def __init__(
+        self,
+        name,
+        english_name,
+        bone_index,
+        collision_group,
+        no_collision_group,
+        shape_type,
+        shape_size,
+        shape_position,
+        shape_rotation,
+        mass,
+        linear_damping,
+        angular_damping,
+        restitution,
+        friction,
+        mode,
+    ):
         self.name = name
         self.english_name = english_name
         self.bone_index = bone_index
@@ -434,7 +592,9 @@ class RigidBody:
         self.shape_size = shape_size
         self.shape_position = shape_position
         self.shape_rotation = shape_rotation
-        self.param = RigidBodyParam(mass, linear_damping, angular_damping, restitution, friction)
+        self.param = RigidBodyParam(
+            mass, linear_damping, angular_damping, restitution, friction
+        )
         self.mode = mode
         self.index = -1
         self.bone_name = ""
@@ -446,34 +606,83 @@ class RigidBody:
         self.SHAPE_CAPSULE = 2
 
     def __str__(self):
-        return "<RigidBody name:{0}, english_name:{1}, bone_index:{2}, collision_group:{3}, no_collision_group:{4}, " \
-               "shape_type: {5}, shape_size: {6}, shape_position: {7}, shape_rotation: {8}, param: {9}, " \
-               "mode: {10}".format(self.name, self.english_name, self.bone_index, self.collision_group, self.no_collision_group,
-                                   self.shape_type, self.shape_size, self.shape_position.to_log(), self.shape_rotation.to_log(), self.param, self.mode)
-    
+        return (
+            "<RigidBody name:{0}, english_name:{1}, bone_index:{2}, collision_group:{3}, no_collision_group:{4}, "
+            "shape_type: {5}, shape_size: {6}, shape_position: {7}, shape_rotation: {8}, param: {9}, "
+            "mode: {10}".format(
+                self.name,
+                self.english_name,
+                self.bone_index,
+                self.collision_group,
+                self.no_collision_group,
+                self.shape_type,
+                self.shape_size,
+                self.shape_position.to_log(),
+                self.shape_rotation.to_log(),
+                self.param,
+                self.mode,
+            )
+        )
+
     # 剛体: ボーン追従
     def isModeStatic(self):
         return self.mode == 0
-    
+
     # 剛体: 物理演算
     def isModeDynamic(self):
         return self.mode == 1
-    
+
     # 剛体: 物理演算 + Bone位置合わせ
     def isModeMix(self):
         return self.mode == 2
-    
+
     def get_obb(self, fno, bone_pos, bone_matrix, is_aliginment, is_arm_left):
         # 剛体の形状別の衝突判定用
         if self.shape_type == self.SHAPE_SPHERE:
-            return Sphere(fno, self.shape_size, self.shape_position, self.shape_rotation, self.bone_name, bone_pos, bone_matrix, is_aliginment, \
-                          is_arm_left, self.is_arm_upper, self.is_small, False)
+            return Sphere(
+                fno,
+                self.shape_size,
+                self.shape_position,
+                self.shape_rotation,
+                self.bone_name,
+                bone_pos,
+                bone_matrix,
+                is_aliginment,
+                is_arm_left,
+                self.is_arm_upper,
+                self.is_small,
+                False,
+            )
         elif self.shape_type == self.SHAPE_BOX:
-            return Box(fno, self.shape_size, self.shape_position, self.shape_rotation, self.bone_name, bone_pos, bone_matrix, is_aliginment, \
-                       is_arm_left, self.is_arm_upper, self.is_small, True)
+            return Box(
+                fno,
+                self.shape_size,
+                self.shape_position,
+                self.shape_rotation,
+                self.bone_name,
+                bone_pos,
+                bone_matrix,
+                is_aliginment,
+                is_arm_left,
+                self.is_arm_upper,
+                self.is_small,
+                True,
+            )
         else:
-            return Capsule(fno, self.shape_size, self.shape_position, self.shape_rotation, self.bone_name, bone_pos, bone_matrix, is_aliginment, \
-                           is_arm_left, self.is_arm_upper, self.is_small, True)
+            return Capsule(
+                fno,
+                self.shape_size,
+                self.shape_position,
+                self.shape_rotation,
+                self.bone_name,
+                bone_pos,
+                bone_matrix,
+                is_aliginment,
+                is_arm_left,
+                self.is_arm_upper,
+                self.is_small,
+                True,
+            )
 
 
 class RigidBodyParam:
@@ -486,17 +695,40 @@ class RigidBodyParam:
 
     def __str__(self):
         return "<RigidBodyParam mass:{0}, linear_damping:{1}, angular_damping:{2}, restitution:{3}, friction: {4}".format(
-            self.mass, self.linear_damping, self.angular_damping, self.restitution, self.friction)
-            
+            self.mass,
+            self.linear_damping,
+            self.angular_damping,
+            self.restitution,
+            self.friction,
+        )
+
 
 # OBB（有向境界ボックス：Oriented Bounding Box）
 class OBB:
-    def __init__(self, fno, shape_size, shape_position, shape_rotation, bone_name, bone_pos, bone_matrix, is_aliginment, is_arm_left, is_arm_upper, is_small, is_init_rot):
+    def __init__(
+        self,
+        fno,
+        shape_size,
+        shape_position,
+        shape_rotation,
+        bone_name,
+        bone_pos,
+        bone_matrix,
+        is_aliginment,
+        is_arm_left,
+        is_arm_upper,
+        is_small,
+        is_init_rot,
+    ):
         self.fno = fno
         self.shape_size = shape_size
         self.shape_position = shape_position
         self.shape_rotation = shape_rotation
-        self.shape_rotation_qq = MQuaternion.fromEulerAngles(math.degrees(shape_rotation.x()), math.degrees(shape_rotation.y()), math.degrees(shape_rotation.z()))
+        self.shape_rotation_qq = MQuaternion.fromEulerAngles(
+            math.degrees(shape_rotation.x()),
+            math.degrees(shape_rotation.y()),
+            math.degrees(shape_rotation.z()),
+        )
         self.bone_pos = bone_pos
         self.h_sign = 1 if is_arm_left else -1
         self.v_sign = -1 if is_arm_upper and is_small else 1
@@ -519,13 +751,21 @@ class OBB:
         # 剛体自体の原点
         self.origin = self.matrix * MVector3D(0, 0, 0)
 
-        self.origin_xyz = {"x": self.origin.x(), "y": self.origin.y(), "z": self.origin.z()}
-        self.shape_size_xyz = {"x": self.shape_size.x(), "y": self.shape_size.y(), "z": self.shape_size.z()}
+        self.origin_xyz = {
+            "x": self.origin.x(),
+            "y": self.origin.y(),
+            "z": self.origin.z(),
+        }
+        self.shape_size_xyz = {
+            "x": self.shape_size.x(),
+            "y": self.shape_size.y(),
+            "z": self.shape_size.z(),
+        }
 
     # OBBとの衝突判定
     def get_collistion(self, point, root_global_pos, max_length):
-        pass
-    
+        raise NotImplementedError()
+
 
 # 球剛体
 class Sphere(OBB):
@@ -551,7 +791,9 @@ class Sphere(OBB):
 
             x = self.shape_size.x() * 1.02 * self.h_sign
             y = self.shape_size.x() * 1.02 * self.v_sign
-            z = self.shape_size.x() * 1.02 * -1  # (np.sign(local_point.z()) if self.is_arm_upper else -1)
+            z = (
+                self.shape_size.x() * 1.02 * -1
+            )  # (np.sign(local_point.z()) if self.is_arm_upper else -1)
 
             # 各軸方向の離れ具合
             x_theta = math.acos(max(-1, min(1, local_point.x() / x)))
@@ -596,12 +838,35 @@ class Sphere(OBB):
                 new_z_local = self.matrix.inverted() * rep_z_collision_vec
                 z_distance = new_z_local.distanceToPoint(local_point)
 
-            logger.debug("f: %s, y: %s, yt: %s, sy: %s, xt: %s, sx: %s, zt: %s, sz: %s, xd: %s, zd: %s, l: %s, d: %s, xl: %s, zl: %s, xr: %s, zr: %s", \
-                         self.fno, local_point.y() / y, y_theta, sin_y_theta, x_theta, sin_x_theta, z_theta, sin_z_theta, x_distance, z_distance, local_point.to_log(), d, \
-                         new_x_local.to_log(), new_z_local.to_log(), rep_x_collision_vec, rep_z_collision_vec)
+            logger.debug(
+                "f: %s, y: %s, yt: %s, sy: %s, xt: %s, sx: %s, zt: %s, sz: %s, xd: %s, zd: %s, l: %s, d: %s, xl: %s, zl: %s, xr: %s, zr: %s",
+                self.fno,
+                local_point.y() / y,
+                y_theta,
+                sin_y_theta,
+                x_theta,
+                sin_x_theta,
+                z_theta,
+                sin_z_theta,
+                x_distance,
+                z_distance,
+                local_point.to_log(),
+                d,
+                new_x_local.to_log(),
+                new_z_local.to_log(),
+                rep_x_collision_vec,
+                rep_z_collision_vec,
+            )
 
         # 3方向の間に点が含まれていたら衝突あり
-        return (collision, near_collision, x_distance, z_distance, rep_x_collision_vec, rep_z_collision_vec)
+        return (
+            collision,
+            near_collision,
+            x_distance,
+            z_distance,
+            rep_x_collision_vec,
+            rep_z_collision_vec,
+        )
 
 
 # 箱剛体
@@ -616,23 +881,31 @@ class Box(OBB):
 
         # ---------
         # 下辺
-        b1 = self.matrix * MVector3D(-self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z())
-        b2 = self.matrix * MVector3D(self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z())
-        b4 = self.matrix * MVector3D(-self.shape_size.x(), -self.shape_size.y(), self.shape_size.z())
+        b1 = self.matrix * MVector3D(
+            -self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z()
+        )
+        b2 = self.matrix * MVector3D(
+            self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z()
+        )
+        b4 = self.matrix * MVector3D(
+            -self.shape_size.x(), -self.shape_size.y(), self.shape_size.z()
+        )
         # 上辺
-        t1 = self.matrix * MVector3D(-self.shape_size.x(), self.shape_size.y(), -self.shape_size.z())
+        t1 = self.matrix * MVector3D(
+            -self.shape_size.x(), self.shape_size.y(), -self.shape_size.z()
+        )
 
-        d1 = (t1 - b1)
+        d1 = t1 - b1
         size1 = d1.length()
         dir1 = d1 / size1
         dir1.effective()
 
-        d2 = (b2 - b1)
+        d2 = b2 - b1
         size2 = d2.length()
         dir2 = d2 / size2
         dir2.effective()
 
-        d3 = (b4 - b1)
+        d3 = b4 - b1
         size3 = d3.length()
         dir3 = d3 / size3
         dir3.effective()
@@ -645,27 +918,45 @@ class Box(OBB):
         res3 = abs(MVector3D.dotProduct(dir_vec, dir3)) * 2 < size3
 
         # 3方向の間に点が含まれていたら衝突あり
-        collision = (res1 and res2 and res3 and True)
+        collision = res1 and res2 and res3 and True
 
         # ---------
         # 下辺
-        b1 = self.matrix * MVector3D(-self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z()) * 1.02
-        b2 = self.matrix * MVector3D(self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z()) * 1.02
-        b4 = self.matrix * MVector3D(-self.shape_size.x(), -self.shape_size.y(), self.shape_size.z()) * 1.02
+        b1 = (
+            self.matrix
+            * MVector3D(
+                -self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z()
+            )
+            * 1.02
+        )
+        b2 = (
+            self.matrix
+            * MVector3D(self.shape_size.x(), -self.shape_size.y(), -self.shape_size.z())
+            * 1.02
+        )
+        b4 = (
+            self.matrix
+            * MVector3D(-self.shape_size.x(), -self.shape_size.y(), self.shape_size.z())
+            * 1.02
+        )
         # 上辺
-        t1 = self.matrix * MVector3D(-self.shape_size.x(), self.shape_size.y(), -self.shape_size.z()) * 1.02
+        t1 = (
+            self.matrix
+            * MVector3D(-self.shape_size.x(), self.shape_size.y(), -self.shape_size.z())
+            * 1.02
+        )
 
-        d1 = (t1 - b1)
+        d1 = t1 - b1
         size1 = d1.length()
         dir1 = d1 / size1
         dir1.effective()
 
-        d2 = (b2 - b1)
+        d2 = b2 - b1
         size2 = d2.length()
         dir2 = d2 / size2
         dir2.effective()
 
-        d3 = (b4 - b1)
+        d3 = b4 - b1
         size3 = d3.length()
         dir3 = d3 / size3
         dir3.effective()
@@ -678,7 +969,7 @@ class Box(OBB):
         res3 = abs(MVector3D.dotProduct(dir_vec, dir3)) * 2 < size3
 
         # 3方向の間に点が含まれていたら衝突あり
-        near_collision = (res1 and res2 and res3 and True)
+        near_collision = res1 and res2 and res3 and True
 
         x_distance = 0
         z_distance = 0
@@ -689,7 +980,7 @@ class Box(OBB):
             # 左右の腕のどちらと衝突しているかにより、元に戻す方向が逆になる
             x = self.shape_size.x() * 1.02 * self.h_sign
             z = -self.shape_size.z() * 1.02
-            
+
             # X方向にOBBの境界に持って行った場合の位置
             x_base = self.rotated_matrix * MVector3D(x, 0, 0)
             # Z方向に同上
@@ -740,10 +1031,26 @@ class Box(OBB):
                 new_z_local = self.matrix.inverted() * rep_z_collision_vec
                 z_distance = new_z_local.distanceToPoint(local_point)
 
-            logger.debug("f: %s, xd: %s, zd: %s, l: %s, xl: %s, zl: %s, xr: %s, zr: %s", \
-                         self.fno, x_distance, z_distance, local_point.to_log(), new_x_local.to_log(), new_z_local.to_log(), rep_x_collision_vec, rep_z_collision_vec)
+            logger.debug(
+                "f: %s, xd: %s, zd: %s, l: %s, xl: %s, zl: %s, xr: %s, zr: %s",
+                self.fno,
+                x_distance,
+                z_distance,
+                local_point.to_log(),
+                new_x_local.to_log(),
+                new_z_local.to_log(),
+                rep_x_collision_vec,
+                rep_z_collision_vec,
+            )
 
-        return (collision, near_collision, x_distance, z_distance, rep_x_collision_vec, rep_z_collision_vec)
+        return (
+            collision,
+            near_collision,
+            x_distance,
+            z_distance,
+            rep_x_collision_vec,
+            rep_z_collision_vec,
+        )
 
 
 # カプセル剛体
@@ -761,7 +1068,7 @@ class Capsule(OBB):
         t1 = self.rotated_matrix * MVector3D(0, self.shape_size.y(), 0)
 
         # 垂線までの長さ
-        v = (t1 - b1)
+        v = t1 - b1
         lensq = v.lengthSquared()
         t = 0 if lensq == 0 else MVector3D.dotProduct(v, point - b1) / lensq
         # 垂線を下ろした座標
@@ -819,7 +1126,7 @@ class Capsule(OBB):
             # 距離分だけ離した場合の球
             x = d * 1.02 * self.h_sign
             y = d * 1.02 * self.v_sign
-            z = d * 1.02 * -1    # (np.sign(local_point.z()) if self.is_arm_upper else -1)
+            z = d * 1.02 * -1  # (np.sign(local_point.z()) if self.is_arm_upper else -1)
 
             # 各軸方向の離れ具合
             x_theta = math.acos(max(-1, min(1, local_point.x() / x)))
@@ -864,19 +1171,56 @@ class Capsule(OBB):
                 new_z_local = h_matrix.inverted() * rep_z_collision_vec
                 z_distance = new_z_local.distanceToPoint(local_point)
 
-            logger.debug("f: %s, localy: %s, y_theta: %s, sin_y_theta: %s, x_theta: %s, sin_x_theta: %s, z_theta: %s, sin_z_theta: %s, x_distance: %s, z_distance: %s, "\
-                         "local_point: [%s], d: %s, new_x_local: %s, new_z_local: %s, rep_x_collision_vec: %s, rep_z_collision_vec: %s", \
-                         self.fno, local_point.y() / y, y_theta, sin_y_theta, x_theta, sin_x_theta, z_theta, sin_z_theta, x_distance, z_distance, local_point.to_log(), d, \
-                         new_x_local.to_log(), new_z_local.to_log(), rep_x_collision_vec, rep_z_collision_vec)
+            logger.debug(
+                "f: %s, localy: %s, y_theta: %s, sin_y_theta: %s, x_theta: %s, sin_x_theta: %s, z_theta: %s, sin_z_theta: %s, x_distance: %s, z_distance: %s, "
+                "local_point: [%s], d: %s, new_x_local: %s, new_z_local: %s, rep_x_collision_vec: %s, rep_z_collision_vec: %s",
+                self.fno,
+                local_point.y() / y,
+                y_theta,
+                sin_y_theta,
+                x_theta,
+                sin_x_theta,
+                z_theta,
+                sin_z_theta,
+                x_distance,
+                z_distance,
+                local_point.to_log(),
+                d,
+                new_x_local.to_log(),
+                new_z_local.to_log(),
+                rep_x_collision_vec,
+                rep_z_collision_vec,
+            )
 
         # 3方向の間に点が含まれていたら衝突あり
-        return (collision, near_collision, x_distance, z_distance, rep_x_collision_vec, rep_z_collision_vec)
+        return (
+            collision,
+            near_collision,
+            x_distance,
+            z_distance,
+            rep_x_collision_vec,
+            rep_z_collision_vec,
+        )
 
 
 # ジョイント構造-----------------------
 class Joint:
-    def __init__(self, name, english_name, joint_type, rigidbody_index_a, rigidbody_index_b, position, rotation, \
-                 translation_limit_min, translation_limit_max, rotation_limit_min, rotation_limit_max, spring_constant_translation, spring_constant_rotation):
+    def __init__(
+        self,
+        name,
+        english_name,
+        joint_type,
+        rigidbody_index_a,
+        rigidbody_index_b,
+        position,
+        rotation,
+        translation_limit_min,
+        translation_limit_max,
+        rotation_limit_min,
+        rotation_limit_max,
+        spring_constant_translation,
+        spring_constant_rotation,
+    ):
         self.name = name
         self.english_name = english_name
         self.joint_type = joint_type
@@ -892,21 +1236,32 @@ class Joint:
         self.spring_constant_rotation = spring_constant_rotation
 
     def __str__(self):
-        return "<Joint name:{0}, english_name:{1}, joint_type:{2}, rigidbody_index_a:{3}, rigidbody_index_b:{4}, " \
-               "position: {5}, rotation: {6}, translation_limit_min: {7}, translation_limit_max: {8}, " \
-               "spring_constant_translation: {9}, spring_constant_rotation: {10}".format(
-                   self.name, self.english_name, self.joint_type, self.rigidbody_index_a, self.rigidbody_index_b,
-                   self.position, self.rotation, self.translation_limit_min, self.translation_limit_max,
-                   self.spring_constant_translation, self.spring_constant_rotation)
+        return (
+            "<Joint name:{0}, english_name:{1}, joint_type:{2}, rigidbody_index_a:{3}, rigidbody_index_b:{4}, "
+            "position: {5}, rotation: {6}, translation_limit_min: {7}, translation_limit_max: {8}, "
+            "spring_constant_translation: {9}, spring_constant_rotation: {10}".format(
+                self.name,
+                self.english_name,
+                self.joint_type,
+                self.rigidbody_index_a,
+                self.rigidbody_index_b,
+                self.position,
+                self.rotation,
+                self.translation_limit_min,
+                self.translation_limit_max,
+                self.spring_constant_translation,
+                self.spring_constant_rotation,
+            )
+        )
 
 
 class PmxModel:
     def __init__(self):
-        self.path = ''
-        self.name = ''
-        self.english_name = ''
-        self.comment = ''
-        self.english_comment = ''
+        self.path = ""
+        self.name = ""
+        self.english_name = ""
+        self.comment = ""
+        self.english_comment = ""
         # 頂点データ（キー：ボーンINDEX、値：頂点データリスト）
         self.vertices = {}
         # 面データ
@@ -923,6 +1278,8 @@ class PmxModel:
         self.bone_indexes = {}
         # モーフデータ(順番保持)
         self.morphs = {}
+        # モーフINDEXデータ
+        self.morph_indexes = {}
         # 表示枠データ
         self.display_slots = {}
         # 剛体データ
@@ -932,7 +1289,7 @@ class PmxModel:
         # ジョイントデータ
         self.joints = {}
         # ハッシュ値
-        self.digest = None
+        self.digest = ""
         # 上半身がサイジング可能（標準・準標準ボーン構造）か
         self.can_upper_sizing = True
         # 腕がサイジング可能（標準・準標準ボーン構造）か
@@ -953,12 +1310,12 @@ class PmxModel:
         self.elbow_entity_vertex = {}
         # 左右ひじ手首中間頂点
         self.elbow_middle_entity_vertex = {}
-    
+
     # ローカルX軸の取得
     def get_local_x_axis(self, bone_name: str):
         if bone_name not in self.bones:
             return MVector3D()
-        
+
         bone = self.bones[bone_name]
         to_pos = MVector3D()
 
@@ -967,44 +1324,57 @@ class PmxModel:
             fixed_x_axis = bone.fixed_axis.normalized()
         else:
             fixed_x_axis = MVector3D()
-        
+
         from_pos = self.bones[bone.name].position
         if bone.tail_position != MVector3D():
             # 表示先が相対パスの場合、保持
             to_pos = from_pos + bone.tail_position
-        elif bone.tail_index >= 0 and bone.tail_index in self.bone_indexes and self.bones[self.bone_indexes[bone.tail_index]].position != bone.position:
+        elif (
+            bone.tail_index >= 0
+            and bone.tail_index in self.bone_indexes
+            and self.bones[self.bone_indexes[bone.tail_index]].position != bone.position
+        ):
             # 表示先が指定されているの場合、保持
             to_pos = self.bones[self.bone_indexes[bone.tail_index]].position
         else:
             # 表示先がない場合、とりあえず子ボーンのどれかを選択
             for b in self.bones.values():
-                if b.parent_index == bone.index and self.bones[self.bone_indexes[b.index]].position != bone.position:
+                if (
+                    b.parent_index == bone.index
+                    and self.bones[self.bone_indexes[b.index]].position != bone.position
+                ):
                     to_pos = self.bones[self.bone_indexes[b.index]].position
                     break
-        
+
         # 軸制限の指定が無い場合、子の方向
         x_axis = (to_pos - from_pos).normalized()
 
-        if fixed_x_axis != MVector3D() and np.sign(fixed_x_axis.x()) != np.sign(x_axis.x()):
+        if fixed_x_axis != MVector3D() and np.sign(fixed_x_axis.x()) != np.sign(
+            x_axis.x()
+        ):
             # 軸制限の軸方向と計算上の軸方向が違う場合、逆ベクトル
             x_axis = -fixed_x_axis
 
         return x_axis
-    
+
     # 腕のスタンスの違い
     def calc_arm_stance(self, from_bone_name: str, to_bone_name=None):
-        default_pos = MVector3D(1, 0, 0) if "左" in from_bone_name else MVector3D(-1, 0, 0)
-        return self.calc_stance(from_bone_name, to_bone_name, default_pos)
+        default_pos = (
+            MVector3D(1, 0, 0) if "左" in from_bone_name else MVector3D(-1, 0, 0)
+        )
+        return self.calc_stance(from_bone_name, to_bone_name or "", default_pos)
 
     # 指定ボーン間のスタンス
-    def calc_stance(self, from_bone_name: str, to_bone_name: str, default_pos: MVector3D):
+    def calc_stance(
+        self, from_bone_name: str, to_bone_name: str, default_pos: MVector3D
+    ):
         from_pos = MVector3D()
         to_pos = MVector3D()
 
         if from_bone_name in self.bones:
             fv = self.bones[from_bone_name]
             from_pos = fv.position
-            
+
             if to_bone_name in self.bones:
                 # TOが指定されている場合、ボーン位置を保持
                 to_pos = self.bones[to_bone_name].position
@@ -1031,7 +1401,11 @@ class PmxModel:
             logger.test("diff_pos: %s", diff_pos)
 
             from_qq = MQuaternion.rotationTo(default_pos, diff_pos)
-            logger.test("[z] from_bone_name: %s, from_qq: %s", from_bone_name, from_qq.toEulerAngles())
+            logger.test(
+                "[z] from_bone_name: %s, from_qq: %s",
+                from_bone_name,
+                from_qq.toEulerAngles(),
+            )
 
         return diff_pos, from_qq
 
@@ -1039,10 +1413,10 @@ class PmxModel:
     def get_effective_value(cls, v):
         if math.isnan(v):
             return 0
-        
+
         if math.isinf(v):
             return 0
-        
+
         return v
 
     @classmethod
@@ -1050,4 +1424,3 @@ class PmxModel:
         vec3.setX(cls.get_effective_value(vec3.x()))
         vec3.setY(cls.get_effective_value(vec3.y()))
         vec3.setZ(cls.get_effective_value(vec3.z()))
-

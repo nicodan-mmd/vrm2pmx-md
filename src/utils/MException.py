@@ -18,4 +18,3 @@ class MKilledException(SizingException):
     def __init__(self):
         super().__init__("Processing was canceled")
         self.message = None
-

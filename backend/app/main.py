@@ -7,7 +7,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,7 +73,7 @@ def health() -> dict[str, str]:
 
 @app.post("/api/convert")
 async def convert(
-    vrm_file: UploadFile = File(...),
+    vrm_file: Annotated[UploadFile, File(...)],
     bone_config: str | None = Form(default=None),
     physics_config: str | None = Form(default=None),
 ):

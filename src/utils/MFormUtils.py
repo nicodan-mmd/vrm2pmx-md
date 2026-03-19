@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-from utils.MLogger import MLogger # noqa
+from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__)
 

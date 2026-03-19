@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 #
 
-import os
-import wx
-import sys
 import argparse
-import numpy as np
 import multiprocessing
+import os
+import sys
+
+import numpy as np
+import wx
 
 from form.MainFrame import MainFrame
-from utils.MLogger import MLogger
 from utils import MFileUtils
+from utils.MLogger import MLogger
 
 VERSION_NAME = "0.1.00_β03"
 
@@ -20,12 +21,12 @@ np.set_printoptions(suppress=True, precision=6, threshold=30, linewidth=200)
 # Windowsマルチプロセス対策
 multiprocessing.freeze_support()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     mydir_path = MFileUtils.get_mydir_path(sys.argv[0])
 
     if len(sys.argv) > 3 and "--motion_path" in sys.argv:
         if os.name == "nt":
-            import winsound     # Windows版のみインポート
+            import winsound  # Windows版のみインポート
 
         # 引数指定がある場合、コマンドライン実行
         # try:
@@ -43,7 +44,8 @@ if __name__ == '__main__':
             # Windows
             try:
                 winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
-            except Exception:
+            except Exception:  # nosec B110
+                # 終了音の再生失敗は処理結果に影響しないため無視する
                 pass
     else:
         parser = argparse.ArgumentParser()
@@ -51,7 +53,7 @@ if __name__ == '__main__':
         parser.add_argument("--out_log", default=0, type=int)
         parser.add_argument("--is_saving", default=1, type=int)
         args = parser.parse_args()
-        
+
         # ロギングレベル
         is_out_log = True if args.out_log == 1 else False
         # 省エネモード
@@ -83,8 +85,12 @@ if __name__ == '__main__':
 
         # 引数指定がない場合、通常起動
         app = wx.App(False)
-        icon = wx.Icon(MFileUtils.resource_path('src/Vrm2PmxConverter.ico'), wx.BITMAP_TYPE_ICO)
-        frame = MainFrame(None, mydir_path, now_version_name, args.verbose, is_saving, is_out_log)
+        icon = wx.Icon(
+            MFileUtils.resource_path("src/Vrm2PmxConverter.ico"), wx.BITMAP_TYPE_ICO
+        )
+        frame = MainFrame(
+            None, str(mydir_path), now_version_name, args.verbose, is_saving, is_out_log
+        )
         frame.SetIcon(icon)
         frame.Show(True)
         app.MainLoop()
