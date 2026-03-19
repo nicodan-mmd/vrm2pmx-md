@@ -7,6 +7,7 @@
     "**/__pycache__",
     "archive",
     "src/form/parts/SizingFileSet.py",
-    "src/form/parts/TargetBoneDialog.py"
+    "src/form/parts/TargetBoneDialog.py",
+    "src/module/MMath.py"
   ]
 }

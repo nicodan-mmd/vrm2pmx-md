@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pyright: reportGeneralTypeIssues=false, reportAttributeAccessIssue=false, reportOperatorIssue=false, reportCallIssue=false, reportArgumentType=false
 # 
 # cython: boundscheck=False
 # cython: wraparound=False
@@ -93,10 +94,10 @@ class MVector2D:
         return np.all(np.less_equal(self.data(), other.data()))
 
     def __eq__(self, other):
-        return np.all(np.equal(self.data(), other.data()))
+        return bool(np.all(np.equal(self.data(), other.data())))
 
     def __ne__(self, other):
-        return np.any(np.not_equal(self.data(), other.data()))
+        return bool(np.any(np.not_equal(self.data(), other.data())))
 
     def __gt__(self, other):
         return np.all(np.greater(self.data(), other.data()))
@@ -712,12 +713,6 @@ class MVector4D:
         d1 = self.data()
         d2 = other.data()
         return d1[0] != d2[0] or d1[1] != d2[1] or d1[2] != d2[2] or d1[3] != d2[3]
-
-    def __eq__(self, other):
-        return self.data().equal(other.data())
-
-    def __ne__(self, other):
-        return self.data().not_equal(other.data())
 
     def __gt__(self, other):
         return self.data().greater(other.data())
@@ -1580,10 +1575,10 @@ class MMatrix4x4:
         return np.all(np.less_equal(self.data(), other.data()))
 
     def __eq__(self, other):
-        return np.all(np.equal(self.data(), other.data()))
+        return bool(np.all(np.equal(self.data(), other.data())))
 
     def __ne__(self, other):
-        return np.any(np.not_equal(self.data(), other.data()))
+        return bool(np.any(np.not_equal(self.data(), other.data())))
 
     def __gt__(self, other):
         return np.all(np.greater(self.data(), other.data()))

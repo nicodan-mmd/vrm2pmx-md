@@ -17,8 +17,9 @@ logger = MLogger(__name__)
 
 # リソースファイルのパス
 def resource_path(relative):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative)
+    meipass = getattr(sys, '_MEIPASS', None)
+    if meipass:
+        return os.path.join(meipass, relative)
     return os.path.join(relative)
 
 
