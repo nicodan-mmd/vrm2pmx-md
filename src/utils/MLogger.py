@@ -5,6 +5,7 @@ import logging
 import traceback
 import threading
 import sys
+from typing import Any
 
 import cython
 
@@ -35,6 +36,8 @@ class MLogger():
     
     logger = None
 
+    monitor: Any = sys.stdout
+
     def __init__(self, module_name, level=logging.INFO):
         self.module_name = module_name
         self.default_level = level
@@ -53,12 +56,12 @@ class MLogger():
     def copy(self, options):
         self.is_file = options.is_file
         self.outout_datetime = options.outout_datetime
-        self.monitor = options.monitor
+        self.monitor = getattr(options, "monitor", sys.stdout) or sys.stdout
         self.child = True
 
         for f in self.logger.handlers:
             if isinstance(f, logging.StreamHandler):
-                f.setStream(options.monitor)
+                f.setStream(self.monitor)
 
     def time(self, msg, *args, **kwargs):
         if not kwargs:
@@ -141,7 +144,8 @@ class MLogger():
     # 実際に出力する実態
     def print_logger(self, msg, *args, **kwargs):
 
-        if "is_killed" in threading.current_thread()._kwargs and threading.current_thread()._kwargs["is_killed"]:
+        current_kwargs = getattr(threading.current_thread(), "_kwargs", {}) or {}
+        if current_kwargs.get("is_killed"):
             # 停止命令が出ている場合、エラー
             raise MKilledException()
 
@@ -266,6 +270,8 @@ class MLogger():
 
 @cython.ccall
 def print_message(msg: str, target_level: int):
-    sys.stdout.write(msg + "\n", (target_level < MLogger.INFO))
+    sys.stdout.write(msg + "\n")
+    if target_level < MLogger.INFO:
+        sys.stdout.flush()
 
 

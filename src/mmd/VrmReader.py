@@ -966,16 +966,30 @@ class VrmReader(PmxReader):
             pmx.bones[toe_ik_bone.name] = toe_ik_bone
     
     def get_deform_index(self, vertex_idx: int, pmx: PmxModel, vertex_pos: MVector3D, joint: list, skin_joints: list, node_pairs: dict, node_weight: list):
-        # まずは0じゃないデータ（何かしら有効なボーンINDEXがあるリスト）
-        valiable_joints = np.where(joint.data() > 0)[0].tolist()
+        # glTF の JOINTS_0 は 0 番ジョイントも有効値なので、重みがある要素を採用する
+        joint_data = joint.data().astype(np.int64)
+        weight_data = node_weight.data()
+        valiable_joints = np.where(weight_data > 0)[0].tolist()
         # ウェイト
-        org_weights = node_weight.data()[np.where(joint.data() > 0)]
-        # ジョイント添え字からジョイントINDEXを取得(floatになってるのでint)
-        org_joint_idxs = joint.data()[valiable_joints].astype(np.int64)
+        org_weights = weight_data[valiable_joints]
+        # ジョイント添え字からジョイントINDEXを取得
+        org_joint_idxs = joint_data[valiable_joints]
         # 現行ボーンINDEXに置き換えたINDEX
         dest_joint_list = []
         for jidx in org_joint_idxs.tolist():
-            dest_joint_list.append(pmx.bones[node_pairs[skin_joints[jidx]]].index)
+            if jidx < 0 or jidx >= len(skin_joints):
+                continue
+            skin_joint_idx = skin_joints[jidx]
+            if skin_joint_idx not in node_pairs:
+                continue
+            bone_name = node_pairs[skin_joint_idx]
+            if bone_name not in pmx.bones:
+                continue
+            dest_joint_list.append(pmx.bones[bone_name].index)
+
+        if len(dest_joint_list) == 0:
+            return [0], [1]
+
         dest_joints = np.array(dest_joint_list)
 
         # 尻は下半身に統合

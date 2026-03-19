@@ -1,4 +1,11 @@
 .idea/
+.venv/
+frontend/node_modules/
+frontend/dist/
+frontend/tmp/
+frontend/tsconfig.tsbuildinfo
+backend/__pycache__/
+tmp/
 *.pyc
 *~
 *.so

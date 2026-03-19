@@ -1,0 +1,10 @@
+{
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "**/.venv",
+    "**/__pycache__",
+    "archive"
+  ]
+}
