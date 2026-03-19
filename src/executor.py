@@ -84,7 +84,7 @@ if __name__ == '__main__':
         # 引数指定がない場合、通常起動
         app = wx.App(False)
         icon = wx.Icon(MFileUtils.resource_path('src/Vrm2PmxConverter.ico'), wx.BITMAP_TYPE_ICO)
-        frame = MainFrame(None, mydir_path, now_version_name, args.verbose, is_saving, is_out_log)
+        frame = MainFrame(None, str(mydir_path), now_version_name, args.verbose, is_saving, is_out_log)
         frame.SetIcon(icon)
         frame.Show(True)
         app.MainLoop()

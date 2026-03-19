@@ -266,6 +266,9 @@ class BaseFilePickerCtrl():
             self.data = None
             return False
 
+        display_set_no = ""
+        file_path = self.file_ctrl.GetPath()
+
         try:
             if self.set_no == 0:
                 # CSVとかのファイルは番号出力なし
@@ -305,13 +308,14 @@ class BaseFilePickerCtrl():
             new_data_digest = reader.hexdigest()
 
             # 新規データがあり、かつハッシュが違う場合、置き換え
-            if new_data_digest and ((self.data and self.data.digest != new_data_digest) or not self.data):
+            current_digest = getattr(self.data, "digest", None)
+            if new_data_digest and ((self.data and current_digest != new_data_digest) or not self.data):
                 # ハッシュが取得できてて、過去データがないかハッシュが違う場合、読み込み
                 self.data = reader.read_data()
                     
                 logger.info("%s%s 読み込み成功: %s", display_set_no, self.title, os.path.basename(file_path))
                 return True
-            elif new_data_digest and self.data and self.data.digest == new_data_digest:
+            elif new_data_digest and self.data and current_digest == new_data_digest:
                 # ハッシュが同じ場合、そのままスルー
                 logger.info("%s%s 読み込み成功: %s", display_set_no, self.title, os.path.basename(file_path))
                 return True
@@ -341,7 +345,7 @@ class FileModelCtrl():
 
         width = 300 if self.set_no == 1 else 220
 
-        self.txt_ctrl = wx.TextCtrl(parent, wx.ID_ANY, "（未設定）", wx.DefaultPosition, (width, -1), wx.TE_READONLY | wx.BORDER_NONE | wx.WANTS_CHARS)
+        self.txt_ctrl = wx.TextCtrl(parent, wx.ID_ANY, "（未設定）", wx.DefaultPosition, wx.Size(width, -1), wx.TE_READONLY | wx.BORDER_NONE | wx.WANTS_CHARS)
         self.txt_ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DLIGHT))
         self.txt_ctrl.SetToolTip(u"{0}に記録されているモデル名です。\n文字列は選択＆コピー可能です。".format(title))
 
@@ -397,9 +401,9 @@ class MFileDropTarget(wx.FileDropTarget):
 
         wx.FileDropTarget.__init__(self)
     
-    def OnDropFiles(self, x, y, files):
+    def OnDropFiles(self, x, y, filenames):
         # ファイルパスをテキストフィールドに表示
-        file_name, input_ext = os.path.splitext(os.path.basename(files[0]))
+        file_name, input_ext = os.path.splitext(os.path.basename(filenames[0]))
 
         logger.test("file_name: %s, input_ext: %s", file_name, input_ext)
         logger.test("input_ext[1:].lower(): %s", input_ext[1:].lower())
@@ -410,7 +414,7 @@ class MFileDropTarget(wx.FileDropTarget):
             # 入力拡張子が許容拡張子の場合、設定
 
             # 拡張子を許容してたらOK
-            self.parent.file_ctrl.SetPath(files[0])
+            self.parent.file_ctrl.SetPath(filenames[0])
 
             # ファイル変更処理
             self.parent.on_change_file(wx.FileDirPickerEvent())
@@ -418,16 +422,16 @@ class MFileDropTarget(wx.FileDropTarget):
             return True
         
         # アスタリスクOKの場合、フォルダの投入を許可する
-        if os.path.isdir(files[0]) and self.is_aster:
+        if os.path.isdir(filenames[0]) and self.is_aster:
             # フォルダを投入された場合、フォルダ内にvmdもしくはvpdがあれば、受け付ける
-            child_file_name_exts = [os.path.splitext(filename) for filename in os.listdir(files[0]) if os.path.isfile(os.path.join(files[0], filename))]
+            child_file_name_exts = [os.path.splitext(filename) for filename in os.listdir(filenames[0]) if os.path.isfile(os.path.join(filenames[0], filename))]
 
             for ft in self.parent.file_type:
                 # 親の許容ファイルパス
                 for (child_file_name, child_file_ext) in child_file_name_exts:
                     if child_file_ext[1:].lower() == ft:
                         # 子のファイル拡張子が許容拡張子である場合、アスタリスクを入れて許可する
-                        astr_path = "{0}\\*.{1}".format(files[0], ft)
+                        astr_path = "{0}\\*.{1}".format(filenames[0], ft)
                         self.parent.file_ctrl.SetPath(astr_path)
 
                         # ファイル変更処理

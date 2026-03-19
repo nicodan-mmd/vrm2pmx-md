@@ -5,6 +5,7 @@ import wx.lib.newevent
 import csv
 import copy
 import traceback
+from typing import Any
 
 from form.panel.BasePanel import BasePanel
 from form.panel.BonePanel import RIGIDBODY_PAIRS
@@ -16,7 +17,7 @@ TIMER_ID = wx.NewId()
 
 class PhysicsPanel(BasePanel):
         
-    def __init__(self, frame: wx.Frame, export: wx.Notebook, tab_idx: int):
+    def __init__(self, frame: Any, export: wx.Notebook, tab_idx: int):
         super().__init__(frame, export, tab_idx)
         self.convert_export_worker = None
 
@@ -178,7 +179,7 @@ class PhysicsPanel(BasePanel):
 
 class PhysicsSet():
 
-    def __init__(self, frame: wx.Frame, panel: wx.Panel, window: wx.Window, vrm_bone_name: str, rigidbody_dict: dict):
+    def __init__(self, frame: Any, panel: wx.Panel, window: wx.Window, vrm_bone_name: str, rigidbody_dict: dict):
         self.frame = frame
         self.panel = panel
         self.window = window
@@ -199,12 +200,12 @@ class PhysicsSet():
             # 剛体根元ヘッダ --------------
 
             for text in ["根元剛体", "", "", "", "", ""]:
-                self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0), 0, wx.ALL, 5)
+                self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0), 0, wx.ALL, 5)
 
             for text, tooltip in [("細分化", "ボーン間を細分化する個数"), ("大きさ", "一致する名称剛体すべての大きさ（均一）"), \
                                   ("移動減衰", "根元剛体の移動減衰（末端との線形補間）"), ("回転減衰", "根元剛体の回転減衰（末端との線形補間）"), \
                                   ("反発力", "根元剛体の反発力（末端との線形補間）"), ("摩擦力", "根元剛体の摩擦力（末端との線形補間）")]:
-                txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0)
+                txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0)
                 if tooltip:
                     txt_ctrl.SetToolTip(tooltip)
                 self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)
@@ -244,12 +245,12 @@ class PhysicsSet():
             # 剛体根元ヘッダ --------------
 
             for text in ["末端剛体", "", "", "", "", ""]:
-                self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0), 0, wx.ALL, 5)
+                self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0), 0, wx.ALL, 5)
 
             for text, tooltip in [("質量", "末端剛体の質量"), ("質量係数", "末端剛体の質量から根元にかけての増加係数"), \
                                   ("移動減衰", "末端交代の移動減衰（根元との線形補間）"), ("回転減衰", "末端交代の回転減衰（根元との線形補間）"), \
                                   ("反発力", "末端交代の反発力（根元との線形補間）"), ("摩擦力", "末端交代の摩擦力（根元との線形補間）")]:
-                txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0)
+                txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0)
                 if tooltip:
                     txt_ctrl.SetToolTip(tooltip)
                 self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)
@@ -289,12 +290,12 @@ class PhysicsSet():
         # 移動制限ヘッダ --------------
 
         for text in ["ジョイント", "移動制限", "", "", "", ""]:
-            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0), 0, wx.ALL, 5)
+            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0), 0, wx.ALL, 5)
 
         for text, tooltip in [("移動X最小", "移動Xの最小値"), ("移動X最大", "移動Xの最大値"), \
                               ("移動Y最小", "移動Yの最小値"), ("移動Y最大", "移動Yの最大値"), \
                               ("移動Z最小", "移動Zの最小値"), ("移動Z最大", "移動Zの最大値")]:
-            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0)
+            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0)
             if tooltip:
                 txt_ctrl.SetToolTip(tooltip)
             self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)
@@ -334,12 +335,12 @@ class PhysicsSet():
         # 回転制限ヘッダ --------------
 
         for text in ["ジョイント", "回転制限", "", "", "", ""]:
-            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0), 0, wx.ALL, 5)
+            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0), 0, wx.ALL, 5)
 
         for text, tooltip in [("回転X最小", "回転Xの最小値"), ("回転X最大", "回転Xの最大値"), \
                               ("回転Y最小", "回転Yの最小値"), ("回転Y最大", "回転Yの最大値"), \
                               ("回転Z最小", "回転Zの最小値"), ("回転Z最大", "回転Zの最大値")]:
-            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0)
+            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0)
             if tooltip:
                 txt_ctrl.SetToolTip(tooltip)
             self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)
@@ -379,11 +380,11 @@ class PhysicsSet():
         # ばねヘッダ --------------
 
         for text in ["ジョイント", "ばね", "", "", "", ""]:
-            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0), 0, wx.ALL, 5)
+            self.grid_sizer.Add(wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0), 0, wx.ALL, 5)
 
         for text, tooltip in [("移動X", "移動Xのばね値"), ("移動Y", "移動Yのばね値"), ("移動Z", "移動Zのばね値"), \
                               ("回転X", "回転Xのばね値"), ("回転Y", "回転Yのばね値"), ("回転Z", "回転Zのばね値")]:
-            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (75, wx.DefaultSize[1]), 0)
+            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(75, -1), 0)
             if tooltip:
                 txt_ctrl.SetToolTip(tooltip)
             self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)

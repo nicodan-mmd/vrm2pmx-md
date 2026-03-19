@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from typing import Any
 import os
 import wx
 import wx.lib.newevent
@@ -14,8 +15,8 @@ logger = MLogger(__name__)
 
 class TargetBoneDialog(wx.Dialog):
 
-    def __init__(self, frame: wx.Frame, panel: wx.Panel, direction: str, type: str):
-        super().__init__(frame, id=wx.ID_ANY, title=f"{type}ボーン指定", pos=(-1, -1), size=(850, 450), style=wx.DEFAULT_DIALOG_STYLE, name="TargetBoneDialog")
+    def __init__(self, frame: Any, panel: Any, direction: str, type: str):
+        super().__init__(frame, id=wx.ID_ANY, title=f"{type}ボーン指定", pos=wx.DefaultPosition, size=wx.Size(850, 450), style=wx.DEFAULT_DIALOG_STYLE, name="TargetBoneDialog")
 
         self.frame = frame
         self.panel = panel
@@ -145,7 +146,7 @@ class TargetBoneDialog(wx.Dialog):
             self.add_line()
 
     def on_import(self, event: wx.Event):
-        input_bone_path = MFileUtils.get_output_split_bone_path(
+        input_bone_path = MFileUtils.get_output_split_bone_path(  # type: ignore[attr-defined]
             self.panel.vmd_file_ctrl.file_ctrl.GetPath(),
             self.panel.model_file_ctrl.file_ctrl.GetPath()
         )
@@ -240,7 +241,7 @@ class TargetBoneDialog(wx.Dialog):
             rep_my_choice_values.append(m[5])
             rep_mz_choice_values.append(m[6])
 
-        output_bone_path = MFileUtils.get_output_split_bone_path(
+        output_bone_path = MFileUtils.get_output_split_bone_path(  # type: ignore[attr-defined]
             self.panel.vmd_file_ctrl.file_ctrl.GetPath(),
             self.panel.model_file_ctrl.file_ctrl.GetPath()
         )
@@ -361,14 +362,16 @@ class TargetBoneDialog(wx.Dialog):
     
     # 文字列が入力された際、一致しているのがあれば適用
     def on_enter_choice(self, event: wx.Event, midx: int):
-        idx = event.GetEventObject().FindString(event.GetEventObject().GetValue())
+        event_object: Any = event.GetEventObject()
+        idx = event_object.FindString(event_object.GetValue())
         if idx >= 0:
-            event.GetEventObject().SetSelection(idx)
+            event_object.SetSelection(idx)
             self.on_change_choice(event, midx)
 
     # 選択肢が変更された場合
     def on_change_choice(self, event: wx.Event, midx: int):
-        text = event.GetEventObject().GetStringSelection()
+        event_object: Any = event.GetEventObject()
+        text = event_object.GetStringSelection()
 
         # 同じ選択肢を初期設定
         if len(self.org_choices[midx].GetValue()) == 0 or len(text) == 0:

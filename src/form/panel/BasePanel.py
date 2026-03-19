@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 #
 
+from typing import Any
 import wx
 
 
 class BasePanel(wx.Panel):
 
-    def __init__(self, frame: wx.Frame, parent: wx.Notebook, tab_idx: int):
+    def __init__(self, frame: Any, parent: wx.Notebook, tab_idx: int):
         super().__init__(parent, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL)
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DLIGHT))
 

@@ -169,6 +169,7 @@ class Vertex:
 class Material:
     def __init__(self, name, english_name, diffuse_color, alpha, specular_factor, specular_color, ambient_color, flag, edge_color, edge_size, texture_index,
                  sphere_texture_index, sphere_mode, toon_sharing_flag, toon_texture_index=0, comment="", vertex_count=0):
+        self.index = -1
         self.name = name
         self.english_name = english_name
         self.diffuse_color = diffuse_color
@@ -524,7 +525,7 @@ class OBB:
 
     # OBBとの衝突判定
     def get_collistion(self, point, root_global_pos, max_length):
-        pass
+        raise NotImplementedError()
     
 
 # 球剛体
@@ -923,6 +924,8 @@ class PmxModel:
         self.bone_indexes = {}
         # モーフデータ(順番保持)
         self.morphs = {}
+        # モーフINDEXデータ
+        self.morph_indexes = {}
         # 表示枠データ
         self.display_slots = {}
         # 剛体データ
@@ -932,7 +935,7 @@ class PmxModel:
         # ジョイントデータ
         self.joints = {}
         # ハッシュ値
-        self.digest = None
+        self.digest = ""
         # 上半身がサイジング可能（標準・準標準ボーン構造）か
         self.can_upper_sizing = True
         # 腕がサイジング可能（標準・準標準ボーン構造）か
@@ -994,7 +997,7 @@ class PmxModel:
     # 腕のスタンスの違い
     def calc_arm_stance(self, from_bone_name: str, to_bone_name=None):
         default_pos = MVector3D(1, 0, 0) if "左" in from_bone_name else MVector3D(-1, 0, 0)
-        return self.calc_stance(from_bone_name, to_bone_name, default_pos)
+        return self.calc_stance(from_bone_name, to_bone_name or "", default_pos)
 
     # 指定ボーン間のスタンス
     def calc_stance(self, from_bone_name: str, to_bone_name: str, default_pos: MVector3D):

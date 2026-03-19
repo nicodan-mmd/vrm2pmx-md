@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from typing import Any, cast
 import struct
 import hashlib
 
@@ -17,7 +18,8 @@ class PmxReader:
         self.file_path = file_path
         self.is_check = is_check
         self.offset = 0
-        self.buffer = None
+        self.buffer: bytes = b""
+        self.extended_uv: int = 0
         self.vertex_index_size = 0
         self.texture_index_size = 0
         self.material_index_size = 0
@@ -106,7 +108,7 @@ class PmxReader:
                 # logger.test("hashlib.algorithms_available: %s", hashlib.algorithms_available)
 
                 # pmx宣言
-                signature = self.unpack(4, "4s")
+                signature = cast(bytes, self.unpack(4, "4s"))
                 logger.test("signature: %s (%s)", signature, self.offset)
 
                 # pmxバージョン
@@ -382,7 +384,7 @@ class PmxReader:
                         morph.offsets = [self.read_uv_morph_data() for _ in range(offset_size)]
                     elif morph.morph_type == 8:
                         # material
-                        morph.data = [self.read_material_morph_data() for _ in range(offset_size)]
+                        morph.offsets = [self.read_material_morph_data() for _ in range(offset_size)]
                     else:
                         raise MParseException("unknown morph type: {0}".format(morph.morph_type))
 
@@ -524,6 +526,7 @@ class PmxReader:
 
     def hexdigest(self):
         sha1 = hashlib.sha1()
+        chunk = b""
 
         with open(self.file_path, 'rb') as f:
             for chunk in iter(lambda: f.read(2048 * sha1.block_size), b''):
@@ -635,13 +638,13 @@ class PmxReader:
         return MVector4D(int(self.read_float()), int(self.read_float()), int(self.read_float()), int(self.read_float()))
 
     def read_Vector4D(self):
-        return MVector4D(self.read_float(), self.read_float(), self.read_float(), self.read_float())
+        return MVector4D(float(self.read_float()), float(self.read_float()), float(self.read_float()), float(self.read_float()))
 
     def read_Vector3D(self):
-        return MVector3D(self.read_float(), self.read_float(), self.read_float())
+        return MVector3D(float(self.read_float()), float(self.read_float()), float(self.read_float()))
 
     def read_Vector2D(self):
-        return [self.read_float(), self.read_float()]
+        return [float(self.read_float()), float(self.read_float())]
 
     def read_Quaternion(self):
         x = self.read_float()
@@ -704,13 +707,13 @@ class PmxReader:
             def read_text():
                 format_size = self.read_int(4)
                 bresult = self.unpack(format_size, "{0}s".format(format_size))
-                return bresult.decode("utf-16-le")
+                return bresult.decode("utf-16-le") if isinstance(bresult, bytes) else ""
             return read_text
         elif text_encoding == 1:
             def read_text():
                 format_size = self.read_int(4)
                 bresult = self.unpack(format_size, "{0}s".format(format_size))
-                return bresult.decode("UTF8")
+                return bresult.decode("UTF8") if isinstance(bresult, bytes) else ""
             return read_text
         else:
             raise MParseException("define_read_text 定義エラー {0}".format(text_encoding))
@@ -726,7 +729,7 @@ class PmxReader:
         else:
             raise MParseException("read_int format_sizeエラー {0}".format(format_size))
 
-        return self.unpack(format_size, format_type)
+        return int(self.unpack(format_size, format_type))
 
     # 整数の解凍
     def read_uint(self, format_size):
@@ -739,7 +742,7 @@ class PmxReader:
         else:
             raise MParseException("read_uint format_sizeエラー {0}".format(format_size))
 
-        return self.unpack(format_size, format_type)
+        return int(self.unpack(format_size, format_type))
 
     # 小数の解凍
     def read_float(self, format_size=4):
@@ -750,18 +753,16 @@ class PmxReader:
         else:
             raise MParseException("read_float format_sizeエラー {0}".format(format_size))
 
-        return self.unpack(format_size, format_type)
+        return float(self.unpack(format_size, format_type))
 
     # 解凍して、offsetを更新する
-    def unpack(self, format_size, format):
+    def unpack(self, format_size, format) -> Any:
         bresult = struct.unpack_from(format, self.buffer, self.offset)
 
         # オフセットを更新する
         self.offset += format_size
 
-        if bresult:
-            result = bresult[0]
-        else:
-            result = None
+        if not bresult:
+            raise MParseException("unpack結果が取得できませんでした")
 
-        return result
+        return bresult[0]

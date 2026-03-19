@@ -5,6 +5,8 @@
   "exclude": [
     "**/.venv",
     "**/__pycache__",
-    "archive"
+    "archive",
+    "src/form/parts/SizingFileSet.py",
+    "src/form/parts/TargetBoneDialog.py"
   ]
 }

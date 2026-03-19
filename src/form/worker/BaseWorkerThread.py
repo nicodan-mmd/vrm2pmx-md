@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from typing import Any
 import wx
 import wx.xrc
 from abc import ABCMeta, abstractmethod
@@ -20,7 +21,7 @@ logger = MLogger(__name__)
 class BaseWorkerThread(metaclass=ABCMeta):
 
     """Worker Thread Class."""
-    def __init__(self, frame, result_event, console):
+    def __init__(self, frame: Any, result_event: Any, console: Any):
         """Init Worker Thread Class."""
         # Thread.__init__(self)
         self.frame = frame
@@ -92,7 +93,9 @@ def task_takes_time(acallable):
                 # 呼び出し元から停止命令が出ている場合、自分以外の全部のスレッドに終了命令
                 for th in threading.enumerate():
                     if th.ident != threading.current_thread().ident:
-                        th._kwargs["is_killed"] = True
+                        thread_kwargs = getattr(th, "_kwargs", None)
+                        if isinstance(thread_kwargs, dict):
+                            thread_kwargs["is_killed"] = True
                 break
         
         return t.result()

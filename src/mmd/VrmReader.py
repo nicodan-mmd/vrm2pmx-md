@@ -10,6 +10,7 @@ import numpy as np
 import re
 import math
 import urllib.parse
+from typing import Any
 
 from wx.core import NO, Position
 
@@ -45,12 +46,12 @@ class VrmReader(PmxReader):
         self.physics_pairs = {}
         self.is_check = is_check
         self.offset = 0
-        self.buffer = None
+        self.buffer = b""
 
     def read_model_name(self):
         return ""
 
-    def read_data(self):
+    def read_data(self):  # type: ignore[override]
         # Pmxモデル生成
         vrm = VrmModel()
         vrm.path = self.file_path
@@ -102,6 +103,8 @@ class VrmReader(PmxReader):
 
                 # binデータ
                 bin_buf_size = self.unpack(8, "L")
+                if bin_buf_size is None:
+                    bin_buf_size = 0
                 logger.test(f'bin_buf_size: {bin_buf_size}')
 
                 with open(os.path.join(glft_dir_path, "data.bin"), "wb") as bf:
@@ -262,6 +265,7 @@ class VrmReader(PmxReader):
                                     vrm_material = vrm.json_data["materials"][primitive["material"]]
                                     logger.test(f'material: {primitive["material"]} -> {vrm_material["name"]}')
 
+                                    indices = []
                                     if "indices" in primitive:
                                         # 面データ
                                         indices = self.read_from_accessor(vrm, primitive["indices"])
@@ -590,13 +594,17 @@ class VrmReader(PmxReader):
                 # 胸先ジョイント
                 bust_rigidbodies = {rk: rv for rk, rv in pmx.rigidbodies.items() if "胸先" in rv.name and rv.mode == 2}
                 if len(bust_rigidbodies) > 0:
-                    for target_rigidbody in bust_rigidbodies:
-                        translation_limit_min = MVector3D(target_rigidbody["JointTLMin"])
-                        translation_limit_max = MVector3D(target_rigidbody["JointTLMax"])
-                        rotation_limit_min = MVector3D(math.radians(target_rigidbody["JointRLMin"][0]), math.radians(target_rigidbody["JointRLMin"][1]), math.radians(target_rigidbody["JointRLMin"][2]))
-                        rotation_limit_max = MVector3D(math.radians(target_rigidbody["JointRLMax"][0]), math.radians(target_rigidbody["JointRLMax"][1]), math.radians(target_rigidbody["JointRLMax"][2]))
-                        spring_constant_translation = MVector3D(target_rigidbody["JointSCT"])
-                        spring_constant_rotation = MVector3D(target_rigidbody["JointSCR"][0], target_rigidbody["JointSCR"][1], target_rigidbody["JointSCR"][2])
+                    bust_joint_setting = self.physics_pairs["胸先"]
+                    for bone_name in bust_rigidbodies.keys():
+                        if bone_name not in pmx.bones:
+                            continue
+                        bone = pmx.bones[bone_name]
+                        translation_limit_min = MVector3D(bust_joint_setting["JointTLMin"])
+                        translation_limit_max = MVector3D(bust_joint_setting["JointTLMax"])
+                        rotation_limit_min = MVector3D(math.radians(bust_joint_setting["JointRLMin"][0]), math.radians(bust_joint_setting["JointRLMin"][1]), math.radians(bust_joint_setting["JointRLMin"][2]))
+                        rotation_limit_max = MVector3D(math.radians(bust_joint_setting["JointRLMax"][0]), math.radians(bust_joint_setting["JointRLMax"][1]), math.radians(bust_joint_setting["JointRLMax"][2]))
+                        spring_constant_translation = MVector3D(bust_joint_setting["JointSCT"])
+                        spring_constant_rotation = MVector3D(bust_joint_setting["JointSCR"][0], bust_joint_setting["JointSCR"][1], bust_joint_setting["JointSCR"][2])
                         self.create_joint(pmx, bone, translation_limit_min, translation_limit_max, rotation_limit_min, rotation_limit_max, spring_constant_translation, spring_constant_rotation)
 
                 logger.info('-- 剛体・ジョイントデータ解析終了')
@@ -683,14 +691,16 @@ class VrmReader(PmxReader):
         # 0番目は必ず自分自身
         root_skirt_bone = list(skirt_bones.values())[np.argsort(bone_distances)[0]]
         # 次に近いのが距離
+        next_idx = -1
         for n in range(1, len(skirt_bone_poses) + 1):
             if n >= len(skirt_bone_poses) or np.argsort(bone_distances)[n] not in registerd_idxs:
                 # 最後までいったか、まだ登録されてないINDEXの場合抜ける
+                next_idx = n
                 break
-        if n >= len(skirt_bone_poses):
+        if next_idx < 0 or next_idx >= len(skirt_bone_poses):
             # 全部終わったら終了
             return
-        next_skirt_bone = list(skirt_bones.values())[np.argsort(bone_distances)[n]]
+        next_skirt_bone = list(skirt_bones.values())[np.argsort(bone_distances)[next_idx]]
         if f'横_{next_skirt_bone.name}' in pmx.rigidbodies.keys():
             return
         # ROOTの剛体
@@ -713,9 +723,9 @@ class VrmReader(PmxReader):
         joint = Joint(f'横_{next_skirt_bone.name}', f'横_{next_skirt_bone.name}', 0, root_skirt_rigidbody.index, next_skirt_rigidbody.index, root_skirt_bone.position, joint_rotation, \
                       translation_limit_min, translation_limit_max, rotation_limit_min, rotation_limit_max, spring_constant_translation, spring_constant_rotation)
         pmx.joints[joint.name] = joint
-        registerd_idxs.append(np.argsort(bone_distances)[n])
+        registerd_idxs.append(np.argsort(bone_distances)[next_idx])
 
-        return self.create_horizonal_joint(pmx, skirt_bones, skirt_bone_poses, np.argsort(bone_distances)[n], registerd_idxs)
+        return self.create_horizonal_joint(pmx, skirt_bones, skirt_bone_poses, np.argsort(bone_distances)[next_idx], registerd_idxs)
 
     def create_joint(self, pmx: PmxModel, bone: Bone, translation_limit_min: MVector3D, translation_limit_max: MVector3D, \
                      rotation_limit_min: MVector3D, rotation_limit_max: MVector3D, spring_constant_translation: MVector3D, spring_constant_rotation: MVector3D):
@@ -782,9 +792,9 @@ class VrmReader(PmxReader):
 
         # サイズ
         if len(strong_vertex_list) == 0 or is_body:
-            diff_size = np.abs(max_vertex - min_vertex)
+            diff_size = np.abs(np.asarray(max_vertex) - np.asarray(min_vertex))
         else:
-            diff_size = np.abs(strong_max_vertex - strong_min_vertex)
+            diff_size = np.abs(np.asarray(strong_max_vertex) - np.asarray(strong_min_vertex))
         shape_size = MVector3D()
         shape_rotation = MVector3D()
         if rigidbody_type == 0:
@@ -805,17 +815,18 @@ class VrmReader(PmxReader):
             axis_vec = tail_position - bone.position
             tail_pos = axis_vec.normalized()
             tail_vec = tail_pos.data()
-            diff_vec = MVector3D(diff_size).normalized().data()
+            diff_vec = MVector3D(float(diff_size[0]), float(diff_size[1]), float(diff_size[2])).normalized().data()
             
             # 回転量
             to_vec = MVector3D.crossProduct(MVector3D(mean_normal), MVector3D(tail_vec)).normalized()
             if rigidbody_type == 1:
                 # 箱
-                rot = MQuaternion.rotationTo(MVector3D(0, 1 * np.sign(tail_vec[1]), 0), tail_pos)
-                rot *= MQuaternion.rotationTo(MVector3D(1 * np.sign(tail_vec[0]), 0, 0), to_vec.normalized())
+                rot_value = MQuaternion.rotationTo(MVector3D(0, 1 * np.sign(tail_vec[1]), 0), tail_pos)
+                rot_value *= MQuaternion.rotationTo(MVector3D(1 * np.sign(tail_vec[0]), 0, 0), to_vec.normalized())
             else:
                 # カプセル
-                rot = MQuaternion.rotationTo(MVector3D(0, 1, 0), tail_pos)
+                rot_value = MQuaternion.rotationTo(MVector3D(0, 1, 0), tail_pos)
+            rot = rot_value if isinstance(rot_value, MQuaternion) else MQuaternion()
             shape_euler = rot.toEulerAngles()
             shape_rotation = MVector3D(math.radians(shape_euler.x()), math.radians(shape_euler.y()), math.radians(shape_euler.z()))
 
@@ -843,8 +854,9 @@ class VrmReader(PmxReader):
                 center_vertex = bone.position + (tail_position - bone.position) / 2
 
         logger.debug("bone: %s, min: %s, max: %s, center: %s, size: %s", bone.name, min_vertex, max_vertex, center_vertex, shape_size.to_log())
+        center_vector = MVector3D(center_vertex.tolist() if isinstance(center_vertex, np.ndarray) else center_vertex)
         rigidbody = RigidBody(bone.name, bone.english_name, bone.index, collision_group, no_collision_group, \
-                              rigidbody_type, shape_size, MVector3D(center_vertex), shape_rotation, \
+                              rigidbody_type, shape_size, center_vector, shape_rotation, \
                               rigidbody_param[0], rigidbody_param[1], rigidbody_param[2], rigidbody_param[3], rigidbody_param[4], rigidbody_mode)
         rigidbody.index = len(pmx.rigidbodies)
         pmx.rigidbodies[rigidbody.name] = rigidbody
@@ -965,7 +977,7 @@ class VrmReader(PmxReader):
             toe_ik_bone.ik = toe_ik
             pmx.bones[toe_ik_bone.name] = toe_ik_bone
     
-    def get_deform_index(self, vertex_idx: int, pmx: PmxModel, vertex_pos: MVector3D, joint: list, skin_joints: list, node_pairs: dict, node_weight: list):
+    def get_deform_index(self, vertex_idx: int, pmx: PmxModel, vertex_pos: MVector3D, joint: Any, skin_joints: list, node_pairs: dict, node_weight: Any):
         # glTF の JOINTS_0 は 0 番ジョイントも有効値なので、重みがある要素を採用する
         joint_data = joint.data().astype(np.int64)
         weight_data = node_weight.data()
@@ -1010,6 +1022,7 @@ class VrmReader(PmxReader):
 
                 arm_elbow_distance = -1
                 vector_arm_distance = 1
+                twist_list = []
 
                 # 腕捩に分散する
                 if pmx.bones[dest_arm_bone_name].index in dest_joints or pmx.bones[dest_arm_twist1_bone_name].index in dest_joints \
@@ -1066,7 +1079,7 @@ class VrmReader(PmxReader):
         joint_values = list(joint_weights.keys())
         # 正規化(合計して1になるように)
         total_weights = np.array(list(joint_weights.values()))
-        weight_values = (total_weights / total_weights.sum(axis=0, keepdims=1)).tolist()
+        weight_values = (total_weights / total_weights.sum(axis=0, keepdims=True)).tolist()
 
         if len(joint_values) == 3:
             # 3つの場合、0を入れ込む
@@ -1080,7 +1093,7 @@ class VrmReader(PmxReader):
 
             # 正規化(合計して1になるように)
             total_weights = np.array(weight_values)
-            weight_values = (total_weights / total_weights.sum(axis=0, keepdims=1)).tolist()
+            weight_values = (total_weights / total_weights.sum(axis=0, keepdims=True)).tolist()
 
         return joint_values, weight_values
     
@@ -1238,7 +1251,8 @@ class VrmReader(PmxReader):
 
         # 位置
         translation = node["translation"] if "translation" in node else [0, 0, 0]
-        position = MVector3D(translation) * MIKU_METER * MVector3D(-1, 1, 1)
+        translation_values = translation.tolist() if isinstance(translation, np.ndarray) else translation
+        position = MVector3D(float(translation_values[0]), float(translation_values[1]), float(translation_values[2])) * MIKU_METER * MVector3D(-1, 1, 1)
 
         if parent_name:
             position += bones[parent_name].position
@@ -1280,7 +1294,7 @@ class VrmReader(PmxReader):
     # アクセサ経由で値を取得する
     # https://github.com/ft-lab/Documents_glTF/blob/master/structure.md
     def read_from_accessor(self, vrm: VrmModel, accessor_idx: int):
-        bresult = None
+        bresult = []
         aidx = 0
         if accessor_idx < len(vrm.json_data['accessors']):            
             accessor = vrm.json_data['accessors'][accessor_idx]
@@ -1403,4 +1417,6 @@ class VrmReader(PmxReader):
     
     def read_text(self, format_size):
         bresult = self.unpack(format_size, "{0}s".format(format_size))
+        if not isinstance(bresult, (bytes, bytearray)):
+            return ""
         return bresult.decode("UTF8")

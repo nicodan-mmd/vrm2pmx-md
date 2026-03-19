@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 import os
+from typing import Any
 import wx
 import wx.lib.newevent
 import sys
@@ -23,7 +24,7 @@ TIMER_ID = wx.NewId()
 
 class ExportPanel(BasePanel):
         
-    def __init__(self, frame: wx.Frame, export: wx.Notebook, tab_idx: int):
+    def __init__(self, frame: Any, export: wx.Notebook, tab_idx: int):
         super().__init__(frame, export, tab_idx)
         self.convert_export_worker = None
 
@@ -194,7 +195,7 @@ class ExportPanel(BasePanel):
             self.export_btn_ctrl.SetLabel("VRM2PMX停止")
             self.export_btn_ctrl.Enable()
 
-            self.convert_export_worker = ExportWorkerThread(self.frame, ParentThreadEvent, self.frame.is_saving, self.frame.is_out_log)
+            self.convert_export_worker = ExportWorkerThread(self.frame, ParentThreadEvent, self.frame.is_saving, self.frame.is_out_log)  # type: ignore[arg-type]
             self.convert_export_worker.start()
             
             event.Skip()
@@ -205,7 +206,7 @@ class ExportPanel(BasePanel):
         return result
 
     # 多段分割変換完了処理
-    def on_convert_export_result(self, event: wx.Event):
+    def on_convert_export_result(self, event: Any):
         self.elapsed_time = event.elapsed_time
         logger.info("\n処理時間: %s", self.show_worked_time())
         self.export_btn_ctrl.SetLabel("VRM2PMX")

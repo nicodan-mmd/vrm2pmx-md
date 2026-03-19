@@ -34,7 +34,7 @@ class MLogger():
     is_file = False
     outout_datetime = ""
     
-    logger = None
+    logger: logging.Logger = logging.getLogger("Vrm2PmxExporter")
 
     monitor: Any = sys.stdout
 
@@ -172,9 +172,9 @@ class MLogger():
 
             # ログレコード生成
             if args and isinstance(args[0], Exception) or (args and len(args) > 1 and isinstance(args[0], Exception)):
-                log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, "{0}\n\n{1}".format(msg, traceback.format_exc()), None, None, self.module_name)
+                log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, "{0}\n\n{1}".format(msg, traceback.format_exc()), (), None, self.module_name)
             else:
-                log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, msg, args, None, self.module_name)
+                log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, msg, tuple(args), None, self.module_name)
             
             target_decoration = kwargs.pop("decoration", None)
             title = kwargs.pop("title", None)
@@ -202,7 +202,7 @@ class MLogger():
             try:
                 if self.child or self.is_file:
                     # 子スレッドの場合はレコードを再生成してでコンソールとGUI両方出力
-                    log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, output_msg, None, None, self.module_name)
+                    log_record = self.logger.makeRecord('name', target_level, "(unknown file)", 0, output_msg, (), None, self.module_name)
                     self.logger.handle(log_record)
                 else:
                     # サイジングスレッドは、printとloggerで分けて出力

@@ -2,6 +2,7 @@
 #
 import wx
 import wx.lib.newevent
+from typing import Any
 
 from form.panel.BasePanel import BasePanel
 from utils.MLogger import MLogger # noqa
@@ -266,7 +267,7 @@ class BonePanel(BasePanel):
 
 class BoneSet():
 
-    def __init__(self, frame: wx.Frame, panel: wx.Panel, window: wx.Window):
+    def __init__(self, frame: Any, panel: wx.Panel, window: wx.Window):
         self.frame = frame
         self.panel = panel
         self.window = window
@@ -282,7 +283,7 @@ class BoneSet():
         self.grid_sizer.SetFlexibleDirection(wx.BOTH)
         self.grid_sizer.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
 
-        self.vrm_bone_header_txt = wx.StaticText(self.window, wx.ID_ANY, u"VRMボーン名", wx.DefaultPosition, (180, wx.DefaultSize[1]), 0)
+        self.vrm_bone_header_txt = wx.StaticText(self.window, wx.ID_ANY, u"VRMボーン名", wx.DefaultPosition, wx.Size(180, -1), 0)
         self.vrm_bone_header_txt.SetToolTip(u"VRMモデルのボーン名")
         self.vrm_bone_header_txt.Wrap(-1)
         self.grid_sizer.Add(self.vrm_bone_header_txt, 0, wx.ALL, 5)
@@ -291,19 +292,19 @@ class BoneSet():
         self.arrow_header_txt.Wrap(-1)
         self.grid_sizer.Add(self.arrow_header_txt, 0, wx.CENTER | wx.ALL, 5)
 
-        self.pmx_bone_header_txt = wx.StaticText(self.window, wx.ID_ANY, u"PMXボーン名", wx.DefaultPosition, (180, wx.DefaultSize[1]), 0)
+        self.pmx_bone_header_txt = wx.StaticText(self.window, wx.ID_ANY, u"PMXボーン名", wx.DefaultPosition, wx.Size(180, -1), 0)
         self.pmx_bone_header_txt.SetToolTip(u"PMXモデルのボーン名。任意ボーン名に変換可能です。")
         self.pmx_bone_header_txt.Wrap(-1)
         self.grid_sizer.Add(self.pmx_bone_header_txt, 0, wx.ALL, 5)
 
         for bone_pair in BONE_PAIRS:
-            self.vrm_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair[0], style=wx.TE_READONLY, size=(180, wx.DefaultSize[1])))
+            self.vrm_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair[0], style=wx.TE_READONLY, size=wx.Size(180, -1)))
             self.grid_sizer.Add(self.vrm_bone_txts[-1], 0, wx.ALL, 5)
 
             self.arrow_txts.append(wx.StaticText(self.window, wx.ID_ANY, u"　→　", wx.DefaultPosition, wx.DefaultSize, 0))
             self.grid_sizer.Add(self.arrow_txts[-1], 0, wx.ALL, 5)
 
-            self.pmx_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair[1], size=(180, wx.DefaultSize[1])))
+            self.pmx_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair[1], size=wx.Size(180, -1)))
             self.grid_sizer.Add(self.pmx_bone_txts[-1], 0, wx.ALL, 5)
 
         self.set_sizer.Add(self.grid_sizer, 0, wx.ALL, 5)

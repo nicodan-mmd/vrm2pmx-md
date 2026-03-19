@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 
+from typing import Any, cast
 import logging
 import re
 import os
@@ -20,11 +21,13 @@ logger = MLogger(__name__)
 
 class ExportWorkerThread(BaseWorkerThread):
 
-    def __init__(self, frame: wx.Frame, result_event: wx.Event, is_exec_saving: bool, is_out_log: bool):
+    def __init__(self, frame: Any, result_event: Any, is_exec_saving: bool, is_out_log: bool):
+        frame = cast(Any, frame)
+        result_event = cast(Any, result_event)
         self.elapsed_time = 0
-        self.frame = frame
-        self.result_event = result_event
-        self.gauge_ctrl = frame.export_panel_ctrl.gauge_ctrl
+        self.frame: Any = frame
+        self.result_event: Any = result_event
+        self.gauge_ctrl: Any = frame.export_panel_ctrl.gauge_ctrl
         self.is_exec_saving = is_exec_saving
         self.is_out_log = is_out_log
         self.options = None
@@ -39,6 +42,7 @@ class ExportWorkerThread(BaseWorkerThread):
             self.result = self.frame.export_panel_ctrl.vrm_model_file_ctrl.load() and self.result
 
             if self.result:
+                cpu_count: int = os.cpu_count() or 1
                 self.options = MExportOptions(\
                     version_name=self.frame.version_name, \
                     logging_level=self.frame.logging_level, \
@@ -49,7 +53,7 @@ class ExportWorkerThread(BaseWorkerThread):
                     monitor=self.frame.export_panel_ctrl.console_ctrl, \
                     is_file=False, \
                     outout_datetime=logger.outout_datetime, \
-                    max_workers=(1 if self.is_exec_saving else min(5, 32, os.cpu_count() + 4)))
+                    max_workers=(1 if self.is_exec_saving else min(5, 32, cpu_count + 4)))
                 
                 self.result = Vrm2PmxExportService(self.options).execute() and self.result
 
@@ -83,4 +87,5 @@ class ExportWorkerThread(BaseWorkerThread):
         gc.collect()
         
     def post_event(self):
-        wx.PostEvent(self.frame, self.result_event(result=self.result and not self.is_killed, elapsed_time=self.elapsed_time))
+        event_factory = cast(Any, self.result_event)
+        wx.PostEvent(self.frame, event_factory(result=self.result and not self.is_killed, elapsed_time=self.elapsed_time))

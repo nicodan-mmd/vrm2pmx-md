@@ -2,7 +2,9 @@
 #
 import os
 import sys
+from typing import Any
 import wx
+import wx.lib.newevent
 
 from form.panel.ExportPanel import ExportPanel
 from form.panel.RigidbodyPanel import RigidbodyPanel
@@ -51,19 +53,19 @@ class MainFrame(wx.Frame):
         self.note_ctrl = wx.Notebook(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
         if self.logging_level == MLogger.FULL or self.logging_level == MLogger.DEBUG_FULL:
             # フルデータの場合
-            self.note_ctrl.SetBackgroundColour("RED")
+            self.note_ctrl.SetBackgroundColour(wx.Colour("RED"))
         elif self.logging_level == MLogger.DEBUG:
             # テスト（デバッグ版）の場合
-            self.note_ctrl.SetBackgroundColour("CORAL")
+            self.note_ctrl.SetBackgroundColour(wx.Colour("CORAL"))
         elif self.logging_level == MLogger.TIMER:
             # 時間計測の場合
-            self.note_ctrl.SetBackgroundColour("YELLOW")
+            self.note_ctrl.SetBackgroundColour(wx.Colour("YELLOW"))
         elif not is_saving:
             # ログありの場合、色変え
-            self.note_ctrl.SetBackgroundColour("BLUE")
+            self.note_ctrl.SetBackgroundColour(wx.Colour("BLUE"))
         elif is_out_log:
             # ログありの場合、色変え
-            self.note_ctrl.SetBackgroundColour("AQUAMARINE")
+            self.note_ctrl.SetBackgroundColour(wx.Colour("AQUAMARINE"))
         else:
             self.note_ctrl.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNSHADOW))
 
@@ -136,9 +138,10 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
 
-    def on_wheel_spin_ctrl(self, event: wx.Event, inc=0.1):
+    def on_wheel_spin_ctrl(self, event: Any, inc=0.1):
         # スピンコントロール変更時
+        target = event.GetEventObject()
         if event.GetWheelRotation() > 0:
-            event.GetEventObject().SetValue(event.GetEventObject().GetValue() + inc)
+            target.SetValue(target.GetValue() + inc)
         else:
-            event.GetEventObject().SetValue(event.GetEventObject().GetValue() - inc)
+            target.SetValue(target.GetValue() - inc)

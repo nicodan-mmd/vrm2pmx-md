@@ -61,20 +61,20 @@ class FloatSliderCtrl(wx.Slider):
         self._islider.SetValue(round(value / self._res))
         self._value = value
 
-    def SetMin(self, minval):
-        self._islider.SetMin(round(minval / self._res))
-        self._min = minval
+    def SetMin(self, minValue):
+        self._islider.SetMin(round(minValue / self._res))
+        self._min = minValue
 
-    def SetMax(self, maxval):
-        self._islider.SetMax(round(maxval / self._res))
-        self._max = maxval
+    def SetMax(self, maxValue):
+        self._islider.SetMax(round(maxValue / self._res))
+        self._max = maxValue
 
     def SetRes(self, res):
         self._islider.SetRange(round(self._min / res), round(self._max / res))
         self._islider.SetValue(round(self._value / res))
         self._res = res
 
-    def SetRange(self, minval, maxval):
-        self._islider.SetRange(round(minval / self._res), round(maxval / self._res))
-        self._min = minval
-        self._max = maxval
+    def SetRange(self, minValue, maxValue):
+        self._islider.SetRange(round(minValue / self._res), round(maxValue / self._res))
+        self._min = minValue
+        self._max = maxValue

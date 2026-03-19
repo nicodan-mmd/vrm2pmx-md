@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from typing import Any
 import wx
 import wx.lib.newevent
 import csv
@@ -16,7 +17,7 @@ TIMER_ID = wx.NewId()
 
 class RigidbodyPanel(BasePanel):
         
-    def __init__(self, frame: wx.Frame, export: wx.Notebook, tab_idx: int):
+    def __init__(self, frame: Any, export: wx.Notebook, tab_idx: int):
         super().__init__(frame, export, tab_idx)
         self.convert_export_worker = None
 
@@ -140,7 +141,7 @@ class RigidbodyPanel(BasePanel):
 
 class RigidbodySet():
 
-    def __init__(self, frame: wx.Frame, panel: wx.Panel, window: wx.Window):
+    def __init__(self, frame: Any, panel: wx.Panel, window: wx.Window):
         self.frame = frame
         self.panel = panel
         self.window = window
@@ -164,7 +165,7 @@ class RigidbodySet():
         for text, tooltip, width in [("PMXボーン名", "VRMモデルから変換したPMXボーン名（準標準まで）", 80), ("大きさ係数", "PMXモデルの剛体の大きさ", 65), \
                                      ("質量", "PMXモデルの剛体の質量", 65), ("移動減衰", "根元剛体の移動減衰（末端との線形補間）", 65), ("回転減衰", "根元剛体の回転減衰（末端との線形補間）", 65), \
                                      ("反発力", "根元剛体の反発力（末端との線形補間）", 65), ("摩擦力", "根元剛体の摩擦力（末端との線形補間）", 65)]:
-            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, (width, wx.DefaultSize[1]), 0)
+            txt_ctrl = wx.StaticText(self.window, wx.ID_ANY, text, wx.DefaultPosition, wx.Size(width, -1), 0)
             if tooltip:
                 txt_ctrl.SetToolTip(tooltip)
             self.grid_sizer.Add(txt_ctrl, 0, wx.ALL, 5)
@@ -173,7 +174,7 @@ class RigidbodySet():
             if bone_pair["rigidBody"]:
                 self.vrm_bone_txts.append(vrm_bone_name)
 
-                self.pmx_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair["name"], style=wx.TE_READONLY, size=(80, wx.DefaultSize[1])))
+                self.pmx_bone_txts.append(wx.TextCtrl(self.window, id=wx.ID_ANY, value=bone_pair["name"], style=wx.TE_READONLY, size=wx.Size(80, -1)))
                 self.grid_sizer.Add(self.pmx_bone_txts[-1], 0, wx.ALL, 5)
 
                 self.pmx_rigidbody_factor_txts.append(wx.SpinCtrlDouble(self.window, id=wx.ID_ANY, size=wx.Size(65, -1), value=f"{bone_pair['rigidbodyFactor']}", \
