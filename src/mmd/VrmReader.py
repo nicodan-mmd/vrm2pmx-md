@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 from PIL import Image, ImageChops
 
-from form.panel.BonePanel import MORPH_PAIRS  # noqa
+from config.default_pairs import MORPH_PAIRS
 from mmd.PmxData import (  # noqa
     Bdef1,
     Bdef2,

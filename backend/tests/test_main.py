@@ -2,7 +2,6 @@ import importlib
 import io
 import json
 import sys
-import types
 import unittest
 import zipfile
 from pathlib import Path
@@ -13,11 +12,6 @@ from fastapi.testclient import TestClient
 
 def load_app_module():
     sys.modules.pop("backend.app.main", None)
-    bone_panel_module = types.ModuleType("form.panel.BonePanel")
-    bone_panel_module.BONE_PAIRS = {"root": "Root"}
-    bone_panel_module.RIGIDBODY_PAIRS = {"body": "Body"}
-    bone_panel_module.MORPH_PAIRS = {"blink": "Blink"}
-    sys.modules["form.panel.BonePanel"] = bone_panel_module
     return importlib.import_module("backend.app.main")
 
 

@@ -16,9 +16,9 @@
 
 ## 2. Phase 1: コア分離
 
-- [ ] form 依存を core から切り離した
-- [ ] 設定値を GUI 非依存モジュールへ移した
-- [ ] `path` API と `bytes` API を併存させた
+- [x] form 依存を core から切り離した
+- [x] 設定値を GUI 非依存モジュールへ移した
+- [x] `path` API と `bytes` API を併存させた
 - [ ] 既存 GUI の最低限回帰を確認した
 
 ## 3. Phase 2: Pyodide PoC

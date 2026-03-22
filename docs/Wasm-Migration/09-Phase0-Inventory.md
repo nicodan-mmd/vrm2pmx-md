@@ -101,3 +101,20 @@ AssetFile:
 
 4. 変換 entrypoint 追加
 - `bytes -> bytes` API の最小実装（PMX 単体）
+
+## 6. Phase 1 進捗（2026-03-23）
+
+- 完了: 設定定数の移設
+  - `src/config/default_pairs.py` を追加
+  - `backend/app/main.py` の定数参照を config へ切替
+  - `src/mmd/VrmReader.py` の定数参照を config へ切替
+
+- 完了: `bytes -> bytes` の最小エントリポイント追加
+  - `src/service/Vrm2PmxBytesService.py` を追加
+  - `convert_vrm_bytes(...) -> bytes` を実装（PMX 単体）
+
+- 完了: 最低限テスト
+  - `backend/tests/test_bytes_service.py` を追加
+  - `backend/tests` の全テスト通過を確認
+
+- 未完了: 既存 GUI の手動回帰確認

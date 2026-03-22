@@ -19,7 +19,7 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from form.panel.BonePanel import BONE_PAIRS, RIGIDBODY_PAIRS  # noqa: E402
+from config.default_pairs import BONE_PAIRS, RIGIDBODY_PAIRS  # noqa: E402
 from mmd.VrmData import VrmModel  # noqa: E402
 from mmd.VrmReader import VrmReader  # noqa: E402
 from module.MOptions import MExportOptions  # noqa: E402
