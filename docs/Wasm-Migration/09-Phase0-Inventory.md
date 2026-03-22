@@ -117,4 +117,19 @@ AssetFile:
   - `backend/tests/test_bytes_service.py` を追加
   - `backend/tests` の全テスト通過を確認
 
-- 未完了: 既存 GUI の手動回帰確認
+- 完了: 既存 GUI の最低限回帰確認
+  - `python -c` で `form.panel.BonePanel` import と定数参照を確認
+
+## 7. Phase 2 着手（2026-03-23）
+
+- 完了: frontend に Wasm 実行モードの分岐を追加
+  - `frontend/src/services/convertClient.ts`
+  - backend / wasm の切替実行経路を追加
+
+- 完了: Pyodide 初期化経路を追加
+  - `frontend/src/wasm/pyodideRuntime.ts`
+  - `App.tsx` から Wasm モード時に初期化を呼び出す構成へ変更
+
+- 既知懸念（継続監視）
+  - `npm run build` は成功するが、`pyodide.mjs` 起因で Node built-in externalize 警告が出る
+  - 次段で Worker 化する際に CDN import 方式との比較が必要

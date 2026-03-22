@@ -19,11 +19,11 @@
 - [x] form 依存を core から切り離した
 - [x] 設定値を GUI 非依存モジュールへ移した
 - [x] `path` API と `bytes` API を併存させた
-- [ ] 既存 GUI の最低限回帰を確認した
+- [x] 既存 GUI の最低限回帰を確認した
 
 ## 3. Phase 2: Pyodide PoC
 
-- [ ] frontend で Pyodide がロードできる
+- [x] frontend で Pyodide の初期化経路を実装した
 - [ ] Worker から Python 変換を呼び出せる
 - [ ] PMX 単体をダウンロードできる
 - [ ] FastAPI なしでローカル動作する
