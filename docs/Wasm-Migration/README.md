@@ -26,3 +26,9 @@
 - 05-Test-Strategy.md: テスト戦略と合格条件
 - 06-Local-Run.md: ローカル実行手順
 - 07_Risks-Diagnostics.md: リスク、観測、ロールバック方針
+- 08-Execution-Checklist.md: ローカル実装時の実行チェックリスト
+
+## 運用メモ
+
+- このリポジトリでは PR 前提で進めず、ローカルで Wasm 化完了まで進める。
+- 完了後に必要ならフォーク先へ push する。
