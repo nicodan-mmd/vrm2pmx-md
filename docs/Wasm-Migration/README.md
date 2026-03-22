@@ -27,6 +27,7 @@
 - 06-Local-Run.md: ローカル実行手順
 - 07_Risks-Diagnostics.md: リスク、観測、ロールバック方針
 - 08-Execution-Checklist.md: ローカル実装時の実行チェックリスト
+- 09-Phase0-Inventory.md: GUI依存とFS依存の棚卸し結果
 
 ## 運用メモ
 

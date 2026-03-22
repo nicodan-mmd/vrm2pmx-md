@@ -10,9 +10,9 @@
 
 ## 1. Phase 0: 設計固定
 
-- [ ] GUI 依存 import 一覧を洗い出した
-- [ ] FS 依存箇所（temp dir, path 前提）を洗い出した
-- [ ] `bytes -> bytes` API の最小仕様を文書化した
+- [x] GUI 依存 import 一覧を洗い出した
+- [x] FS 依存箇所（temp dir, path 前提）を洗い出した
+- [x] `bytes -> bytes` API の最小仕様を文書化した
 
 ## 2. Phase 1: コア分離
 
