@@ -7,4 +7,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
   },
+  worker: {
+    format: "es",
+  },
 });

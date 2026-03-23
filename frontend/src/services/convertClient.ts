@@ -1,4 +1,4 @@
-import { getPyodideVersion } from "../wasm/pyodideRuntime";
+import { convertViaWasmWorker } from "../wasm/workerClient";
 
 export type ConvertMode = "auto" | "backend" | "wasm";
 
@@ -40,11 +40,19 @@ async function convertViaBackend(file: File): Promise<ConvertResult> {
   };
 }
 
-async function convertViaWasm(_file: File): Promise<ConvertResult> {
-  const pyodideVersion = await getPyodideVersion();
-  throw new Error(
-    `Wasm runtime is ready (Pyodide ${pyodideVersion}), but conversion bridge is not implemented yet.`,
-  );
+async function convertViaWasm(file: File): Promise<ConvertResult> {
+  const inputBuffer = await file.arrayBuffer();
+  const response = await convertViaWasmWorker(file.name, inputBuffer);
+
+  if (response.status === "error") {
+    throw new Error(response.message);
+  }
+
+  return {
+    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    fileExtension: response.fileExtension,
+    usedMode: response.usedMode,
+  };
 }
 
 export async function convertWithMode(

@@ -130,6 +130,11 @@ AssetFile:
   - 実行モード `auto` を追加（wasm 優先、失敗時 backend フォールバック）
   - フォールバック理由をメッセージと JSON ログに出力
 
+- 完了: Worker 経由の Wasm 実行土台を追加
+  - `frontend/src/workers/convertWorker.ts` を追加
+  - `frontend/src/wasm/workerClient.ts` を追加
+  - `frontend/src/services/convertClient.ts` の Wasm 経路を Worker 呼び出しへ切替
+
 - 完了: Pyodide 初期化経路を追加
   - `frontend/src/wasm/pyodideRuntime.ts`
   - `App.tsx` から Wasm モード時に初期化を呼び出す構成へ変更
