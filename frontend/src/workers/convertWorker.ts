@@ -8,8 +8,10 @@ import type {
   WorkerSuccessResponse,
 } from "../types/convert";
 
-const PY_SRC_ROOT = "/py_src";
-const PY_SRC_MANIFEST = "/py_src_manifest.json";
+const BASE_URL = import.meta.env.BASE_URL;
+const APP_BASE_URL = new URL(BASE_URL, self.location.origin);
+const PY_SRC_ROOT = new URL("py_src/", APP_BASE_URL);
+const PY_SRC_MANIFEST = new URL("py_src_manifest.json", APP_BASE_URL);
 const PY_RUNTIME_ROOT = "/workspace/src";
 
 let pyReadyPromise: Promise<void> | null = null;
@@ -34,7 +36,7 @@ async function ensurePyRuntime(): Promise<void> {
     const pyodide = await getPyodide();
     await loadCorePackages(pyodide);
 
-    const manifestResponse = await fetch(PY_SRC_MANIFEST);
+    const manifestResponse = await fetch(PY_SRC_MANIFEST.toString());
     if (!manifestResponse.ok) {
       throw new Error("Failed to fetch py_src_manifest.json");
     }
@@ -43,9 +45,8 @@ async function ensurePyRuntime(): Promise<void> {
     pyodide.FS.mkdirTree(PY_RUNTIME_ROOT);
 
     for (const relativePath of files) {
-      const sourceResponse = await fetch(
-        `${PY_SRC_ROOT}/${relativePath}`,
-      );
+      const sourceUrl = new URL(relativePath, PY_SRC_ROOT);
+      const sourceResponse = await fetch(sourceUrl.toString());
       if (!sourceResponse.ok) {
         throw new Error(`Failed to fetch python source: ${relativePath}`);
       }
