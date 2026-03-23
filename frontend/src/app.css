@@ -88,6 +88,15 @@ input[type="file"] {
   background: #f8fcff;
 }
 
+select {
+  width: 100%;
+  border: 1px solid #89a2be;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fcff;
+  color: var(--ink);
+}
+
 button {
   border: none;
   border-radius: 12px;

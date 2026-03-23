@@ -1,13 +1,21 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
+import {
+  type ConvertMode,
+  convertWithMode,
+  isBackendFallbackEnabled,
+  toUserFriendlyConvertError,
+} from "./services/convertClient";
 
-type Status = "idle" | "uploading" | "done" | "error";
-
-const API_BASE = "http://127.0.0.1:8000";
+type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
+  const [mode, setMode] = useState<ConvertMode>("wasm");
   const [message, setMessage] = useState("VRM file is not selected yet.");
+  const [errorDetail, setErrorDetail] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const backendEnabled = isBackendFallbackEnabled();
 
   const disabled = useMemo(
     () => !file || status === "uploading",
@@ -18,48 +26,73 @@ export default function App() {
     event.preventDefault();
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("vrm_file", file);
-
     setStatus("uploading");
-    setMessage("Converting... this can take a while for large files.");
+    setErrorDetail("");
+    abortControllerRef.current = new AbortController();
+    setMessage(
+      mode === "backend"
+        ? "Converting with backend... this can take a while for large files."
+        : backendEnabled
+          ? "Trying Wasm first. If it fails, backend fallback will run."
+          : "Converting with Wasm mode...",
+    );
 
     try {
-      const response = await fetch(`${API_BASE}/api/convert`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorBody = await response
-          .json()
-          .catch(() => ({ detail: response.statusText }));
-        throw new Error(errorBody.detail ?? "Request failed");
-      }
-
-      const blob = await response.blob();
+        const result = await convertWithMode(file, mode, {
+          onProgress: (progress) => {
+            setMessage(progress.message);
+          },
+          signal: abortControllerRef.current.signal,
+        });
+      const blob = result.blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const contentDisposition =
-        response.headers.get("content-disposition") ?? "";
-      const filenameMatch = /filename\*?=(?:UTF-8''|\")?([^\";]+)/i.exec(
-        contentDisposition,
-      );
-      const headerFilename = filenameMatch
-        ? decodeURIComponent(filenameMatch[1].replace(/"/g, ""))
-        : null;
       const baseName = file.name.replace(/\.[^.]+$/, "") || "converted";
+      const extension = result.fileExtension;
+      const usedMode = result.usedMode;
       link.href = url;
-      link.download = headerFilename ?? `${baseName}.zip`;
+      link.download = `${baseName}.${extension}`;
       link.click();
       URL.revokeObjectURL(url);
 
       setStatus("done");
-      setMessage("Done. ZIP file downloaded.");
+      if (result.fallbackReason) {
+        setMessage(
+          `Done with fallback. Requested: ${mode}, used: ${usedMode}. Reason: ${result.fallbackReason}`,
+        );
+      } else {
+        setMessage(`Done. Converted ZIP downloaded via ${usedMode}.`);
+      }
     } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Unknown error");
+      if (error instanceof Error && error.name === "AbortError") {
+        setStatus("canceled");
+        setMessage("Conversion canceled.");
+      } else {
+        const rawDetail = error instanceof Error ? error.message : String(error);
+        console.error("convert.failed", {
+          mode,
+          backendEnabled,
+          fileName: file?.name,
+          detail: rawDetail,
+          error,
+        });
+
+        setStatus("error");
+        setErrorDetail(rawDetail);
+        setMessage(
+          toUserFriendlyConvertError(error, {
+            mode,
+            backendEnabled,
+          }),
+        );
+      }
+    } finally {
+      abortControllerRef.current = null;
     }
+  }
+
+  function onCancel() {
+    abortControllerRef.current?.abort();
   }
 
   return (
@@ -69,10 +102,35 @@ export default function App() {
         <p className="eyebrow">vrm2pmx web poc</p>
         <h1>VRM to PMX Converter</h1>
         <p className="lead">
-          Upload a VRM file and convert it with the local FastAPI backend.
+          Upload a VRM file and convert with Wasm mode by default.
         </p>
 
+        {!backendEnabled && (
+          <p className="lead">
+            Backend fallback is disabled for publish mode. Set
+            VITE_ENABLE_BACKEND_FALLBACK=true to enable local fallback.
+          </p>
+        )}
+
         <form className="form" onSubmit={onSubmit}>
+          <label htmlFor="mode" className="input-label">
+            Convert mode
+          </label>
+          <select
+            id="mode"
+            value={mode}
+            onChange={(event) => setMode(event.target.value as ConvertMode)}
+            disabled={status === "uploading"}
+          >
+            <option value="wasm">Wasm (Pyodide runtime init)</option>
+            {backendEnabled && (
+              <option value="auto">
+                Auto (Wasm first, then Backend fallback)
+              </option>
+            )}
+            {backendEnabled && <option value="backend">Backend (FastAPI)</option>}
+          </select>
+
           <label htmlFor="vrm-input" className="input-label">
             Choose VRM file
           </label>
@@ -86,11 +144,22 @@ export default function App() {
           <button type="submit" disabled={disabled}>
             {status === "uploading"
               ? "Converting..."
-              : "Convert and Download PMX"}
+              : "Convert and Download ZIP"}
           </button>
+          {status === "uploading" && (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
         </form>
 
         <p className={`status status-${status}`}>{message}</p>
+        {status === "error" && errorDetail && (
+          <details>
+            <summary>Show technical details</summary>
+            <pre>{errorDetail}</pre>
+          </details>
+        )}
       </section>
     </main>
   );
