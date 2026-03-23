@@ -494,6 +494,24 @@ export default function App() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
     pmxViewRef.current = null;
+
+    const canvas = pmxCanvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const gl =
+      (canvas.getContext("webgl2") as WebGL2RenderingContext | null) ??
+      (canvas.getContext("webgl") as WebGLRenderingContext | null) ??
+      (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
+    if (gl) {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      return;
+    }
+
+    const context2d = canvas.getContext("2d");
+    context2d?.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   function syncOrbitBetweenViews(sourceView: "vrm" | "pmx", forceSync = false) {
@@ -1175,13 +1193,18 @@ export default function App() {
   }
 
   function applySelectedVrmFile(selected: File | null) {
+    cleanupPmxPreview();
+    setConvertedOutput(null);
+    setLogLines([]);
+    setCopyStatus("idle");
+    setErrorDetail("");
+
     setFile(selected);
     setIsVrmReady(false);
+    setStatus("idle");
 
     if (!selected) {
       cleanupPreview();
-      cleanupPmxPreview();
-      setConvertedOutput(null);
       setMessage("VRM file is not selected yet.");
       return;
     }
