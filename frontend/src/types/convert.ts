@@ -5,6 +5,20 @@ export type WorkerRequest = {
   fileBuffer: ArrayBuffer;
 };
 
+export type WorkerProgressStage =
+  | "init"
+  | "pyodide-loading"
+  | "py-src-sync"
+  | "converting"
+  | "finalizing";
+
+export type WorkerProgressResponse = {
+  id: string;
+  status: "progress";
+  stage: WorkerProgressStage;
+  message: string;
+};
+
 export type WorkerSuccessResponse = {
   id: string;
   status: "ok";
@@ -20,4 +34,9 @@ export type WorkerErrorResponse = {
   message: string;
 };
 
-export type WorkerResponse = WorkerSuccessResponse | WorkerErrorResponse;
+export type WorkerResponse =
+  | WorkerProgressResponse
+  | WorkerSuccessResponse
+  | WorkerErrorResponse;
+
+export type WorkerTerminalResponse = WorkerSuccessResponse | WorkerErrorResponse;

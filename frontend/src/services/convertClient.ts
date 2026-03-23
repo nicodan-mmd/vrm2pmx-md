@@ -1,4 +1,5 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
+import type { WorkerProgressResponse } from "../types/convert";
 
 export type ConvertMode = "auto" | "backend" | "wasm";
 
@@ -7,6 +8,15 @@ export type ConvertResult = {
   fileExtension: "zip" | "pmx";
   usedMode: "backend" | "wasm";
   fallbackReason?: string;
+};
+
+export type ConvertProgress = {
+  stage: WorkerProgressResponse["stage"];
+  message: string;
+};
+
+type ConvertOptions = {
+  onProgress?: (progress: ConvertProgress) => void;
 };
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -40,9 +50,14 @@ async function convertViaBackend(file: File): Promise<ConvertResult> {
   };
 }
 
-async function convertViaWasm(file: File): Promise<ConvertResult> {
+async function convertViaWasm(
+  file: File,
+  options?: ConvertOptions,
+): Promise<ConvertResult> {
   const inputBuffer = await file.arrayBuffer();
-  const response = await convertViaWasmWorker(file.name, inputBuffer);
+  const response = await convertViaWasmWorker(file.name, inputBuffer, (event) => {
+    options?.onProgress?.({ stage: event.stage, message: event.message });
+  });
 
   if (response.status === "error") {
     throw new Error(response.message);
@@ -58,6 +73,7 @@ async function convertViaWasm(file: File): Promise<ConvertResult> {
 export async function convertWithMode(
   file: File,
   mode: ConvertMode,
+  options?: ConvertOptions,
 ): Promise<ConvertResult> {
   const startedAt = performance.now();
 
@@ -75,7 +91,7 @@ export async function convertWithMode(
   }
 
   if (mode === "wasm") {
-    const result = await convertViaWasm(file);
+    const result = await convertViaWasm(file, options);
     console.info(
       JSON.stringify({
         event: "convert.completed",
@@ -88,7 +104,7 @@ export async function convertWithMode(
   }
 
   try {
-    const wasmResult = await convertViaWasm(file);
+    const wasmResult = await convertViaWasm(file, options);
     console.info(
       JSON.stringify({
         event: "convert.completed",

@@ -21,9 +21,9 @@ class Vrm2PmxExportService:
         self.options = options
 
     def execute(self):
-        logging.basicConfig(
-            level=self.options.logging_level, format="%(message)s [%(module_name)s]"
-        )
+        # Use a safe default logging format because third-party log records
+        # may not include custom fields such as module_name.
+        logging.basicConfig(level=self.options.logging_level, format="%(message)s")
 
         try:
             service_data_txt = "VRM2PMX変換処理実行\n------------------------\nexeバージョン: {version_name}\n".format(

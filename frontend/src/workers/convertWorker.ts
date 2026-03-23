@@ -2,6 +2,7 @@
 
 import { getPyodide, getPyodideVersion } from "../wasm/pyodideRuntime";
 import type {
+  WorkerProgressStage,
   WorkerRequest,
   WorkerResponse,
   WorkerSuccessResponse,
@@ -57,6 +58,20 @@ if "${PY_RUNTIME_ROOT}" not in sys.path:
 
 const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
 
+function postProgress(
+  id: string,
+  stage: WorkerProgressStage,
+  message: string,
+): void {
+  const response: WorkerResponse = {
+    id,
+    status: "progress",
+    stage,
+    message,
+  };
+  workerSelf.postMessage(response);
+}
+
 workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
 
@@ -65,7 +80,11 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   }
 
   try {
+    postProgress(request.id, "init", "Initializing Wasm runtime...");
+    postProgress(request.id, "pyodide-loading", "Loading Pyodide packages...");
     await ensurePyRuntime();
+
+    postProgress(request.id, "py-src-sync", "Python runtime is ready.");
     const pyodideVersion = await getPyodideVersion();
     const runtime = await getPyodide();
     const inputSuffix = request.fileName.toLowerCase().endsWith(".glb")
@@ -75,6 +94,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     runtime.globals.set("__input_bytes", new Uint8Array(request.fileBuffer));
     runtime.globals.set("__input_suffix", inputSuffix);
 
+    postProgress(request.id, "converting", "Converting VRM to PMX...");
     await runtime.runPythonAsync(`
 from service.Vrm2PmxBytesService import convert_vrm_bytes
 __output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suffix, version_name="wasm-poc")
@@ -86,6 +106,8 @@ __output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suf
         ? outputBytesProxy
         : (outputBytesProxy.toJs() as Uint8Array);
     const outputBuffer = outputArray.slice().buffer;
+
+    postProgress(request.id, "finalizing", "Finalizing converted PMX file...");
 
     const response: WorkerSuccessResponse = {
       id: request.id,

@@ -33,7 +33,11 @@ export default function App() {
     );
 
     try {
-      const result = await convertWithMode(file, mode);
+        const result = await convertWithMode(file, mode, {
+          onProgress: (progress) => {
+            setMessage(progress.message);
+          },
+        });
       const blob = result.blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
