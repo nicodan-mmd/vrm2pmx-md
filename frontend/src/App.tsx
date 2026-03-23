@@ -716,6 +716,38 @@ export default function App() {
         console.warn = originalConsoleWarn;
       }
       loadedMesh = mesh;
+
+      // MMDLoader does not tag color textures as sRGB, causing double-gamma and
+      // washed-out colors in Three.js r152+ (SRGBColorSpace output default).
+      // Fix: mark diffuse/emissive/sphere textures as SRGBColorSpace.
+      mesh.traverse((obj) => {
+        const maybeMesh = obj as THREE.Mesh;
+        if (!maybeMesh.isMesh) return;
+        const mats = Array.isArray(maybeMesh.material)
+          ? maybeMesh.material
+          : [maybeMesh.material];
+        for (const mat of mats) {
+          if (!mat) continue;
+          const m = mat as THREE.MeshToonMaterial & {
+            emissiveMap?: THREE.Texture | null;
+            matcap?: THREE.Texture | null;
+          };
+          if (m.map) {
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            m.map.needsUpdate = true;
+          }
+          if (m.emissiveMap) {
+            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            m.emissiveMap.needsUpdate = true;
+          }
+          if (m.matcap) {
+            m.matcap.colorSpace = THREE.SRGBColorSpace;
+            m.matcap.needsUpdate = true;
+          }
+          m.needsUpdate = true;
+        }
+      });
+
       scene.add(mesh);
 
       const skinnedMeshes: THREE.SkinnedMesh[] = [];
