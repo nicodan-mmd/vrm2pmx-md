@@ -147,3 +147,18 @@ AssetFile:
 - 既知懸念（継続監視）
   - `npm run build` は成功するが、`pyodide.mjs` 起因で Node built-in externalize 警告が出る
   - 次段で Worker 化する際に CDN import 方式との比較が必要
+
+## 8. 実ファイルベンチ（2026-03-23）
+
+- 入力モデル: 和風リメイクあかおに.vrm（17.7MB）
+- 実行経路: `convert_vrm_bytes(...)`（ローカル Python）
+- 結果: 成功
+- 計測値:
+  - `input_bytes`: 18650692
+  - `output_bytes`: 3318594
+  - `elapsed_sec`: 6.447
+
+### 追加対応
+
+- `src/service/Vrm2PmxExportService.py` の `logging.basicConfig` 形式を `%(message)s` に変更
+- 目的: 実測時に `module_name` 欠落で大量に出る logging error ノイズを抑制
