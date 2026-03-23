@@ -14,6 +14,17 @@ const PY_RUNTIME_ROOT = "/workspace/src";
 
 let pyReadyPromise: Promise<void> | null = null;
 
+async function loadCorePackages(pyodide: Awaited<ReturnType<typeof getPyodide>>): Promise<void> {
+  await pyodide.loadPackage(["numpy"]);
+
+  try {
+    await pyodide.loadPackage(["pillow"]);
+  } catch {
+    // Some Pyodide environments may expose Pillow under canonical casing.
+    await pyodide.loadPackage(["Pillow"]);
+  }
+}
+
 async function ensurePyRuntime(): Promise<void> {
   if (pyReadyPromise) {
     return pyReadyPromise;
@@ -21,7 +32,7 @@ async function ensurePyRuntime(): Promise<void> {
 
   pyReadyPromise = (async () => {
     const pyodide = await getPyodide();
-    await pyodide.loadPackage(["numpy", "pillow"]);
+    await loadCorePackages(pyodide);
 
     const manifestResponse = await fetch(PY_SRC_MANIFEST);
     if (!manifestResponse.ok) {
@@ -53,7 +64,13 @@ if "${PY_RUNTIME_ROOT}" not in sys.path:
 `);
   })();
 
-  return pyReadyPromise;
+  try {
+    return await pyReadyPromise;
+  } catch (error) {
+    // Allow retry without full page reload when runtime init fails.
+    pyReadyPromise = null;
+    throw error;
+  }
 }
 
 const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
@@ -132,11 +149,16 @@ __output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suf
       }),
     );
   } catch (error) {
+    const detail =
+      error instanceof Error
+        ? `${error.message}${error.stack ? `\n${error.stack}` : ""}`
+        : "Unknown wasm worker error";
+
     const response: WorkerResponse = {
       id: request.id,
       status: "error",
       code: "WASM_CONVERT_FAILED",
-      message: error instanceof Error ? error.message : "Unknown wasm worker error",
+      message: detail,
     };
     workerSelf.postMessage(response);
   }

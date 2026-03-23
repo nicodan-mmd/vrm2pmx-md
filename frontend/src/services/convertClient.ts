@@ -68,6 +68,14 @@ export function toUserFriendlyConvertError(
     return "Wasm conversion failed and backend fallback is disabled in this build.";
   }
 
+  if (normalized.includes("no known package") || normalized.includes("pillow")) {
+    return "Pyodide package initialization failed. Reload the page and retry. If it persists, check network access to cdn.jsdelivr.net.";
+  }
+
+  if (normalized.includes("failed to fetch py_src_manifest")) {
+    return "Python runtime manifest could not be loaded. Run npm run dev/build again to regenerate synced py_src files.";
+  }
+
   if (normalized.includes("invalid vrm") || normalized.includes("file_suffix")) {
     return "The selected file format is not supported or the VRM/GLB content is invalid.";
   }
