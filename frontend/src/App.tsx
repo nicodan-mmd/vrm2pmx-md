@@ -386,6 +386,7 @@ export default function App() {
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
   const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewCleanupRef = useRef<(() => void) | null>(null);
@@ -1246,6 +1247,16 @@ export default function App() {
       return;
     }
 
+    if (vrmInputRef.current) {
+      try {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(droppedFile);
+        vrmInputRef.current.files = dataTransfer.files;
+      } catch {
+        // Some environments may block programmatic file list updates.
+      }
+    }
+
     applySelectedVrmFile(droppedFile);
   }
 
@@ -1359,6 +1370,7 @@ export default function App() {
           </label>
           <div className="file-picker-row">
             <input
+              ref={vrmInputRef}
               id="vrm-input"
               type="file"
               accept=".vrm,.glb"
