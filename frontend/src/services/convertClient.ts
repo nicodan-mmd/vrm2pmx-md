@@ -10,6 +10,12 @@ export type ConvertResult = {
 };
 
 const API_BASE = "http://127.0.0.1:8000";
+const BACKEND_FALLBACK_ENABLED =
+  import.meta.env.VITE_ENABLE_BACKEND_FALLBACK === "true";
+
+export function isBackendFallbackEnabled(): boolean {
+  return BACKEND_FALLBACK_ENABLED;
+}
 
 async function convertViaBackend(file: File): Promise<ConvertResult> {
   const formData = new FormData();
@@ -87,6 +93,23 @@ export async function convertWithMode(
   } catch (error) {
     const fallbackReason =
       error instanceof Error ? error.message : "Unknown wasm error";
+
+    if (!BACKEND_FALLBACK_ENABLED) {
+      console.info(
+        JSON.stringify({
+          event: "convert.wasm.failed",
+          requestedMode: mode,
+          attemptedMode: "wasm",
+          fallbackEnabled: false,
+          fallbackReason,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        }),
+      );
+
+      throw new Error(
+        `Wasm conversion failed and backend fallback is disabled. Reason: ${fallbackReason}`,
+      );
+    }
 
     const backendResult = await convertViaBackend(file);
     console.info(

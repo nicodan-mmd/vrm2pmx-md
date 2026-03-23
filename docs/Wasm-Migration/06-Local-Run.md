@@ -24,6 +24,15 @@ npm install
 npm run dev
 ```
 
+バックエンド自動フォールバックをローカルで有効化する場合:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env -Force
+(Get-Content .env) -replace "VITE_ENABLE_BACKEND_FALLBACK=false", "VITE_ENABLE_BACKEND_FALLBACK=true" | Set-Content .env
+npm run dev
+```
+
 Open:
 
 - http://127.0.0.1:5173/
@@ -40,3 +49,4 @@ Open:
 - Vite build 成果物を `dist` として出力する。
 - リポジトリ名付き URL の場合は Vite `base` 設定を合わせる。
 - 静的配信のみで変換が成立することを確認する。
+- 公開時は `VITE_ENABLE_BACKEND_FALLBACK=false` を維持する。
