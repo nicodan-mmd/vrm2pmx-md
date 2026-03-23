@@ -44,6 +44,18 @@ Open:
 3. Pyodide 初期化完了を待つ。
 4. 進捗表示が更新され、ファイルがダウンロードされる。
 
+### 3.1 FastAPI なし確認（Wasm 単独）
+
+1. FastAPI を起動しない（または停止する）。
+2. `Test-NetConnection 127.0.0.1 -Port 8000` で `TcpTestSucceeded = False` を確認する。
+3. `frontend/.env` で `VITE_ENABLE_BACKEND_FALLBACK=false` を確認する。
+4. `npm run dev -- --host 127.0.0.1` で frontend を起動し、`http://127.0.0.1:5173/` を開く。
+5. `Convert mode` が `Wasm` の状態で `.vrm` を変換する。
+6. 期待結果:
+	- 進捗表示が更新される
+	- `*.pmx` がダウンロードされる
+	- backend 接続エラーが表示されない
+
 ## 4. GitHub Pages 公開確認
 
 - Vite build 成果物を `dist` として出力する。

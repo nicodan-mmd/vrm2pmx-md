@@ -27,7 +27,7 @@
 - [x] `auto` モードで wasm 失敗時の backend フォールバックを実装した
 - [x] Worker から Python 呼び出し経路を実装した（変換本体まで実装済み）
 - [x] PMX 単体をダウンロードできる
-- [ ] FastAPI なしでローカル動作する
+- [x] FastAPI なしでローカル動作する（確認手順を `06-Local-Run.md` に明記）
 
 ## 4. Phase 3: 実用化
 
