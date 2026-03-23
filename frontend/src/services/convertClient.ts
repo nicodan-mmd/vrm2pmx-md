@@ -20,12 +20,63 @@ type ConvertOptions = {
   signal?: AbortSignal;
 };
 
+type UserErrorContext = {
+  mode: ConvertMode;
+  backendEnabled: boolean;
+};
+
 const API_BASE = "http://127.0.0.1:8000";
 const BACKEND_FALLBACK_ENABLED =
   import.meta.env.VITE_ENABLE_BACKEND_FALLBACK === "true";
 
 export function isBackendFallbackEnabled(): boolean {
   return BACKEND_FALLBACK_ENABLED;
+}
+
+export function toUserFriendlyConvertError(
+  error: unknown,
+  context: UserErrorContext,
+): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Conversion canceled.";
+  }
+
+  const rawMessage = error instanceof Error ? error.message : "Unknown error";
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes("out of memory") ||
+    normalized.includes("memory") ||
+    normalized.includes("allocation")
+  ) {
+    return "Conversion failed due to insufficient memory. Try a smaller model, close other browser tabs, or reload the page and retry.";
+  }
+
+  if (normalized.includes("failed to fetch")) {
+    if (context.mode === "backend") {
+      return "Backend server is not reachable. Start FastAPI on 127.0.0.1:8000, or switch to Wasm mode.";
+    }
+
+    if (context.mode === "auto" && context.backendEnabled) {
+      return "Wasm conversion failed and backend fallback was also not reachable. Check network/backend state and retry.";
+    }
+
+    return "Required runtime files could not be fetched. Check network access and retry.";
+  }
+
+  if (normalized.includes("backend fallback is disabled")) {
+    return "Wasm conversion failed and backend fallback is disabled in this build.";
+  }
+
+  if (normalized.includes("invalid vrm") || normalized.includes("file_suffix")) {
+    return "The selected file format is not supported or the VRM/GLB content is invalid.";
+  }
+
+  if (normalized.includes("wasm_convert_failed") || normalized.includes("pyodide")) {
+    return "Wasm runtime error occurred during conversion. Reload the page and try again.";
+  }
+
+  return rawMessage;
 }
 
 async function convertViaBackend(

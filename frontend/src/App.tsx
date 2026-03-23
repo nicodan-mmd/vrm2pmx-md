@@ -3,6 +3,7 @@ import {
   type ConvertMode,
   convertWithMode,
   isBackendFallbackEnabled,
+  toUserFriendlyConvertError,
 } from "./services/convertClient";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
@@ -66,7 +67,12 @@ export default function App() {
         setMessage("Conversion canceled.");
       } else {
         setStatus("error");
-        setMessage(error instanceof Error ? error.message : "Unknown error");
+        setMessage(
+          toUserFriendlyConvertError(error, {
+            mode,
+            backendEnabled,
+          }),
+        );
       }
     } finally {
       abortControllerRef.current = null;
