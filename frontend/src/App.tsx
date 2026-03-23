@@ -61,7 +61,7 @@ export default function App() {
           `Done with fallback. Requested: ${mode}, used: ${usedMode}. Reason: ${result.fallbackReason}`,
         );
       } else {
-        setMessage(`Done. Converted file downloaded via ${usedMode}.`);
+        setMessage(`Done. Converted ZIP downloaded via ${usedMode}.`);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -144,7 +144,7 @@ export default function App() {
           <button type="submit" disabled={disabled}>
             {status === "uploading"
               ? "Converting..."
-              : "Convert and Download PMX"}
+              : "Convert and Download ZIP"}
           </button>
           {status === "uploading" && (
             <button type="button" onClick={onCancel}>

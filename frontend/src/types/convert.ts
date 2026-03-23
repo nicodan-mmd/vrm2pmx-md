@@ -23,7 +23,7 @@ export type WorkerSuccessResponse = {
   id: string;
   status: "ok";
   usedMode: "wasm";
-  fileExtension: "pmx";
+  fileExtension: "pmx" | "zip";
   outputBuffer: ArrayBuffer;
 };
 

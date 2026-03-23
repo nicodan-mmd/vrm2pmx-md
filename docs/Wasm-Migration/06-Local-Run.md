@@ -42,7 +42,7 @@ Open:
 1. `.vrm` ファイルを選択する。
 2. `Convert and Download PMX` を押す。
 3. Pyodide 初期化完了を待つ。
-4. 進捗表示が更新され、ファイルがダウンロードされる。
+4. 進捗表示が更新され、`result.pmx` と `tex/*` を含む ZIP がダウンロードされる。
 
 ### 3.1 FastAPI なし確認（Wasm 単独）
 
@@ -53,7 +53,7 @@ Open:
 5. `Convert mode` が `Wasm` の状態で `.vrm` を変換する。
 6. 期待結果:
 	- 進捗表示が更新される
-	- `*.pmx` がダウンロードされる
+	- `*.zip` がダウンロードされ、その中に `result.pmx` と `tex/*` が含まれる
 	- backend 接続エラーが表示されない
 
 ## 4. GitHub Pages 公開確認

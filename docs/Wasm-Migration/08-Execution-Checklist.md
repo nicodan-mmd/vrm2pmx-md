@@ -31,7 +31,7 @@
 
 ## 4. Phase 3: 実用化
 
-- [ ] ZIP 同梱方式（Python 側 or JS 側）を決めた
+- [x] ZIP 同梱方式（Python 側 or JS 側）を決めた（Python 側で ZIP 生成）
 - [x] Worker で進捗通知が出る
 - [x] キャンセル動作を定義した
 - [x] エラー表示をユーザー向けに整えた

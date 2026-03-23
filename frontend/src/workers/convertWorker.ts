@@ -113,8 +113,8 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     postProgress(request.id, "converting", "Converting VRM to PMX...");
     await runtime.runPythonAsync(`
-from service.Vrm2PmxBytesService import convert_vrm_bytes
-__output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suffix, version_name="wasm-poc")
+  from service.Vrm2PmxBytesService import convert_vrm_zip_bytes
+  __output_bytes = convert_vrm_zip_bytes(bytes(__input_bytes), file_suffix=__input_suffix, version_name="wasm-poc")
 `);
 
     const outputBytesProxy = runtime.globals.get("__output_bytes");
@@ -124,13 +124,13 @@ __output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suf
         : (outputBytesProxy.toJs() as Uint8Array);
     const outputBuffer = outputArray.slice().buffer;
 
-    postProgress(request.id, "finalizing", "Finalizing converted PMX file...");
+    postProgress(request.id, "finalizing", "Finalizing ZIP package...");
 
     const response: WorkerSuccessResponse = {
       id: request.id,
       status: "ok",
       usedMode: "wasm",
-      fileExtension: "pmx",
+      fileExtension: "zip",
       outputBuffer,
     };
 
