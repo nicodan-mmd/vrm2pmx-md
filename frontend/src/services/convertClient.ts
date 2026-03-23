@@ -72,6 +72,10 @@ export function toUserFriendlyConvertError(
     return "Pyodide package initialization failed. Reload the page and retry. If it persists, check network access to cdn.jsdelivr.net.";
   }
 
+  if (normalized.includes("no module named 'quaternion'")) {
+    return "Wasm runtime was missing quaternion support, but a compatibility fallback has been added. Reload the page and try again.";
+  }
+
   if (normalized.includes("failed to fetch py_src_manifest")) {
     return "Python runtime manifest could not be loaded. Run npm run dev/build again to regenerate synced py_src files.";
   }

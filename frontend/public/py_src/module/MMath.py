@@ -8,7 +8,122 @@ import math
 from math import acos, asin, atan2, cos, degrees, pi, radians, sin, sqrt
 
 import numpy as np
-import quaternion  # noqa
+
+try:
+    import quaternion  # noqa
+except Exception:  # pragma: no cover
+    quaternion = None
+
+    class _QuaternionComponents(np.ndarray):
+        @property
+        def w(self):
+            return float(self[0])
+
+        @property
+        def x(self):
+            return float(self[1])
+
+        @property
+        def y(self):
+            return float(self[2])
+
+        @property
+        def z(self):
+            return float(self[3])
+
+    class _QuaternionCompat:
+        def __init__(self, w=1.0, x=0.0, y=0.0, z=0.0):
+            self._components = np.array([w, x, y, z], dtype=np.float64)
+
+        @property
+        def components(self):
+            return self._components.view(_QuaternionComponents)
+
+        @property
+        def w(self):
+            return float(self._components[0])
+
+        @property
+        def x(self):
+            return float(self._components[1])
+
+        @property
+        def y(self):
+            return float(self._components[2])
+
+        @property
+        def z(self):
+            return float(self._components[3])
+
+        def inverse(self):
+            norm_sq = float(np.dot(self._components, self._components))
+            if norm_sq == 0:
+                return _QuaternionCompat(1.0, 0.0, 0.0, 0.0)
+            return _QuaternionCompat(
+                self.w / norm_sq,
+                -self.x / norm_sq,
+                -self.y / norm_sq,
+                -self.z / norm_sq,
+            )
+
+        def abs(self):
+            return float(np.linalg.norm(self._components))
+
+        def normalized(self):
+            length = self.abs()
+            if length == 0:
+                return _QuaternionCompat(1.0, 0.0, 0.0, 0.0)
+            return _QuaternionCompat(*(self._components / length))
+
+        def less(self, other):
+            return bool(np.all(self._components < other.components))
+
+        def less_equal(self, other):
+            return bool(np.all(self._components <= other.components))
+
+        def equal(self, other):
+            return bool(np.all(self._components == other.components))
+
+        def not_equal(self, other):
+            return bool(np.any(self._components != other.components))
+
+        def greater(self, other):
+            return bool(np.all(self._components > other.components))
+
+        def greater_equal(self, other):
+            return bool(np.all(self._components >= other.components))
+
+        def _coerce_other(self, other):
+            return other.components if isinstance(other, _QuaternionCompat) else other
+
+        def __add__(self, other):
+            values = self._components + self._coerce_other(other)
+            return _QuaternionCompat(*values)
+
+        def __sub__(self, other):
+            values = self._components - self._coerce_other(other)
+            return _QuaternionCompat(*values)
+
+        def __mul__(self, other):
+            if isinstance(other, _QuaternionCompat):
+                w1, x1, y1, z1 = self._components
+                w2, x2, y2, z2 = other.components
+                return _QuaternionCompat(
+                    (w1 * w2) - (x1 * x2) - (y1 * y2) - (z1 * z2),
+                    (w1 * x2) + (x1 * w2) + (y1 * z2) - (z1 * y2),
+                    (w1 * y2) - (x1 * z2) + (y1 * w2) + (z1 * x2),
+                    (w1 * z2) + (x1 * y2) - (y1 * x2) + (z1 * w2),
+                )
+            values = self._components * other
+            return _QuaternionCompat(*values)
+
+        def __truediv__(self, other):
+            if isinstance(other, _QuaternionCompat):
+                return self * other.inverse()
+            values = self._components / other
+            return _QuaternionCompat(*values)
+
+    np.quaternion = _QuaternionCompat
 
 if not hasattr(np, "float"):
     np.float = float
