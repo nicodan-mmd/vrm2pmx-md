@@ -15,6 +15,10 @@ GTAGS
 GRTAGS
 GPATH
 
+.github/*
+!.github/workflows/
+!.github/workflows/**
+
 build/
 __pycache__/
 
