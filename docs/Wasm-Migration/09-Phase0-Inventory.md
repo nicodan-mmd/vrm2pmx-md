@@ -135,6 +135,11 @@ AssetFile:
   - `frontend/src/wasm/workerClient.ts` を追加
   - `frontend/src/services/convertClient.ts` の Wasm 経路を Worker 呼び出しへ切替
 
+- 完了: Wasm 実変換ブリッジの初版を追加
+  - `frontend/scripts/sync_py_src.mjs` で Python コアソースを `frontend/public/py_src` に同期
+  - Worker 内で `convert_vrm_bytes(...)` を呼び出す経路を実装
+  - `src/utils/MLogger.py` の `cython` 依存を任意化
+
 - 完了: Pyodide 初期化経路を追加
   - `frontend/src/wasm/pyodideRuntime.ts`
   - `App.tsx` から Wasm モード時に初期化を呼び出す構成へ変更

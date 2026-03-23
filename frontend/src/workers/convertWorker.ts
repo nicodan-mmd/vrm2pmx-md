@@ -1,7 +1,63 @@
-import { getPyodideVersion } from "../wasm/pyodideRuntime";
-import type { WorkerRequest, WorkerResponse } from "../types/convert";
+/// <reference lib="webworker" />
 
-self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
+import { getPyodide, getPyodideVersion } from "../wasm/pyodideRuntime";
+import type {
+  WorkerRequest,
+  WorkerResponse,
+  WorkerSuccessResponse,
+} from "../types/convert";
+
+const PY_SRC_ROOT = "/py_src";
+const PY_SRC_MANIFEST = "/py_src_manifest.json";
+const PY_RUNTIME_ROOT = "/workspace/src";
+
+let pyReadyPromise: Promise<void> | null = null;
+
+async function ensurePyRuntime(): Promise<void> {
+  if (pyReadyPromise) {
+    return pyReadyPromise;
+  }
+
+  pyReadyPromise = (async () => {
+    const pyodide = await getPyodide();
+    await pyodide.loadPackage(["numpy", "pillow"]);
+
+    const manifestResponse = await fetch(PY_SRC_MANIFEST);
+    if (!manifestResponse.ok) {
+      throw new Error("Failed to fetch py_src_manifest.json");
+    }
+
+    const files = (await manifestResponse.json()) as string[];
+    pyodide.FS.mkdirTree(PY_RUNTIME_ROOT);
+
+    for (const relativePath of files) {
+      const sourceResponse = await fetch(
+        `${PY_SRC_ROOT}/${relativePath}`,
+      );
+      if (!sourceResponse.ok) {
+        throw new Error(`Failed to fetch python source: ${relativePath}`);
+      }
+
+      const sourceText = await sourceResponse.text();
+      const targetPath = `${PY_RUNTIME_ROOT}/${relativePath}`;
+      const targetDir = targetPath.substring(0, targetPath.lastIndexOf("/"));
+      pyodide.FS.mkdirTree(targetDir);
+      pyodide.FS.writeFile(targetPath, sourceText, { encoding: "utf8" });
+    }
+
+    pyodide.runPython(`
+import sys
+if "${PY_RUNTIME_ROOT}" not in sys.path:
+    sys.path.insert(0, "${PY_RUNTIME_ROOT}")
+`);
+  })();
+
+  return pyReadyPromise;
+}
+
+const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+
+workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
 
   if (request.type !== "convert") {
@@ -9,19 +65,57 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   }
 
   try {
+    await ensurePyRuntime();
     const pyodideVersion = await getPyodideVersion();
-    const sizeMb = (request.fileBuffer.byteLength / (1024 * 1024)).toFixed(1);
+    const runtime = await getPyodide();
+    const inputSuffix = request.fileName.toLowerCase().endsWith(".glb")
+      ? ".glb"
+      : ".vrm";
 
-    throw new Error(
-      `Wasm worker is ready (Pyodide ${pyodideVersion}, input ${sizeMb}MB), but conversion bridge is not implemented yet.`,
+    runtime.globals.set("__input_bytes", new Uint8Array(request.fileBuffer));
+    runtime.globals.set("__input_suffix", inputSuffix);
+
+    await runtime.runPythonAsync(`
+from service.Vrm2PmxBytesService import convert_vrm_bytes
+__output_bytes = convert_vrm_bytes(bytes(__input_bytes), file_suffix=__input_suffix, version_name="wasm-poc")
+`);
+
+    const outputBytesProxy = runtime.globals.get("__output_bytes");
+    const outputArray =
+      outputBytesProxy instanceof Uint8Array
+        ? outputBytesProxy
+        : (outputBytesProxy.toJs() as Uint8Array);
+    const outputBuffer = outputArray.slice().buffer;
+
+    const response: WorkerSuccessResponse = {
+      id: request.id,
+      status: "ok",
+      usedMode: "wasm",
+      fileExtension: "pmx",
+      outputBuffer,
+    };
+
+    workerSelf.postMessage(response, [outputBuffer]);
+
+    runtime.globals.delete("__input_bytes");
+    runtime.globals.delete("__input_suffix");
+    runtime.globals.delete("__output_bytes");
+
+    console.info(
+      JSON.stringify({
+        event: "wasm.convert.completed",
+        pyodideVersion,
+        inputBytes: request.fileBuffer.byteLength,
+        outputBytes: outputArray.byteLength,
+      }),
     );
   } catch (error) {
     const response: WorkerResponse = {
       id: request.id,
       status: "error",
-      code: "WASM_NOT_IMPLEMENTED",
+      code: "WASM_CONVERT_FAILED",
       message: error instanceof Error ? error.message : "Unknown wasm worker error",
     };
-    self.postMessage(response);
+    workerSelf.postMessage(response);
   }
 };

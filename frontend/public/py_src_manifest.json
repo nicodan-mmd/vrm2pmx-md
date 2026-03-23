@@ -1,0 +1,21 @@
+[
+  "config/__init__.py",
+  "config/default_pairs.py",
+  "mmd/PmxData.py",
+  "mmd/PmxReader.py",
+  "mmd/PmxWriter.py",
+  "mmd/VrmData.py",
+  "mmd/VrmReader.py",
+  "mmd/__init__.py",
+  "module/MMath.py",
+  "module/MOptions.py",
+  "module/__init__.py",
+  "service/Vrm2PmxBytesService.py",
+  "service/Vrm2PmxExportService.py",
+  "service/__init__.py",
+  "utils/MException.py",
+  "utils/MFileUtils.py",
+  "utils/MFormUtils.py",
+  "utils/MLogger.py",
+  "utils/__init__.py"
+]

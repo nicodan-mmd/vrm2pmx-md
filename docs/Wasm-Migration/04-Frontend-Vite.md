@@ -26,6 +26,8 @@
 - `frontend/src/workers/convertWorker.ts`
 - `frontend/src/services/convertClient.ts`
 - `frontend/src/types/convert.ts`
+- `frontend/scripts/sync_py_src.mjs`
+- `frontend/public/py_src/*`
 
 ## 最小 UI 機能
 
@@ -39,6 +41,11 @@
 
 - 初回ロード遅延を想定し、ローディング状態を明示する。
 - 大容量ファイルでメモリ圧迫しやすいため、不要参照を早期解放する。
+
+## 実装メモ（2026-03-23）
+
+- dev/build 時に `sync_py_src.mjs` で `src/{config,mmd,module,service,utils}` の Python ファイルを `frontend/public/py_src` へ同期する。
+- Worker は `py_src_manifest.json` を読み込み、Pyodide FS 上へ配置してから `service.Vrm2PmxBytesService.convert_vrm_bytes` を呼び出す。
 
 ## 公開運用ポリシー（現行）
 
