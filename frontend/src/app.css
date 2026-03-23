@@ -93,13 +93,58 @@ h1 {
     );
 }
 
+.pmx-tools {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  align-self: start;
+  padding-top: 2px;
+}
+
+.pmx-tool-button {
+  border: 1px solid #89a2be;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: #f3f8ff;
+  color: #2f3f56;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pmx-tool-button:hover:not(:disabled) {
+  background: #e8f1ff;
+  transform: none;
+}
+
+.pmx-tool-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: #2f3f56;
+  font-weight: 600;
+}
+
+.pmx-tool-checkbox input {
+  margin: 0;
+}
+
 .form {
   display: grid;
   gap: 12px;
 }
 
+.pose-and-pmx-tools-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
 .ta-pose-group {
-  width: calc((100% - 14px) / 2);
+  width: 100%;
   display: grid;
   gap: 8px;
 }
@@ -221,6 +266,15 @@ button:disabled {
 
   .preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pose-and-pmx-tools-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pmx-tools {
+    justify-self: start;
+    padding-top: 0;
   }
 
   .file-picker-row {

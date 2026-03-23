@@ -371,6 +371,8 @@ export default function App() {
   const [status, setStatus] = useState<Status>("idle");
   const [mode, setMode] = useState<ConvertMode>("wasm");
   const [taPoseAngle, setTaPoseAngle] = useState(0);
+  const [orbitSyncEnabled, setOrbitSyncEnabled] = useState(true);
+  const orbitSyncEnabledRef = useRef(true);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
   const [errorDetail, setErrorDetail] = useState("");
@@ -381,6 +383,19 @@ export default function App() {
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewCleanupRef = useRef<(() => void) | null>(null);
   const pmxPreviewCleanupRef = useRef<(() => void) | null>(null);
+  const vrmViewRef = useRef<{
+    camera: THREE.PerspectiveCamera;
+    controls: OrbitControls;
+    baseDistance: number;
+    anchorTarget: THREE.Vector3;
+  } | null>(null);
+  const pmxViewRef = useRef<{
+    camera: THREE.PerspectiveCamera;
+    controls: OrbitControls;
+    baseDistance: number;
+    anchorTarget: THREE.Vector3;
+  } | null>(null);
+  const orbitSyncLockRef = useRef(false);
   const upperArmStateRef = useRef<UpperArmState>({
     leftBone: null,
     rightBone: null,
@@ -415,9 +430,70 @@ export default function App() {
   function cleanupPmxPreview() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
+    pmxViewRef.current = null;
   }
 
-  async function previewPmxFromZip(zipBlob: Blob): Promise<void> {
+  function syncOrbitBetweenViews(sourceView: "vrm" | "pmx", forceSync = false) {
+    if (!forceSync && !orbitSyncEnabledRef.current) {
+      return;
+    }
+
+    const source = sourceView === "vrm" ? vrmViewRef.current : pmxViewRef.current;
+    const target = sourceView === "vrm" ? pmxViewRef.current : vrmViewRef.current;
+    if (!source || !target || orbitSyncLockRef.current) {
+      return;
+    }
+
+    const sourceOffset = source.camera.position.clone().sub(source.controls.target);
+    const sourceDistance = sourceOffset.length();
+    const sourceBaseDistance = Math.max(source.baseDistance, 1e-6);
+    const targetBaseDistance = Math.max(target.baseDistance, 1e-6);
+    if (sourceOffset.lengthSq() <= 1e-8) {
+      return;
+    }
+
+    const sourceDirection = sourceOffset.normalize();
+    const zoomRatio = sourceDistance / sourceBaseDistance;
+    const targetDistance = THREE.MathUtils.clamp(
+      targetBaseDistance * zoomRatio,
+      target.controls.minDistance,
+      target.controls.maxDistance,
+    );
+
+    orbitSyncLockRef.current = true;
+    try {
+      // Keep each viewport's own center to avoid vertical drift from different model origins.
+      target.controls.target.copy(target.anchorTarget);
+      target.camera.position
+        .copy(target.controls.target)
+        .add(sourceDirection.multiplyScalar(targetDistance));
+      target.controls.update();
+    } finally {
+      orbitSyncLockRef.current = false;
+    }
+  }
+
+  function resetOrbitView(view: {
+    controls: OrbitControls;
+  } | null) {
+    if (!view) {
+      return;
+    }
+
+    view.controls.reset();
+  }
+
+  function onOrbitReset() {
+    orbitSyncLockRef.current = true;
+    try {
+      resetOrbitView(vrmViewRef.current);
+      resetOrbitView(pmxViewRef.current);
+    } finally {
+      orbitSyncLockRef.current = false;
+    }
+  }
+
+  async function previewPmxFromZip(zipBlob: Blob, syncOrbitFromVrm = false): Promise<void> {
     if (!pmxCanvasRef.current) {
       return;
     }
@@ -430,6 +506,7 @@ export default function App() {
     const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 1000);
     const controls = new OrbitControls(camera, renderer.domElement);
     const loadingManager = new THREE.LoadingManager();
+    let onPmxOrbitChanged: (() => void) | null = null;
     let frameId = 0;
     let loadedMesh: THREE.Object3D | null = null;
     const objectUrls: string[] = [];
@@ -446,6 +523,9 @@ export default function App() {
     const disposePreview = () => {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", fitRendererSize);
+      if (onPmxOrbitChanged) {
+        controls.removeEventListener("change", onPmxOrbitChanged);
+      }
       controls.dispose();
       if (loadedMesh) {
         scene.remove(loadedMesh);
@@ -628,6 +708,23 @@ export default function App() {
       camera.position.set(0, targetY, Math.max(distance, 4));
       controls.target.set(0, targetY, 0);
       controls.update();
+      controls.saveState();
+
+      onPmxOrbitChanged = () => {
+        syncOrbitBetweenViews("pmx");
+      };
+
+      pmxViewRef.current = {
+        camera,
+        controls,
+        baseDistance: camera.position.distanceTo(controls.target),
+        anchorTarget: controls.target.clone(),
+      };
+      controls.addEventListener("change", onPmxOrbitChanged);
+
+      if (syncOrbitFromVrm) {
+        syncOrbitBetweenViews("vrm", true);
+      }
 
       const renderLoop = () => {
         frameId = window.requestAnimationFrame(renderLoop);
@@ -645,6 +742,17 @@ export default function App() {
   async function onConvert() {
     if (!file) {
       return;
+    }
+
+    if (taPoseAngle === 0) {
+      const shouldContinue = window.confirm(
+        "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
+      );
+      if (!shouldContinue) {
+        setErrorDetail("");
+        setMessage("Conversion canceled at 0 degree pose setting.");
+        return;
+      }
     }
 
     setStatus("uploading");
@@ -680,7 +788,7 @@ export default function App() {
       setConvertedOutput(nextOutput);
 
       if (result.fileExtension === "zip") {
-        await previewPmxFromZip(result.blob);
+        await previewPmxFromZip(result.blob, orbitSyncEnabled);
       } else {
         throw new Error("Current preview supports ZIP output with PMX resources.");
       }
@@ -749,6 +857,7 @@ export default function App() {
   function cleanupPreview() {
     previewCleanupRef.current?.();
     previewCleanupRef.current = null;
+    vrmViewRef.current = null;
     upperArmStateRef.current = {
       leftBone: null,
       rightBone: null,
@@ -771,6 +880,10 @@ export default function App() {
       state.rightBone.rotateZ(-angleRad);
     }
   }
+
+  useEffect(() => {
+    orbitSyncEnabledRef.current = orbitSyncEnabled;
+  }, [orbitSyncEnabled]);
 
   useEffect(() => {
     return () => {
@@ -801,6 +914,7 @@ export default function App() {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
     const controls = new OrbitControls(camera, renderer.domElement);
+    let onVrmOrbitChanged: (() => void) | null = null;
     const clock = new THREE.Clock();
     let frameId = 0;
     let vrm: VRM | null = null;
@@ -816,6 +930,9 @@ export default function App() {
     const disposePreview = () => {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", fitRendererSize);
+      if (onVrmOrbitChanged) {
+        controls.removeEventListener("change", onVrmOrbitChanged);
+      }
       controls.dispose();
       if (vrm) {
         scene.remove(vrm.scene);
@@ -885,6 +1002,19 @@ export default function App() {
       camera.position.set(0, targetY, Math.max(distance, 1.2));
       controls.target.set(0, targetY, 0);
       controls.update();
+      controls.saveState();
+
+      onVrmOrbitChanged = () => {
+        syncOrbitBetweenViews("vrm");
+      };
+
+      vrmViewRef.current = {
+        camera,
+        controls,
+        baseDistance: camera.position.distanceTo(controls.target),
+        anchorTarget: controls.target.clone(),
+      };
+      controls.addEventListener("change", onVrmOrbitChanged);
 
       const renderLoop = () => {
         frameId = window.requestAnimationFrame(renderLoop);
@@ -973,23 +1103,47 @@ export default function App() {
           </select>
           */}
 
-          <div className="ta-pose-group">
-            <div className="ta-pose-header">
-              <label htmlFor="ta-pose-angle" className="input-label">
-                T/A Pose Convert
-              </label>
-              <span className="ta-pose-value">{taPoseAngle} deg</span>
+          <div className="pose-and-pmx-tools-row" aria-label="Pose and PMX options">
+            <div className="ta-pose-group">
+              <div className="ta-pose-header">
+                <label htmlFor="ta-pose-angle" className="input-label">
+                  T/A Pose Convert
+                </label>
+                <span className="ta-pose-value">{taPoseAngle} deg</span>
+              </div>
+              <input
+                id="ta-pose-angle"
+                type="range"
+                min={0}
+                max={90}
+                step={5}
+                value={taPoseAngle}
+                onChange={(event) => setTaPoseAngle(Number(event.target.value))}
+                disabled={!file || isPreviewing || !isVrmReady}
+              />
             </div>
-            <input
-              id="ta-pose-angle"
-              type="range"
-              min={0}
-              max={90}
-              step={5}
-              value={taPoseAngle}
-              onChange={(event) => setTaPoseAngle(Number(event.target.value))}
-              disabled={!file || isPreviewing || !isVrmReady}
-            />
+            <div className="pmx-tools">
+              <button
+                type="button"
+                className="pmx-tool-button"
+                onClick={onOrbitReset}
+              >
+                Orbit Reset
+              </button>
+              <label className="pmx-tool-checkbox">
+                <input
+                  type="checkbox"
+                  name="orbit-sync"
+                  checked={orbitSyncEnabled}
+                  onChange={(event) => setOrbitSyncEnabled(event.target.checked)}
+                />
+                <span>Orbit Sync</span>
+              </label>
+              <label className="pmx-tool-checkbox">
+                <input type="checkbox" name="pmx-log" />
+                <span>Log</span>
+              </label>
+            </div>
           </div>
 
           <label htmlFor="vrm-input" className="input-label">
