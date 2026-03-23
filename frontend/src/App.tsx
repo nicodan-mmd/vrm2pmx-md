@@ -1,6 +1,6 @@
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
-import { type ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -383,6 +383,7 @@ export default function App() {
   const [message, setMessage] = useState("VRM file is not selected yet.");
   const [errorDetail, setErrorDetail] = useState("");
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isVrmDropActive, setIsVrmDropActive] = useState(false);
   const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1173,8 +1174,7 @@ export default function App() {
     await previewVrmFile(file);
   }
 
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const selected = event.target.files?.[0] ?? null;
+  function applySelectedVrmFile(selected: File | null) {
     setFile(selected);
     setIsVrmReady(false);
 
@@ -1189,19 +1189,68 @@ export default function App() {
     void previewVrmFile(selected);
   }
 
+  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] ?? null;
+    applySelectedVrmFile(selected);
+  }
+
+  function onVrmDropAreaDragOver(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+    if (!isVrmDropActive) {
+      setIsVrmDropActive(true);
+    }
+  }
+
+  function onVrmDropAreaDragLeave(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsVrmDropActive(false);
+  }
+
+  function onVrmDropAreaDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsVrmDropActive(false);
+    const droppedFile = event.dataTransfer.files?.[0] ?? null;
+    if (!droppedFile) {
+      return;
+    }
+
+    const lowerName = droppedFile.name.toLowerCase();
+    if (!(lowerName.endsWith(".vrm") || lowerName.endsWith(".glb"))) {
+      setMessage("Dropped file is not supported. Please drop a .vrm or .glb file.");
+      return;
+    }
+
+    applySelectedVrmFile(droppedFile);
+  }
+
   return (
     <main className="page">
       <div className="halo" />
       <section className="card">
         <h1>VRM to PMX Converter</h1>
         <section className="preview-grid" aria-label="Model previews">
-          <figure className="preview-panel">
+          <figure
+            className={`preview-panel${isVrmDropActive ? " preview-panel-dropping" : ""}`}
+            onDragOver={onVrmDropAreaDragOver}
+            onDragLeave={onVrmDropAreaDragLeave}
+            onDrop={onVrmDropAreaDrop}
+          >
             <figcaption>VRM Preview</figcaption>
-            <canvas
-              ref={vrmCanvasRef}
-              className="preview-canvas"
-              aria-label="VRM preview canvas"
-            />
+            <div className="preview-canvas-wrap">
+              <canvas
+                ref={vrmCanvasRef}
+                className="preview-canvas"
+                aria-label="VRM preview canvas"
+              />
+              {!isVrmReady && !isPreviewing && (
+                <div className="vrm-drop-placeholder" aria-hidden="true">
+                  Drop VRM file here
+                </div>
+              )}
+            </div>
           </figure>
           <figure className="preview-panel">
             <figcaption>PMX Preview</figcaption>
@@ -1290,6 +1339,9 @@ export default function App() {
               id="vrm-input"
               type="file"
               accept=".vrm,.glb"
+              onClick={(event) => {
+                event.currentTarget.value = "";
+              }}
               onChange={onFileChange}
             />
             <button
