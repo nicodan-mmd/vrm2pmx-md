@@ -1,17 +1,18 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   type ConvertMode,
   convertWithMode,
   isBackendFallbackEnabled,
 } from "./services/convertClient";
 
-type Status = "idle" | "uploading" | "done" | "error";
+type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [mode, setMode] = useState<ConvertMode>("wasm");
   const [message, setMessage] = useState("VRM file is not selected yet.");
+  const abortControllerRef = useRef<AbortController | null>(null);
   const backendEnabled = isBackendFallbackEnabled();
 
   const disabled = useMemo(
@@ -24,6 +25,7 @@ export default function App() {
     if (!file) return;
 
     setStatus("uploading");
+    abortControllerRef.current = new AbortController();
     setMessage(
       mode === "backend"
         ? "Converting with backend... this can take a while for large files."
@@ -37,6 +39,7 @@ export default function App() {
           onProgress: (progress) => {
             setMessage(progress.message);
           },
+          signal: abortControllerRef.current.signal,
         });
       const blob = result.blob;
       const url = URL.createObjectURL(blob);
@@ -58,9 +61,20 @@ export default function App() {
         setMessage(`Done. Converted file downloaded via ${usedMode}.`);
       }
     } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Unknown error");
+      if (error instanceof Error && error.name === "AbortError") {
+        setStatus("canceled");
+        setMessage("Conversion canceled.");
+      } else {
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Unknown error");
+      }
+    } finally {
+      abortControllerRef.current = null;
     }
+  }
+
+  function onCancel() {
+    abortControllerRef.current?.abort();
   }
 
   return (
@@ -114,6 +128,11 @@ export default function App() {
               ? "Converting..."
               : "Convert and Download PMX"}
           </button>
+          {status === "uploading" && (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
         </form>
 
         <p className={`status status-${status}`}>{message}</p>

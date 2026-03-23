@@ -17,6 +17,7 @@ export type ConvertProgress = {
 
 type ConvertOptions = {
   onProgress?: (progress: ConvertProgress) => void;
+  signal?: AbortSignal;
 };
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -27,13 +28,17 @@ export function isBackendFallbackEnabled(): boolean {
   return BACKEND_FALLBACK_ENABLED;
 }
 
-async function convertViaBackend(file: File): Promise<ConvertResult> {
+async function convertViaBackend(
+  file: File,
+  options?: ConvertOptions,
+): Promise<ConvertResult> {
   const formData = new FormData();
   formData.append("vrm_file", file);
 
   const response = await fetch(`${API_BASE}/api/convert`, {
     method: "POST",
     body: formData,
+    signal: options?.signal,
   });
 
   if (!response.ok) {
@@ -55,9 +60,14 @@ async function convertViaWasm(
   options?: ConvertOptions,
 ): Promise<ConvertResult> {
   const inputBuffer = await file.arrayBuffer();
-  const response = await convertViaWasmWorker(file.name, inputBuffer, (event) => {
-    options?.onProgress?.({ stage: event.stage, message: event.message });
-  });
+  const response = await convertViaWasmWorker(
+    file.name,
+    inputBuffer,
+    (event) => {
+      options?.onProgress?.({ stage: event.stage, message: event.message });
+    },
+    options?.signal,
+  );
 
   if (response.status === "error") {
     throw new Error(response.message);
@@ -78,7 +88,7 @@ export async function convertWithMode(
   const startedAt = performance.now();
 
   if (mode === "backend") {
-    const result = await convertViaBackend(file);
+    const result = await convertViaBackend(file, options);
     console.info(
       JSON.stringify({
         event: "convert.completed",
@@ -115,6 +125,10 @@ export async function convertWithMode(
     );
     return wasmResult;
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+
     const fallbackReason =
       error instanceof Error ? error.message : "Unknown wasm error";
 
@@ -135,7 +149,7 @@ export async function convertWithMode(
       );
     }
 
-    const backendResult = await convertViaBackend(file);
+    const backendResult = await convertViaBackend(file, options);
     console.info(
       JSON.stringify({
         event: "convert.fallback.completed",
