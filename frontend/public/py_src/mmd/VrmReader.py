@@ -199,15 +199,25 @@ class VrmReader(PmxReader):
                 indices_by_material = {}
                 node_pairs = {}
                 bones = {}
+                node_world_matrices = []
 
                 if "nodes" in vrm.json_data:
+                    node_world_matrices = self.get_node_world_matrices(vrm)
                     for nidx, _ in enumerate(vrm.json_data["nodes"]):
-                        self.define_bone(vrm, bones, nidx, "", node_pairs)
+                        self.define_bone(
+                            vrm,
+                            bones,
+                            nidx,
+                            "",
+                            node_pairs,
+                            node_world_matrices,
+                        )
 
                 # ボーンの定義
                 self.custom_bones(pmx, bones)
 
                 logger.info(f"-- ボーンデータ解析[{len(pmx.bones.keys())}]")
+                logger.info("-- ノードワールド行列計算終了")
 
                 # 表示枠 ------------------------
                 pmx.display_slots["全ての親"] = DisplaySlot("Root", "Root", 1, 1)
@@ -265,6 +275,7 @@ class VrmReader(PmxReader):
                                             ]
 
                                         # 対応するジョイントデータ
+                                        skin_inverse_bind_matrices = []
                                         try:
                                             skin_joints = vrm.json_data["skins"][
                                                 [
@@ -273,9 +284,29 @@ class VrmReader(PmxReader):
                                                     if "mesh" in s and s["mesh"] == midx
                                                 ][0]["skin"]
                                             ]["joints"]
-                                        except Exception:
+
+                                            skin_idx = [
+                                                s
+                                                for s in vrm.json_data["nodes"]
+                                                if "mesh" in s and s["mesh"] == midx
+                                            ][0]["skin"]
+                                            skin_data = vrm.json_data["skins"][skin_idx]
+                                            if "inverseBindMatrices" in skin_data:
+                                                skin_inverse_bind_matrices = (
+                                                    self.read_mat4_from_accessor(
+                                                        vrm,
+                                                        skin_data["inverseBindMatrices"],
+                                                    )
+                                                )
+                                        except Exception as e:
                                             # 取れない場合はとりあえず空
+                                            logger.warning(
+                                                "-- skin metadata fallback (mesh=%s): %s",
+                                                midx,
+                                                e,
+                                            )
                                             skin_joints = []
+                                            skin_inverse_bind_matrices = []
 
                                         if (
                                             "extras" in primitive
@@ -347,8 +378,16 @@ class VrmReader(PmxReader):
                                                 strict=False,
                                             )
                                         ):
+                                            posed_position = self.apply_skinning_pose(
+                                                position,
+                                                joint,
+                                                weight,
+                                                skin_joints,
+                                                skin_inverse_bind_matrices,
+                                                node_world_matrices,
+                                            )
                                             pmx_position = (
-                                                position
+                                                posed_position
                                                 * MIKU_METER
                                                 * MVector3D(-1, 1, 1)
                                             )
@@ -2040,6 +2079,114 @@ class VrmReader(PmxReader):
 
         return joint_values, weight_values
 
+    def apply_skinning_pose(
+        self,
+        position: MVector3D,
+        joint: Any,
+        node_weight: Any,
+        skin_joints: list,
+        inverse_bind_matrices: list[np.ndarray],
+        node_world_matrices: list[np.ndarray],
+    ) -> MVector3D:
+        if len(skin_joints) == 0 or len(node_world_matrices) == 0:
+            return position
+
+        joint_data = joint.data().astype(np.int64)
+        weight_data = node_weight.data().astype(np.float64)
+        source = np.array([position.x(), position.y(), position.z(), 1.0], dtype=np.float64)
+
+        skinned = np.zeros(4, dtype=np.float64)
+        total_weight = 0.0
+
+        for jidx, weight in zip(joint_data.tolist(), weight_data.tolist(), strict=False):
+            if weight <= 0:
+                continue
+            if jidx < 0 or jidx >= len(skin_joints):
+                continue
+
+            skin_joint_node_idx = skin_joints[jidx]
+            if skin_joint_node_idx < 0 or skin_joint_node_idx >= len(node_world_matrices):
+                continue
+
+            bind_matrix = (
+                inverse_bind_matrices[jidx]
+                if jidx < len(inverse_bind_matrices)
+                else np.identity(4, dtype=np.float64)
+            )
+
+            skinned += weight * (node_world_matrices[skin_joint_node_idx] @ (bind_matrix @ source))
+            total_weight += weight
+
+        if total_weight <= 0:
+            return position
+
+        skinned /= total_weight
+        return MVector3D(float(skinned[0]), float(skinned[1]), float(skinned[2]))
+
+    def get_node_world_matrices(self, vrm: VrmModel) -> list[np.ndarray]:
+        nodes = vrm.json_data["nodes"] if "nodes" in vrm.json_data else []
+        if len(nodes) == 0:
+            return []
+
+        local_matrices = [self.get_node_local_matrix(node) for node in nodes]
+        parents = [-1 for _ in nodes]
+
+        for parent_idx, node in enumerate(nodes):
+            if "children" not in node:
+                continue
+            for child_idx in node["children"]:
+                if 0 <= child_idx < len(nodes):
+                    parents[child_idx] = parent_idx
+
+        world_matrices: list[np.ndarray | None] = [None for _ in nodes]
+
+        def resolve_world(node_idx: int) -> np.ndarray:
+            cached = world_matrices[node_idx]
+            if cached is not None:
+                return cached
+
+            parent_idx = parents[node_idx]
+            if parent_idx >= 0:
+                world = resolve_world(parent_idx) @ local_matrices[node_idx]
+            else:
+                world = local_matrices[node_idx]
+
+            world_matrices[node_idx] = world
+            return world
+
+        for idx in range(len(nodes)):
+            resolve_world(idx)
+
+        return [m if m is not None else np.identity(4, dtype=np.float64) for m in world_matrices]
+
+    def get_node_local_matrix(self, node: dict[str, Any]) -> np.ndarray:
+        if "matrix" in node and isinstance(node["matrix"], list) and len(node["matrix"]) == 16:
+            return np.array(node["matrix"], dtype=np.float64).reshape((4, 4), order="F")
+
+        translation = np.array(node.get("translation", [0.0, 0.0, 0.0]), dtype=np.float64)
+        rotation = node.get("rotation", [0.0, 0.0, 0.0, 1.0])
+        scale = np.array(node.get("scale", [1.0, 1.0, 1.0]), dtype=np.float64)
+
+        qx = float(rotation[0])
+        qy = float(rotation[1])
+        qz = float(rotation[2])
+        qw = float(rotation[3])
+
+        rot = np.array(
+            [
+                [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+                [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+                [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
+            ],
+            dtype=np.float64,
+        )
+        rot_scale = rot @ np.diag(scale)
+
+        local = np.identity(4, dtype=np.float64)
+        local[:3, :3] = rot_scale
+        local[:3, 3] = translation
+        return local
+
     # ボーンの再定義
     def custom_bones(self, pmx: PmxModel, bones: dict):
         # MMDで定義されているボーン
@@ -2221,6 +2368,7 @@ class VrmReader(PmxReader):
         node_idx: int,
         parent_name: str,
         node_pairs: dict,
+        node_world_matrices: list[np.ndarray] | None = None,
     ):
         node = vrm.json_data["nodes"][node_idx]
 
@@ -2244,23 +2392,40 @@ class VrmReader(PmxReader):
         # ボーン名とノードINDEX(ウェイトとか)の対応表登録
         node_pairs[node_idx] = jp_bone_name
 
-        # 位置
-        translation = node["translation"] if "translation" in node else [0, 0, 0]
-        translation_values = (
-            translation.tolist() if isinstance(translation, np.ndarray) else translation
-        )
-        position = (
-            MVector3D(
-                float(translation_values[0]),
-                float(translation_values[1]),
-                float(translation_values[2]),
+        # 位置: 回転を反映したワールド座標を優先して使用する
+        if (
+            node_world_matrices is not None
+            and 0 <= node_idx < len(node_world_matrices)
+        ):
+            world_matrix = node_world_matrices[node_idx]
+            position = (
+                MVector3D(
+                    float(world_matrix[0, 3]),
+                    float(world_matrix[1, 3]),
+                    float(world_matrix[2, 3]),
+                )
+                * MIKU_METER
+                * MVector3D(-1, 1, 1)
             )
-            * MIKU_METER
-            * MVector3D(-1, 1, 1)
-        )
+        else:
+            translation = node["translation"] if "translation" in node else [0, 0, 0]
+            translation_values = (
+                translation.tolist()
+                if isinstance(translation, np.ndarray)
+                else translation
+            )
+            position = (
+                MVector3D(
+                    float(translation_values[0]),
+                    float(translation_values[1]),
+                    float(translation_values[2]),
+                )
+                * MIKU_METER
+                * MVector3D(-1, 1, 1)
+            )
 
-        if parent_name:
-            position += bones[parent_name].position
+            if parent_name:
+                position += bones[parent_name].position
 
         #  0x0001  : 接続先(PMD子ボーン指定)表示方法 -> 0:座標オフセットで指定 1:ボーンで指定
         #  0x0002  : 回転可能
@@ -2287,7 +2452,12 @@ class VrmReader(PmxReader):
             for child_idx in node["children"]:
                 # 子ボーンを取得
                 child_bone_name = self.define_bone(
-                    vrm, bones, child_idx, jp_bone_name, node_pairs
+                    vrm,
+                    bones,
+                    child_idx,
+                    jp_bone_name,
+                    node_pairs,
+                    node_world_matrices,
                 )
 
                 # 表示先を設定(最初のボーン系子ども)
@@ -2542,6 +2712,48 @@ class VrmReader(PmxReader):
                                 )
 
         return bresult
+
+    def read_mat4_from_accessor(
+        self, vrm: VrmModel, accessor_idx: int
+    ) -> list[np.ndarray]:
+        if accessor_idx >= len(vrm.json_data.get("accessors", [])):
+            return []
+
+        accessor = vrm.json_data["accessors"][accessor_idx]
+        if accessor.get("type") != "MAT4":
+            return []
+
+        buffer_view_idx = accessor.get("bufferView", -1)
+        if (
+            not isinstance(buffer_view_idx, int)
+            or buffer_view_idx < 0
+            or buffer_view_idx >= len(vrm.json_data.get("bufferViews", []))
+        ):
+            return []
+
+        buffer_view = vrm.json_data["bufferViews"][buffer_view_idx]
+        count = int(accessor.get("count", 0))
+        if count <= 0:
+            return []
+
+        accessor_offset = int(accessor.get("byteOffset", 0))
+        view_offset = int(buffer_view.get("byteOffset", 0))
+        stride = int(buffer_view.get("byteStride", 64))
+        base_offset = self.offset + view_offset + accessor_offset
+
+        matrices: list[np.ndarray] = []
+        for idx in range(count):
+            start = base_offset + (idx * stride)
+            end = start + 64
+            if end > len(self.buffer):
+                break
+
+            values = struct.unpack_from("16f", self.buffer, start)
+            # glTF の MAT4 配列は列優先なので、列優先で4x4に復元する
+            matrix = np.array(values, dtype=np.float64).reshape((4, 4), order="F")
+            matrices.append(matrix)
+
+        return matrices
 
     def define_buf_type(self, componentType: int):
         if componentType == 5120:
