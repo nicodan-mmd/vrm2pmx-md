@@ -1190,6 +1190,12 @@ export default function App() {
 
   async function onPreviewVrm() {
     if (!file) return;
+    cleanupPmxPreview();
+    setConvertedOutput(null);
+    setLogLines([]);
+    setCopyStatus("idle");
+    setErrorDetail("");
+    setStatus("idle");
     await previewVrmFile(file);
   }
 
@@ -1385,7 +1391,7 @@ export default function App() {
               onClick={onPreviewVrm}
               disabled={!file || status === "uploading" || isPreviewing}
             >
-              {isPreviewing ? "Previewing..." : "Preview VRM"}
+              {isPreviewing ? "Reloading..." : "Reload VRM"}
             </button>
           </div>
 
