@@ -67,6 +67,7 @@ main.prof
 executor.py.lprof
 *.thread
 *.html
+!frontend/index.html
 *.c
 *.pyd
 *.pyd
