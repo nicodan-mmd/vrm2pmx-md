@@ -373,6 +373,10 @@ export default function App() {
   const [taPoseAngle, setTaPoseAngle] = useState(0);
   const [orbitSyncEnabled, setOrbitSyncEnabled] = useState(true);
   const orbitSyncEnabledRef = useRef(true);
+  const [logEnabled, setLogEnabled] = useState(false);
+  const logEnabledRef = useRef(false);
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const logAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
   const [errorDetail, setErrorDetail] = useState("");
@@ -412,6 +416,36 @@ export default function App() {
     () => !!convertedOutput && status !== "uploading",
     [convertedOutput, status],
   );
+  const logText = useMemo(() => logLines.join("\n"), [logLines]);
+
+  function formatLogArg(value: unknown): string {
+    if (typeof value === "string") {
+      return value;
+    }
+    if (value instanceof Error) {
+      return value.stack || value.message;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  function appendConsoleLine(args: unknown[]) {
+    if (!logEnabledRef.current) {
+      return;
+    }
+
+    const line = args.map((value) => formatLogArg(value)).join(" ");
+    setLogLines((prev) => {
+      const next = [...prev, line];
+      if (next.length > 1000) {
+        next.splice(0, next.length - 1000);
+      }
+      return next;
+    });
+  }
 
   async function buildConvertInputFile(sourceFile: File): Promise<File> {
     const sourceBuffer = await sourceFile.arrayBuffer();
@@ -459,11 +493,15 @@ export default function App() {
       target.controls.minDistance,
       target.controls.maxDistance,
     );
+    const sourcePanDelta = source.controls.target.clone().sub(source.anchorTarget);
+    const panScale = targetBaseDistance / sourceBaseDistance;
+    const targetPanDelta = sourcePanDelta.multiplyScalar(panScale);
+    const targetOrbitTarget = target.anchorTarget.clone().add(targetPanDelta);
 
     orbitSyncLockRef.current = true;
     try {
-      // Keep each viewport's own center to avoid vertical drift from different model origins.
-      target.controls.target.copy(target.anchorTarget);
+      // Sync pan by transferring anchor-relative movement with scale compensation.
+      target.controls.target.copy(targetOrbitTarget);
       target.camera.position
         .copy(target.controls.target)
         .add(sourceDirection.multiplyScalar(targetDistance));
@@ -886,6 +924,57 @@ export default function App() {
   }, [orbitSyncEnabled]);
 
   useEffect(() => {
+    logEnabledRef.current = logEnabled;
+  }, [logEnabled]);
+
+  useEffect(() => {
+    const originalLog = console.log;
+    const originalInfo = console.info;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    const originalDebug = console.debug;
+
+    console.log = (...args: unknown[]) => {
+      originalLog(...args);
+      appendConsoleLine(args);
+    };
+    console.info = (...args: unknown[]) => {
+      originalInfo(...args);
+      appendConsoleLine(args);
+    };
+    console.warn = (...args: unknown[]) => {
+      originalWarn(...args);
+      appendConsoleLine(args);
+    };
+    console.error = (...args: unknown[]) => {
+      originalError(...args);
+      appendConsoleLine(args);
+    };
+    console.debug = (...args: unknown[]) => {
+      originalDebug(...args);
+      appendConsoleLine(args);
+    };
+
+    return () => {
+      console.log = originalLog;
+      console.info = originalInfo;
+      console.warn = originalWarn;
+      console.error = originalError;
+      console.debug = originalDebug;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!logEnabled || status !== "uploading") {
+      return;
+    }
+    if (!logAreaRef.current) {
+      return;
+    }
+    logAreaRef.current.scrollTop = logAreaRef.current.scrollHeight;
+  }, [logEnabled, logLines, status]);
+
+  useEffect(() => {
     return () => {
       cleanupPreview();
       cleanupPmxPreview();
@@ -1140,7 +1229,12 @@ export default function App() {
                 <span>Orbit Sync</span>
               </label>
               <label className="pmx-tool-checkbox">
-                <input type="checkbox" name="pmx-log" />
+                <input
+                  type="checkbox"
+                  name="pmx-log"
+                  checked={logEnabled}
+                  onChange={(event) => setLogEnabled(event.target.checked)}
+                />
                 <span>Log</span>
               </label>
             </div>
@@ -1192,6 +1286,17 @@ export default function App() {
             <summary>Show technical details</summary>
             <pre>{errorDetail}</pre>
           </details>
+        )}
+        {logEnabled && (
+          <section className="log-panel" aria-label="Conversion log output">
+            <textarea
+              ref={logAreaRef}
+              className="log-console"
+              value={logText}
+              readOnly
+              rows={5}
+            />
+          </section>
         )}
       </section>
     </main>

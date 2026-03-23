@@ -26,7 +26,8 @@ body {
 .page {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-content: start;
   padding: 24px;
   position: relative;
 }
@@ -247,6 +248,26 @@ button:disabled {
 
 .status-done {
   color: var(--ok);
+}
+
+.log-panel {
+  margin-top: 12px;
+}
+
+.log-console {
+  width: 100%;
+  resize: vertical;
+  min-height: 8.5em;
+  max-height: 16em;
+  padding: 10px;
+  border: 1px solid #6a839f;
+  border-radius: 10px;
+  background: #0f1722;
+  color: #d0f0d6;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-y: auto;
 }
 
 @keyframes drift {
