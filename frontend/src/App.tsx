@@ -13,6 +13,7 @@ export default function App() {
   const [status, setStatus] = useState<Status>("idle");
   const [mode, setMode] = useState<ConvertMode>("wasm");
   const [message, setMessage] = useState("VRM file is not selected yet.");
+  const [errorDetail, setErrorDetail] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const backendEnabled = isBackendFallbackEnabled();
 
@@ -26,6 +27,7 @@ export default function App() {
     if (!file) return;
 
     setStatus("uploading");
+    setErrorDetail("");
     abortControllerRef.current = new AbortController();
     setMessage(
       mode === "backend"
@@ -66,7 +68,17 @@ export default function App() {
         setStatus("canceled");
         setMessage("Conversion canceled.");
       } else {
+        const rawDetail = error instanceof Error ? error.message : String(error);
+        console.error("convert.failed", {
+          mode,
+          backendEnabled,
+          fileName: file?.name,
+          detail: rawDetail,
+          error,
+        });
+
         setStatus("error");
+        setErrorDetail(rawDetail);
         setMessage(
           toUserFriendlyConvertError(error, {
             mode,
@@ -142,6 +154,12 @@ export default function App() {
         </form>
 
         <p className={`status status-${status}`}>{message}</p>
+        {status === "error" && errorDetail && (
+          <details>
+            <summary>Show technical details</summary>
+            <pre>{errorDetail}</pre>
+          </details>
+        )}
       </section>
     </main>
   );
