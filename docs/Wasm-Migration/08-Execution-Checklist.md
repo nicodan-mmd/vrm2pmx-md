@@ -24,6 +24,7 @@
 ## 3. Phase 2: Pyodide PoC
 
 - [x] frontend で Pyodide の初期化経路を実装した
+- [x] `auto` モードで wasm 失敗時の backend フォールバックを実装した
 - [ ] Worker から Python 変換を呼び出せる
 - [ ] PMX 単体をダウンロードできる
 - [ ] FastAPI なしでローカル動作する

@@ -126,6 +126,10 @@ AssetFile:
   - `frontend/src/services/convertClient.ts`
   - backend / wasm の切替実行経路を追加
 
+- 完了: ハイブリッド自動フォールバックを追加
+  - 実行モード `auto` を追加（wasm 優先、失敗時 backend フォールバック）
+  - フォールバック理由をメッセージと JSON ログに出力
+
 - 完了: Pyodide 初期化経路を追加
   - `frontend/src/wasm/pyodideRuntime.ts`
   - `App.tsx` から Wasm モード時に初期化を呼び出す構成へ変更

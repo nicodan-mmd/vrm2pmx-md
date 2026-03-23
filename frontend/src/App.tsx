@@ -1,8 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
   type ConvertMode,
-  convertViaBackend,
-  convertViaWasm,
+  convertWithMode,
 } from "./services/convertClient";
 
 type Status = "idle" | "uploading" | "done" | "error";
@@ -10,7 +9,7 @@ type Status = "idle" | "uploading" | "done" | "error";
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
-  const [mode, setMode] = useState<ConvertMode>("backend");
+  const [mode, setMode] = useState<ConvertMode>("auto");
   const [message, setMessage] = useState("VRM file is not selected yet.");
 
   const disabled = useMemo(
@@ -24,26 +23,32 @@ export default function App() {
 
     setStatus("uploading");
     setMessage(
-      mode === "wasm"
-        ? "Initializing Wasm runtime..."
-        : "Converting... this can take a while for large files.",
+      mode === "backend"
+        ? "Converting with backend... this can take a while for large files."
+        : "Trying Wasm first. If it fails, backend fallback will run.",
     );
 
     try {
-      const blob =
-        mode === "wasm"
-          ? await convertViaWasm(file)
-          : await convertViaBackend(file);
+      const result = await convertWithMode(file, mode);
+      const blob = result.blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       const baseName = file.name.replace(/\.[^.]+$/, "") || "converted";
+      const extension = result.fileExtension;
+      const usedMode = result.usedMode;
       link.href = url;
-      link.download = `${baseName}.${mode === "wasm" ? "pmx" : "zip"}`;
+      link.download = `${baseName}.${extension}`;
       link.click();
       URL.revokeObjectURL(url);
 
       setStatus("done");
-      setMessage("Done. Converted file downloaded.");
+      if (result.fallbackReason) {
+        setMessage(
+          `Done with fallback. Requested: ${mode}, used: ${usedMode}. Reason: ${result.fallbackReason}`,
+        );
+      } else {
+        setMessage(`Done. Converted file downloaded via ${usedMode}.`);
+      }
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Unknown error");
@@ -57,7 +62,7 @@ export default function App() {
         <p className="eyebrow">vrm2pmx web poc</p>
         <h1>VRM to PMX Converter</h1>
         <p className="lead">
-          Upload a VRM file and convert it with backend mode or Wasm mode.
+          Upload a VRM file and convert with Auto, Backend, or Wasm mode.
         </p>
 
         <form className="form" onSubmit={onSubmit}>
@@ -70,6 +75,7 @@ export default function App() {
             onChange={(event) => setMode(event.target.value as ConvertMode)}
             disabled={status === "uploading"}
           >
+            <option value="auto">Auto (Wasm first, then Backend fallback)</option>
             <option value="backend">Backend (FastAPI)</option>
             <option value="wasm">Wasm (Pyodide runtime init)</option>
           </select>
