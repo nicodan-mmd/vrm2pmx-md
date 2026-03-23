@@ -2,6 +2,7 @@
 
 import { getPyodide, getPyodideVersion } from "../wasm/pyodideRuntime";
 import type {
+  WorkerLogResponse,
   WorkerProgressStage,
   WorkerRequest,
   WorkerResponse,
@@ -75,6 +76,64 @@ if "${PY_RUNTIME_ROOT}" not in sys.path:
 }
 
 const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+let activeRequestId: string | null = null;
+
+function stringifyLogArg(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value instanceof Error) {
+    return value.stack || value.message;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function postWorkerLog(level: WorkerLogResponse["level"], args: unknown[]): void {
+  if (!activeRequestId) {
+    return;
+  }
+
+  const response: WorkerLogResponse = {
+    id: activeRequestId,
+    status: "log",
+    level,
+    args: args.map((value) => stringifyLogArg(value)),
+  };
+  workerSelf.postMessage(response);
+}
+
+{
+  const originalLog = console.log.bind(console);
+  const originalInfo = console.info.bind(console);
+  const originalWarn = console.warn.bind(console);
+  const originalError = console.error.bind(console);
+  const originalDebug = console.debug.bind(console);
+
+  console.log = (...args: unknown[]) => {
+    originalLog(...args);
+    postWorkerLog("log", args);
+  };
+  console.info = (...args: unknown[]) => {
+    originalInfo(...args);
+    postWorkerLog("info", args);
+  };
+  console.warn = (...args: unknown[]) => {
+    originalWarn(...args);
+    postWorkerLog("warn", args);
+  };
+  console.error = (...args: unknown[]) => {
+    originalError(...args);
+    postWorkerLog("error", args);
+  };
+  console.debug = (...args: unknown[]) => {
+    originalDebug(...args);
+    postWorkerLog("debug", args);
+  };
+}
 
 function postProgress(
   id: string,
@@ -98,6 +157,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   }
 
   try {
+    activeRequestId = request.id;
     postProgress(request.id, "init", "Initializing Wasm runtime...");
     postProgress(request.id, "pyodide-loading", "Loading Pyodide packages...");
     await ensurePyRuntime();
@@ -162,5 +222,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       message: detail,
     };
     workerSelf.postMessage(response);
+  } finally {
+    activeRequestId = null;
   }
 };

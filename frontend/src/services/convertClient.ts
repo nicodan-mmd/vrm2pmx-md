@@ -1,5 +1,5 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
-import type { WorkerProgressResponse } from "../types/convert";
+import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
 
 export type ConvertMode = "auto" | "backend" | "wasm";
 
@@ -17,6 +17,7 @@ export type ConvertProgress = {
 
 type ConvertOptions = {
   onProgress?: (progress: ConvertProgress) => void;
+  onLog?: (log: WorkerLogResponse) => void;
   signal?: AbortSignal;
 };
 
@@ -129,6 +130,7 @@ async function convertViaWasm(
     (event) => {
       options?.onProgress?.({ stage: event.stage, message: event.message });
     },
+    options?.onLog,
     options?.signal,
   );
 

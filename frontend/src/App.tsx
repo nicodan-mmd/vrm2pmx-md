@@ -11,6 +11,7 @@ import {
   isBackendFallbackEnabled,
   toUserFriendlyConvertError,
 } from "./services/convertClient";
+import type { WorkerLogResponse } from "./types/convert";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -376,7 +377,8 @@ export default function App() {
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
   const [logLines, setLogLines] = useState<string[]>([]);
-  const logAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
+  const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
   const [errorDetail, setErrorDetail] = useState("");
@@ -433,10 +435,6 @@ export default function App() {
   }
 
   function appendConsoleLine(args: unknown[]) {
-    if (!logEnabledRef.current) {
-      return;
-    }
-
     const line = args.map((value) => formatLogArg(value)).join(" ");
     setLogLines((prev) => {
       const next = [...prev, line];
@@ -445,6 +443,36 @@ export default function App() {
       }
       return next;
     });
+  }
+
+  function appendWorkerLog(log: WorkerLogResponse) {
+    appendConsoleLine(log.args);
+  }
+
+  function isErrorLogLine(line: string): boolean {
+    return /(error|failed|exception|traceback|aborterror|convert\.failed)/i.test(line);
+  }
+
+  async function onCopyLog() {
+    try {
+      await navigator.clipboard.writeText(logText);
+      setCopyStatus("done");
+    } catch {
+      try {
+        const fallback = document.createElement("textarea");
+        fallback.value = logText;
+        fallback.setAttribute("readonly", "true");
+        fallback.style.position = "fixed";
+        fallback.style.opacity = "0";
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand("copy");
+        document.body.removeChild(fallback);
+        setCopyStatus("done");
+      } catch {
+        setCopyStatus("failed");
+      }
+    }
   }
 
   async function buildConvertInputFile(sourceFile: File): Promise<File> {
@@ -816,6 +844,7 @@ export default function App() {
         onProgress: (progress) => {
           setMessage(progress.message);
         },
+        onLog: appendWorkerLog,
         signal: abortControllerRef.current.signal,
       });
 
@@ -861,6 +890,7 @@ export default function App() {
             backendEnabled,
           }),
         );
+        window.alert("Convert error. Please see Log View.");
       }
     } finally {
       abortControllerRef.current = null;
@@ -973,6 +1003,18 @@ export default function App() {
     }
     logAreaRef.current.scrollTop = logAreaRef.current.scrollHeight;
   }, [logEnabled, logLines, status]);
+
+  useEffect(() => {
+    if (copyStatus === "idle") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCopyStatus("idle");
+    }, 1400);
+
+    return () => window.clearTimeout(timer);
+  }, [copyStatus]);
 
   useEffect(() => {
     return () => {
@@ -1289,13 +1331,32 @@ export default function App() {
         )}
         {logEnabled && (
           <section className="log-panel" aria-label="Conversion log output">
-            <textarea
-              ref={logAreaRef}
-              className="log-console"
-              value={logText}
-              readOnly
-              rows={5}
-            />
+            <div className="log-panel-header">
+              <h2 className="log-panel-title">Log View</h2>
+              <button
+                type="button"
+                className="log-copy-button"
+                onClick={() => {
+                  void onCopyLog();
+                }}
+              >
+                {copyStatus === "done"
+                  ? "Copied"
+                  : copyStatus === "failed"
+                    ? "Copy Failed"
+                    : "Copy"}
+              </button>
+            </div>
+            <div ref={logAreaRef} className="log-console" aria-live="polite">
+              {logLines.map((line, index) => (
+                <div
+                  key={`${index}-${line.slice(0, 32)}`}
+                  className={`log-line${isErrorLogLine(line) ? " log-line-error" : ""}`}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </section>

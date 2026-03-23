@@ -254,9 +254,39 @@ button:disabled {
   margin-top: 12px;
 }
 
+.log-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.log-panel-title {
+  margin: 0;
+  font-size: 0.88rem;
+  letter-spacing: 0.03em;
+  color: #2f3f56;
+}
+
+.log-copy-button {
+  border: 1px solid #89a2be;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: #f3f8ff;
+  color: #2f3f56;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.log-copy-button:hover:not(:disabled) {
+  background: #e8f1ff;
+  transform: none;
+  filter: none;
+}
+
 .log-console {
   width: 100%;
-  resize: vertical;
   min-height: 8.5em;
   max-height: 16em;
   padding: 10px;
@@ -267,7 +297,19 @@ button:disabled {
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.78rem;
   line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
   overflow-y: auto;
+}
+
+.log-line {
+  min-height: 1.35em;
+  color: #d0f0d6;
+}
+
+.log-line-error {
+  color: #ff7b88;
+  font-weight: 700;
 }
 
 @keyframes drift {

@@ -34,9 +34,17 @@ export type WorkerErrorResponse = {
   message: string;
 };
 
+export type WorkerLogResponse = {
+  id: string;
+  status: "log";
+  level: "log" | "info" | "warn" | "error" | "debug";
+  args: string[];
+};
+
 export type WorkerResponse =
   | WorkerProgressResponse
   | WorkerSuccessResponse
-  | WorkerErrorResponse;
+  | WorkerErrorResponse
+  | WorkerLogResponse;
 
 export type WorkerTerminalResponse = WorkerSuccessResponse | WorkerErrorResponse;

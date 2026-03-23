@@ -1,4 +1,5 @@
 import type {
+  WorkerLogResponse,
   WorkerProgressResponse,
   WorkerRequest,
   WorkerResponse,
@@ -16,6 +17,7 @@ type PendingTask = {
   resolve: (response: WorkerTerminalResponse) => void;
   reject: (reason?: unknown) => void;
   onProgress?: (response: WorkerProgressResponse) => void;
+  onLog?: (response: WorkerLogResponse) => void;
 };
 
 const pending = new Map<string, PendingTask>();
@@ -50,6 +52,11 @@ function bindWorkerHandlers(): void {
       return;
     }
 
+    if (response.status === "log") {
+      task.onLog?.(response);
+      return;
+    }
+
     pending.delete(response.id);
     task.resolve(response);
   };
@@ -65,6 +72,7 @@ export async function convertViaWasmWorker(
   fileName: string,
   fileBuffer: ArrayBuffer,
   onProgress?: (response: WorkerProgressResponse) => void,
+  onLog?: (response: WorkerLogResponse) => void,
   signal?: AbortSignal,
 ): Promise<WorkerTerminalResponse> {
   const id = crypto.randomUUID();
@@ -76,7 +84,7 @@ export async function convertViaWasmWorker(
   };
 
   return new Promise<WorkerTerminalResponse>((resolve, reject) => {
-    const task: PendingTask = { id, resolve, reject, onProgress };
+    const task: PendingTask = { id, resolve, reject, onProgress, onLog };
     pending.set(id, task);
 
     const onAbort = () => {
