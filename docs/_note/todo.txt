@@ -12,9 +12,11 @@
 - Sentry 運用
     docs\Sentry-Operation
     検証モデル
-        \VRoid\VRoid Hub\そるぴ
-            8538742828286332800.vrm
+        型崩れ
+            \VRoid\VRoid Hub\そるぴ
+                8538742828286332800.vrm
     sentry-cli 導入
+    ✅ レポートを送ったらボタンを消す
 
 ・VRM1.0 統合
 
