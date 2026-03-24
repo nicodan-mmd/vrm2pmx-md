@@ -1661,6 +1661,9 @@ export default function App() {
                 />
                 <span>Orbit Sync</span>
               </label>
+              {/*
+                TODO: Grid toggle UI (debug feature)
+                Grid rendering is intentionally disabled while viewport fit tuning is in progress.
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"
@@ -1670,6 +1673,7 @@ export default function App() {
                 />
                 <span>Grid</span>
               </label>
+              */}
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"
