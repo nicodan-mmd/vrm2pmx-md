@@ -3,8 +3,9 @@
   --bg-2: #d6e6f8;
   --card: #ffffffd9;
   --ink: #1f2a37;
-  --accent: #0c7c59;
-  --accent-2: #e36414;
+  --button-ink: #2f3a44;
+  --accent: #7ea99a;
+  --accent-2: #97bcae;
   --error: #b00020;
   --ok: #0f8b3d;
   font-family: "Space Grotesk", "Noto Sans JP", sans-serif;
@@ -333,7 +334,7 @@ input[type="file"] {
 
 .preview-button {
   white-space: nowrap;
-  background: linear-gradient(120deg, #2a5fba, #4a84df);
+  background: linear-gradient(120deg, #7ea8c9, #98bdd9);
 }
 
 .convert-actions {
@@ -342,8 +343,48 @@ input[type="file"] {
   gap: 10px;
 }
 
+.convert-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.convert-button.is-uploading {
+  --convert-progress: 0%;
+  background:
+    linear-gradient(120deg, #5f9d82, #7ab295) 0 0 / var(--convert-progress) 100% no-repeat,
+    linear-gradient(120deg, #8cb7a4, #a2c7b7);
+}
+
+.convert-button.is-uploading.progress-init {
+  --convert-progress: 8%;
+}
+
+.convert-button.is-uploading.progress-pyodide-loading {
+  --convert-progress: 26%;
+}
+
+.convert-button.is-uploading.progress-py-src-sync {
+  --convert-progress: 45%;
+}
+
+.convert-button.is-uploading.progress-converting {
+  --convert-progress: 80%;
+}
+
+.convert-button.is-uploading.progress-finalizing {
+  --convert-progress: 96%;
+}
+
+.convert-button.is-uploading.progress-done {
+  --convert-progress: 100%;
+}
+
 .download-button {
-  background: linear-gradient(120deg, #2e5d43, #4d9871);
+  background: linear-gradient(120deg, #8cb7a4, #a2c7b7);
+}
+
+.convert-button:not(.is-uploading) {
+  background: linear-gradient(120deg, #8cb7a4, #a2c7b7);
 }
 
 select {
@@ -359,7 +400,7 @@ button {
   border: none;
   border-radius: 12px;
   padding: 14px 16px;
-  color: white;
+  color: var(--button-ink);
   font-weight: 700;
   background: linear-gradient(120deg, var(--accent), var(--accent-2));
   cursor: pointer;
@@ -525,11 +566,11 @@ button:disabled {
   border-radius: 10px;
   font-size: 0.82rem;
   line-height: 1;
-  background: linear-gradient(120deg, #2a5fba, #4a84df);
+  background: linear-gradient(120deg, #dfaa80, #ebbf9d);
 }
 
 .footer-action-button-reset {
-  background: linear-gradient(120deg, #7a1f2d, #b84053);
+  background: linear-gradient(120deg, #bd8790, #d4a5ac);
 }
 
 .about-modal-backdrop {
@@ -570,7 +611,7 @@ button:disabled {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.8rem;
-  background: linear-gradient(120deg, #5f7793, #859bb6);
+  background: linear-gradient(120deg, #8ea2b8, #a8bbcd);
 }
 
 .about-modal-body {

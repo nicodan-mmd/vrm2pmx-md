@@ -4,25 +4,28 @@
 ----
 
 
-・変換速度の改善可能か
-
-・変換の％表示
-
-・ボタンの色、グラデーション要らない
-
 ・テスト、リファクタリング
 
 ・Bowlroll
 
-・PWA化
-    ボリュームが大きいので後回し
-        docs/PWA-Migration/README.md
 
 ・VRM1.0 統合
 
     ・VRM Previewにドロップ
         Title (VRM Ver 0.0 only) 
         → 表示はできる、コンバートでエラー
+
+--
+保留
+
+・変換速度の改善可能か
+    Rustで可能だが段階的
+
+・PWA化
+    ボリュームが大きいので後回し
+        docs/PWA-Migration/README.md
+
+・ボタンの色、グラデーション要らない
 
 -- 
 済
@@ -78,3 +81,5 @@
 ・Google Analytics
 
 ・Description
+
+・変換の％表示

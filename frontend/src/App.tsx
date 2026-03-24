@@ -13,7 +13,7 @@ import {
   isBackendFallbackEnabled,
   toUserFriendlyConvertError,
 } from "./services/convertClient";
-import type { WorkerLogResponse } from "./types/convert";
+import type { WorkerLogResponse, WorkerProgressStage } from "./types/convert";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -42,6 +42,23 @@ const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
 const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
 const APP_VERSION = "1.0";
+
+function getStageProgressPercent(stage: WorkerProgressStage): number {
+  switch (stage) {
+    case "init":
+      return 8;
+    case "pyodide-loading":
+      return 26;
+    case "py-src-sync":
+      return 45;
+    case "converting":
+      return 80;
+    case "finalizing":
+      return 96;
+    default:
+      return 0;
+  }
+}
 
 type UiSettingsSnapshot = {
   mode: ConvertMode;
@@ -519,6 +536,8 @@ export default function App() {
   const [errorDetail, setErrorDetail] = useState("");
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
+  const [convertProgressPercent, setConvertProgressPercent] = useState(0);
+  const [convertProgressStage, setConvertProgressStage] = useState<WorkerProgressStage | "done" | null>(null);
   const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
@@ -718,6 +737,8 @@ export default function App() {
     setCopyStatus("idle");
     setErrorDetail("");
     setStatus("idle");
+    setConvertProgressPercent(0);
+    setConvertProgressStage(null);
     setFile(null);
     setIsVrmReady(false);
     setMessage("VRM file is not selected yet.");
@@ -1187,6 +1208,8 @@ export default function App() {
     setStatus("uploading");
     setErrorDetail("");
     setConvertedOutput(null);
+    setConvertProgressPercent(2);
+    setConvertProgressStage("init");
     abortControllerRef.current = new AbortController();
     setMessage(
       mode === "backend"
@@ -1206,6 +1229,9 @@ export default function App() {
       const result = await convertWithMode(convertInput, mode, {
         onProgress: (progress) => {
           setMessage(progress.message);
+          const nextPercent = getStageProgressPercent(progress.stage);
+          setConvertProgressStage(progress.stage);
+          setConvertProgressPercent((prev) => Math.max(prev, nextPercent));
         },
         onLog: appendWorkerLog,
         signal: abortControllerRef.current.signal,
@@ -1223,6 +1249,8 @@ export default function App() {
         throw new Error("Current preview supports ZIP output with PMX resources.");
       }
 
+      setConvertProgressPercent(100);
+      setConvertProgressStage("done");
       setStatus("done");
       if (result.fallbackReason) {
         setMessage(
@@ -1234,6 +1262,8 @@ export default function App() {
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         setStatus("canceled");
+        setConvertProgressPercent(0);
+        setConvertProgressStage(null);
         setMessage("Conversion canceled.");
       } else {
         const rawDetail = error instanceof Error ? error.message : String(error);
@@ -1246,6 +1276,8 @@ export default function App() {
         });
 
         setStatus("error");
+        setConvertProgressPercent(0);
+        setConvertProgressStage(null);
         setErrorDetail(rawDetail);
         setMessage(
           toUserFriendlyConvertError(error, {
@@ -1830,8 +1862,12 @@ export default function App() {
           </div>
 
           <div className="convert-actions">
-            <button type="submit" disabled={!canConvert}>
-              {status === "uploading" ? "Converting..." : "Convert"}
+            <button
+              type="submit"
+              className={`convert-button${status === "uploading" ? ` is-uploading progress-${convertProgressStage ?? "init"}` : ""}`}
+              disabled={!canConvert}
+            >
+              {status === "uploading" ? `Converting... ${Math.round(convertProgressPercent)}%` : "Convert"}
             </button>
             <button
               type="button"
