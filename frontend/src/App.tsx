@@ -39,6 +39,20 @@ const DEBUG_POSE = false;
 const DEBUG_PMX = false;
 const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
 const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
+const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
+
+type UiSettingsSnapshot = {
+  mode: ConvertMode;
+  taPoseAngle: number;
+  orbitSyncEnabled: boolean;
+  logEnabled: boolean;
+  pmxBrightnessScale: number;
+  pmxContrastFactor: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function poseDebug(label: string, payload: unknown): void {
   if (!DEBUG_POSE) {
@@ -494,6 +508,7 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
   const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
+  const [isUiSettingsHydrated, setIsUiSettingsHydrated] = useState(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -590,6 +605,67 @@ export default function App() {
     runtime.ambientLight.intensity = tuned.ambientIntensity;
     runtime.keyLight.intensity = tuned.directionalIntensity;
   }, [pmxBrightnessScale, pmxContrastFactor]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(UI_SETTINGS_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<UiSettingsSnapshot>;
+        if (saved.mode === "wasm" || saved.mode === "auto" || saved.mode === "backend") {
+          setMode(saved.mode);
+        }
+        if (typeof saved.taPoseAngle === "number" && Number.isFinite(saved.taPoseAngle)) {
+          const snapped = Math.round(clamp(saved.taPoseAngle, 0, 90) / 5) * 5;
+          setTaPoseAngle(snapped);
+        }
+        if (typeof saved.orbitSyncEnabled === "boolean") {
+          setOrbitSyncEnabled(saved.orbitSyncEnabled);
+        }
+        if (typeof saved.logEnabled === "boolean") {
+          setLogEnabled(saved.logEnabled);
+        }
+        if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
+          setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
+        }
+        if (typeof saved.pmxContrastFactor === "number" && Number.isFinite(saved.pmxContrastFactor)) {
+          setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.4));
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to restore UI settings from localStorage", error);
+    } finally {
+      setIsUiSettingsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isUiSettingsHydrated) {
+      return;
+    }
+
+    const snapshot: UiSettingsSnapshot = {
+      mode,
+      taPoseAngle,
+      orbitSyncEnabled,
+      logEnabled,
+      pmxBrightnessScale,
+      pmxContrastFactor,
+    };
+
+    try {
+      window.localStorage.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn("Failed to persist UI settings to localStorage", error);
+    }
+  }, [
+    isUiSettingsHydrated,
+    mode,
+    taPoseAngle,
+    orbitSyncEnabled,
+    logEnabled,
+    pmxBrightnessScale,
+    pmxContrastFactor,
+  ]);
 
   function isErrorLogLine(line: string): boolean {
     return /(error|failed|exception|traceback|aborterror|convert\.failed)/i.test(line);
@@ -1239,17 +1315,17 @@ export default function App() {
     };
   }, []);
 
-    useEffect(() => {
-      gridEnabledRef.current = gridEnabled;
-      // TODO: Grid visibility toggle (debug feature)
-      // Grid helper creation and visibility control pending grid size refinement
-      // if (vrmGridRef.current) {
-      //   vrmGridRef.current.visible = gridEnabled;
-      // }
-      // if (pmxGridRef.current) {
-      //   pmxGridRef.current.visible = gridEnabled;
-      // }
-    }, [gridEnabled]);
+  useEffect(() => {
+    gridEnabledRef.current = gridEnabled;
+    // TODO: Grid visibility toggle (debug feature)
+    // Grid helper creation and visibility control pending grid size refinement
+    // if (vrmGridRef.current) {
+    //   vrmGridRef.current.visible = gridEnabled;
+    // }
+    // if (pmxGridRef.current) {
+    //   pmxGridRef.current.visible = gridEnabled;
+    // }
+  }, [gridEnabled]);
   useEffect(() => {
     if (!logEnabled || status !== "uploading") {
       return;
