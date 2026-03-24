@@ -1612,6 +1612,7 @@ export default function App() {
     });
 
     setMessage(i18n.qualityReportSubmittedMessage);
+    setDetectedQualityRiskSignals([]);
   }
 
   function onCancel() {
