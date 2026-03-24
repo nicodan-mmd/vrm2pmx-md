@@ -10,7 +10,7 @@
 
 ## 調査対象
 - 現行リポジトリ: `vrm2pmx`
-- 参照リポジトリ: `D:/Users/maedashingo/Documents/_MyDocument/Dev/GitHub/vroid2pmx/vroid2pmx`
+- 参照リポジトリ: `~/_MyDocument/Dev/GitHub/vroid2pmx/vroid2pmx`
 
 ## 結論（要約）
 - 統合は可能。

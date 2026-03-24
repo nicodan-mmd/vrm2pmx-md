@@ -42,7 +42,100 @@ const DEBUG_PMX = false;
 const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
 const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
+const ERROR_REPORTING_STORAGE_KEY = "vrm2pmx.errorReporting.enabled.v1";
 const APP_VERSION = "1.0";
+
+type AppLocale = "ja" | "en";
+
+type AppI18n = {
+  errorReportingModalTitle: string;
+  errorReportingModalDescription1: string;
+  errorReportingModalDescription2: string;
+  errorReportingEnable: string;
+  errorReportingNotNow: string;
+  fallbackReportConfirm: (requestedMode: ConvertMode, usedMode: ConvertMode, reason: string) => string;
+  fallbackReportSubmittedMessage: string;
+  qualityReportButton: string;
+  qualityReportConfirm: string;
+  qualityReportSubmittedMessage: string;
+  qualityReportEnableHint: string;
+  qualityAutoReportConfirm: (signals: string) => string;
+};
+
+const APP_I18N: Record<AppLocale, AppI18n> = {
+  ja: {
+    errorReportingModalTitle: "エラーレポート送信",
+    errorReportingModalDescription1:
+      "変換品質の改善のため、匿名のエラーレポート送信を有効化できます。",
+    errorReportingModalDescription2:
+      "ファイル内容そのものは送信しません。設定はフッターからいつでも変更できます。",
+    errorReportingEnable: "有効にする",
+    errorReportingNotNow: "今はしない",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `フォールバックで変換されました。\n\n要求モード: ${requestedMode}\n使用モード: ${usedMode}\n理由: ${reason}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
+    fallbackReportSubmittedMessage:
+      "匿名レポートを送信しました。将来の変換品質改善につながる可能性があります。",
+    qualityReportButton: "品質崩れを報告",
+    qualityReportConfirm:
+      "変換は完了しましたが見た目が崩れているケースとして、匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。",
+    qualityReportSubmittedMessage:
+      "匿名レポートを送信しました。将来の変換品質改善につながる可能性があります。",
+    qualityReportEnableHint:
+      "Error Reporting を有効にすると、成功時の品質崩れケースを匿名で報告できます。",
+    qualityAutoReportConfirm: (signals) =>
+      `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
+  },
+  en: {
+    errorReportingModalTitle: "Error Reporting",
+    errorReportingModalDescription1:
+      "Enable anonymous error reporting to help improve conversion quality.",
+    errorReportingModalDescription2:
+      "File content is not uploaded. You can change this option later from the footer.",
+    errorReportingEnable: "Enable",
+    errorReportingNotNow: "Not now",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `Converted with fallback.\n\nRequested mode: ${requestedMode}\nUsed mode: ${usedMode}\nReason: ${reason}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
+    fallbackReportSubmittedMessage:
+      "Anonymous report submitted. This case may be improved in a future release.",
+    qualityReportButton: "Report quality issue",
+    qualityReportConfirm:
+      "Conversion completed, but visual quality looks wrong. Send an anonymous report for this case?\nIf sent, this case may be improved in a future release.",
+    qualityReportSubmittedMessage:
+      "Anonymous report submitted. This case may be improved in a future release.",
+    qualityReportEnableHint:
+      "Enable Error Reporting to anonymously report successful conversions with quality issues.",
+    qualityAutoReportConfirm: (signals) =>
+      `Conversion succeeded, but possible quality-risk signals were detected in logs.\n\nDetected signals: ${signals}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
+  },
+};
+
+function detectAppLocale(language: string | undefined): AppLocale {
+  const normalized = (language ?? "").toLowerCase();
+  if (normalized.startsWith("ja")) {
+    return "ja";
+  }
+  return "en";
+}
+
+function detectQualityRiskSignals(logLines: string[]): string[] {
+  const merged = logLines.join("\n").toLowerCase();
+  const signals: string[] = [];
+
+  if (/\bdeprecated\b/.test(merged)) {
+    signals.push("deprecated-runtime-message");
+  }
+  if (/not a property of three\.meshtoonmaterial/.test(merged)) {
+    signals.push("meshtoonmaterial-unsupported-property");
+  }
+  if (/\b(nan|infinity)\b/.test(merged)) {
+    signals.push("invalid-numeric-value");
+  }
+  if (/\b(skipped|skip|unsupported|missing|not found)\b/.test(merged)) {
+    signals.push("partial-conversion-hint");
+  }
+
+  return [...new Set(signals)];
+}
 
 function getStageProgressPercent(stage: WorkerProgressStage): number {
   switch (stage) {
@@ -536,10 +629,13 @@ export default function App() {
   const vrmGridRef = useRef<THREE.GridHelper | null>(null);
   const pmxGridRef = useRef<THREE.GridHelper | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const logLinesRef = useRef<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
   const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isErrorReportingEnabled, setIsErrorReportingEnabled] = useState(false);
+  const [isErrorReportingPromptOpen, setIsErrorReportingPromptOpen] = useState(false);
   const [isUiSettingsHydrated, setIsUiSettingsHydrated] = useState(false);
   const skipNextSettingsPersistRef = useRef(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
@@ -551,6 +647,10 @@ export default function App() {
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
   const [convertProgressStage, setConvertProgressStage] = useState<WorkerProgressStage | "done" | null>(null);
   const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
+  const [detectedQualityRiskSignals, setDetectedQualityRiskSignals] = useState<string[]>([]);
+  const runtimeQualitySignalsRef = useRef<Set<string>>(new Set());
+  const [lastUsedMode, setLastUsedMode] = useState<"backend" | "wasm" | null>(null);
+  const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -585,6 +685,11 @@ export default function App() {
     rightBaseQuaternion: null,
   });
   const backendEnabled = isBackendFallbackEnabled();
+  const appLocale = useMemo(
+    () => detectAppLocale(typeof navigator !== "undefined" ? navigator.language : "en"),
+    [],
+  );
+  const i18n = APP_I18N[appLocale];
 
   const canConvert = useMemo(
     () => !!file && status !== "uploading" && !isPreviewing && isVrmReady,
@@ -617,6 +722,7 @@ export default function App() {
       if (next.length > 1000) {
         next.splice(0, next.length - 1000);
       }
+      logLinesRef.current = next;
       return next;
     });
   }
@@ -640,6 +746,37 @@ export default function App() {
     runtime.ambientLight.intensity = tuned.ambientIntensity;
     runtime.keyLight.intensity = tuned.directionalIntensity;
   }, [pmxBrightnessScale, pmxContrastFactor]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(ERROR_REPORTING_STORAGE_KEY);
+      if (raw === null) {
+        setIsErrorReportingPromptOpen(true);
+        return;
+      }
+      setIsErrorReportingEnabled(raw === "true");
+    } catch (error) {
+      console.warn("Failed to restore error reporting consent from localStorage", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      const line = args.map((arg) => formatLogArg(arg)).join(" ").toLowerCase();
+      if (line.includes("three.three.clock") && line.includes("deprecated")) {
+        runtimeQualitySignalsRef.current.add("three-clock-deprecated");
+      }
+      if (line.includes("please use three.timer instead")) {
+        runtimeQualitySignalsRef.current.add("three-timer-migration-warning");
+      }
+      originalWarn(...args);
+    };
+
+    return () => {
+      console.warn = originalWarn;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -741,11 +878,16 @@ export default function App() {
 
     skipNextSettingsPersistRef.current = true;
     window.localStorage.removeItem(UI_SETTINGS_STORAGE_KEY);
+    window.localStorage.removeItem(ERROR_REPORTING_STORAGE_KEY);
 
     cleanupPreview();
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setDetectedQualityRiskSignals([]);
+    setLastUsedMode(null);
+    setLastFallbackReason(null);
     setLogLines([]);
+    logLinesRef.current = [];
     setCopyStatus("idle");
     setErrorDetail("");
     setStatus("idle");
@@ -760,6 +902,8 @@ export default function App() {
     setTaPoseAngle(0);
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
+    setIsErrorReportingEnabled(false);
+    setIsErrorReportingPromptOpen(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
     setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
 
@@ -1226,6 +1370,7 @@ export default function App() {
     setStatus("uploading");
     setErrorDetail("");
     setConvertedOutput(null);
+    setDetectedQualityRiskSignals([]);
     setConvertProgressPercent(2);
     setConvertProgressStage("init");
     abortControllerRef.current = new AbortController();
@@ -1238,6 +1383,7 @@ export default function App() {
     );
 
     try {
+      const convertLogStartIndex = logLinesRef.current.length;
       const convertInput = await buildConvertInputFile(file);
       poseDebug("convert start", {
         requestedMode: mode,
@@ -1260,6 +1406,8 @@ export default function App() {
         fileExtension: result.fileExtension,
       };
       setConvertedOutput(nextOutput);
+      setLastUsedMode(result.usedMode);
+      setLastFallbackReason(result.fallbackReason ?? null);
 
       if (result.fileExtension === "zip") {
         await previewPmxFromZip(result.blob, orbitSyncEnabled);
@@ -1271,11 +1419,76 @@ export default function App() {
       setConvertProgressStage("done");
       setStatus("done");
       if (result.fallbackReason) {
+        setDetectedQualityRiskSignals([]);
+        let fallbackReportSubmitted = false;
+        if (isErrorReportingEnabled) {
+          const shouldSendFallbackReport = window.confirm(
+            i18n.fallbackReportConfirm(mode, result.usedMode, result.fallbackReason),
+          );
+          if (shouldSendFallbackReport) {
+            let eventId: string | undefined;
+            Sentry.withScope((scope) => {
+              scope.setLevel("warning");
+              scope.setTag("mode", mode);
+              scope.setTag("event_type", "dict_candidate");
+              scope.setTag("result", "fallback");
+              scope.setContext("convert", {
+                status: "success_with_fallback",
+                requestedMode: mode,
+                usedMode: result.usedMode,
+                fallbackReason: result.fallbackReason,
+                backendEnabled,
+              });
+              eventId = Sentry.captureMessage("convert.fallback", "warning");
+            });
+            fallbackReportSubmitted = true;
+            if (eventId) {
+              Sentry.showReportDialog({ eventId });
+            }
+          }
+        }
+
         setMessage(
-          `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.`,
+          `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.${fallbackReportSubmitted ? ` ${i18n.fallbackReportSubmittedMessage}` : ""}`,
         );
       } else {
-        setMessage(`Converted and previewed via ${result.usedMode}. Press Download ZIP to save file.`);
+        const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
+        const qualityRiskSignals = [
+          ...new Set([
+            ...detectQualityRiskSignals(convertLogLines),
+            ...Array.from(runtimeQualitySignalsRef.current),
+          ]),
+        ];
+        setDetectedQualityRiskSignals(qualityRiskSignals);
+        let autoReportSubmitted = false;
+
+        if (isErrorReportingEnabled && qualityRiskSignals.length > 0) {
+          const shouldSendAutoQualityReport = window.confirm(
+            i18n.qualityAutoReportConfirm(qualityRiskSignals.join(", ")),
+          );
+          if (shouldSendAutoQualityReport) {
+            Sentry.withScope((scope) => {
+              scope.setLevel("warning");
+              scope.setTag("mode", mode);
+              scope.setTag("event_type", "quality_auto_detection");
+              scope.setTag("result", "success_risk_detected");
+              scope.setContext("convert", {
+                status: "success_with_quality_risk_signals",
+                requestedMode: mode,
+                usedMode: result.usedMode,
+                backendEnabled,
+                fileExtension: result.fileExtension,
+                detectedSignals: qualityRiskSignals,
+              });
+              Sentry.captureMessage("convert.quality.auto-detected", "warning");
+            });
+            autoReportSubmitted = true;
+          }
+        }
+
+        setMessage(
+          `Converted and previewed via ${result.usedMode}. Press Download ZIP to save file.${autoReportSubmitted ? ` ${i18n.qualityReportSubmittedMessage}` : ""}`,
+        );
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -1292,11 +1505,28 @@ export default function App() {
           detail: rawDetail,
           error,
         });
-        Sentry.withScope((scope) => {
-          scope.setTag("mode", mode);
-          scope.setContext("convert", { fileName: file?.name });
-          Sentry.captureException(error instanceof Error ? error : new Error(rawDetail));
-        });
+        if (isErrorReportingEnabled) {
+          const shouldSend = window.confirm(
+            "An error occurred. Do you want to open the error report form and send an anonymous report?",
+          );
+          if (shouldSend) {
+            let eventId: string | undefined;
+            Sentry.withScope((scope) => {
+              scope.setTag("mode", mode);
+              scope.setTag("event_type", "error");
+              scope.setContext("convert", {
+                status: "failed",
+                backendEnabled,
+              });
+              eventId = Sentry.captureException(
+                error instanceof Error ? error : new Error(rawDetail),
+              );
+            });
+            if (eventId) {
+              Sentry.showReportDialog({ eventId });
+            }
+          }
+        }
 
         setStatus("error");
         setConvertProgressPercent(0);
@@ -1324,6 +1554,15 @@ export default function App() {
     void onConvert();
   }
 
+  function persistErrorReportingConsent(enabled: boolean) {
+    setIsErrorReportingEnabled(enabled);
+    try {
+      window.localStorage.setItem(ERROR_REPORTING_STORAGE_KEY, String(enabled));
+    } catch (error) {
+      console.warn("Failed to persist error reporting consent to localStorage", error);
+    }
+  }
+
   function onDownload() {
     if (!file || !convertedOutput) {
       return;
@@ -1338,6 +1577,41 @@ export default function App() {
     link.click();
     URL.revokeObjectURL(url);
     setMessage(`Downloaded: ${baseName}.${extension}`);
+  }
+
+  function onReportQualityIssue() {
+    if (status !== "done" || !convertedOutput) {
+      return;
+    }
+
+    if (!isErrorReportingEnabled) {
+      setMessage(i18n.qualityReportEnableHint);
+      return;
+    }
+
+    const shouldSend = window.confirm(i18n.qualityReportConfirm);
+    if (!shouldSend) {
+      return;
+    }
+
+    Sentry.withScope((scope) => {
+      scope.setLevel("info");
+      scope.setTag("mode", mode);
+      scope.setTag("event_type", "quality_feedback");
+      scope.setTag("result", "success_user_reported_issue");
+      scope.setContext("convert", {
+        status: "success_but_quality_issue",
+        requestedMode: mode,
+        usedMode: lastUsedMode,
+        fallbackReason: lastFallbackReason,
+        backendEnabled,
+        fileExtension: convertedOutput.fileExtension,
+        detectedSignals: detectedQualityRiskSignals,
+      });
+      Sentry.captureMessage("convert.quality.issue", "info");
+    });
+
+    setMessage(i18n.qualityReportSubmittedMessage);
   }
 
   function onCancel() {
@@ -1864,9 +2138,21 @@ export default function App() {
             </div>
           </div>
 
-          <label htmlFor="vrm-input" className="input-label">
-            Choose VRM file
-          </label>
+          <div className="file-label-row">
+            <label htmlFor="vrm-input" className="input-label file-input-label">
+              Choose VRM file
+            </label>
+            {status === "done" && convertedOutput && detectedQualityRiskSignals.length > 0 && (
+              <button
+                type="button"
+                className="download-button quality-report-button"
+                onClick={onReportQualityIssue}
+                disabled={false}
+              >
+                {i18n.qualityReportButton}
+              </button>
+            )}
+          </div>
           <div className="file-picker-row">
             <input
               ref={vrmInputRef}
@@ -1952,6 +2238,15 @@ export default function App() {
         <footer className="app-footer" aria-label="Application footer actions">
           <p className="app-version">Version {APP_VERSION}</p>
           <div className="app-footer-actions">
+            <label className="footer-consent-checkbox" title="Anonymous error reporting">
+              <input
+                type="checkbox"
+                name="error-reporting"
+                checked={isErrorReportingEnabled}
+                onChange={(event) => persistErrorReportingConsent(event.target.checked)}
+              />
+              <span>Error Reporting</span>
+            </label>
             <button
               type="button"
               className="footer-action-button"
@@ -1975,6 +2270,47 @@ export default function App() {
         version={APP_VERSION}
         onClose={() => setIsAboutOpen(false)}
       />
+
+      {isErrorReportingPromptOpen && (
+        <div className="about-modal-backdrop" role="presentation">
+          <section
+            className="about-modal error-reporting-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="error-reporting-title"
+          >
+            <header className="about-modal-header">
+              <h2 id="error-reporting-title">{i18n.errorReportingModalTitle}</h2>
+            </header>
+            <div className="about-modal-body">
+              <p>{i18n.errorReportingModalDescription1}</p>
+              <p>{i18n.errorReportingModalDescription2}</p>
+              <div className="error-reporting-actions">
+                <button
+                  type="button"
+                  className="footer-action-button"
+                  onClick={() => {
+                    persistErrorReportingConsent(true);
+                    setIsErrorReportingPromptOpen(false);
+                  }}
+                >
+                  {i18n.errorReportingEnable}
+                </button>
+                <button
+                  type="button"
+                  className="footer-action-button footer-action-button-reset"
+                  onClick={() => {
+                    persistErrorReportingConsent(false);
+                    setIsErrorReportingPromptOpen(false);
+                  }}
+                >
+                  {i18n.errorReportingNotNow}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

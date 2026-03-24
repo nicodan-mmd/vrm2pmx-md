@@ -343,6 +343,25 @@ input[type="file"] {
   gap: 10px;
 }
 
+.file-label-row {
+  margin-top: -6px;
+  margin-bottom: -6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.file-input-label {
+  align-self: flex-end;
+  margin: 0;
+}
+
+.file-label-row .quality-report-button {
+  align-self: flex-start;
+  min-width: 220px;
+}
+
 .convert-button {
   position: relative;
   overflow: hidden;
@@ -381,6 +400,20 @@ input[type="file"] {
 
 .download-button {
   background: linear-gradient(120deg, #8cb7a4, #a2c7b7);
+}
+
+.quality-report-button {
+  background: linear-gradient(120deg, #ff6a00, #ff8a00);
+  color: #fffdf7;
+}
+
+.quality-report-button:hover:not(:disabled) {
+  filter: saturate(1.12) brightness(1.02);
+}
+
+.quality-report-button:focus-visible {
+  outline: 2px solid #ff6a00;
+  outline-offset: 2px;
 }
 
 .convert-button:not(.is-uploading) {
@@ -561,6 +594,24 @@ button:disabled {
   gap: 8px;
 }
 
+.footer-consent-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid #d4e2f1;
+  background: #f2f7fc;
+  font-size: 0.8rem;
+  color: #2d4664;
+  user-select: none;
+}
+
+.footer-consent-checkbox input {
+  width: 14px;
+  height: 14px;
+}
+
 .footer-action-button {
   padding: 8px 12px;
   border-radius: 10px;
@@ -627,6 +678,17 @@ button:disabled {
 
 .about-modal-body p:last-child {
   margin-bottom: 0;
+}
+
+.error-reporting-modal {
+  width: min(520px, 100%);
+}
+
+.error-reporting-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .about-divider {
