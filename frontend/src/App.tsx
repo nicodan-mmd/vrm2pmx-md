@@ -1640,7 +1640,7 @@ export default function App() {
     <main className="page">
       <div className="halo" />
       <section className="card">
-        <h1>VRM to PMX Converter</h1>
+        <h2>VRM to PMX Converter</h2>
         <section className="preview-grid" aria-label="Model previews">
           <figure
             className={`preview-panel${isVrmDropActive ? " preview-panel-dropping" : ""}`}
@@ -1662,7 +1662,8 @@ export default function App() {
               />
               {!isVrmReady && !isPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
-                  Drop VRM file here
+                  <div>Drop VRM file here</div>
+                  <div className="vrm-drop-hint">(Only VRM 0.0 can be converted)</div>
                 </div>
               )}
             </div>

@@ -3,7 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="VRM to PMX Converter converts VRM models to PMX in your browser with preview. ブラウザ上でVRMモデルをPMXへ変換し、プレビューできる変換ツールです。"
+    />
     <title>vrm2pmx web poc</title>
+
+    <!-- SVG (モダンブラウザ用) -->
+    <link rel="icon" href="%BASE_URL%assets/favicon/favicon.svg" type="image/svg+xml" />
+
+    <!-- PNG (スマホや古い環境用) -->
+    <link rel="icon" href="%BASE_URL%assets/favicon/favicon-32.png" sizes="32x32" type="image/png" />
+
+    <!-- Apple用 -->
+    <link rel="apple-touch-icon" href="%BASE_URL%assets/favicon/apple-touch-icon.png" />
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5VDFV95XF6"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag("js", new Date());
+      gtag("config", "G-5VDFV95XF6");
+    </script>
   </head>
   <body>
     <div id="root"></div>

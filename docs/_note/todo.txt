@@ -4,20 +4,11 @@
 ----
 
 
-
-・右下にVersion と About、All Reset
-
-・README.md 更新
-
-・favicon
-
 ・変換速度の改善可能か
 
 ・変換の％表示
 
-・Google Analytics
-
-・Description
+・ボタンの色、グラデーション要らない
 
 ・Bowlroll
 
@@ -75,3 +66,13 @@
         結果的には初期表示の位置ズレに気づけた
 
 ・設定の自動保存 Local Storage
+
+・右下にVersion と About、All Reset
+
+・README.md 更新
+
+・favicon
+
+・Google Analytics
+
+・Description
