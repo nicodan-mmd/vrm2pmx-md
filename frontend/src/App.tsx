@@ -110,6 +110,17 @@ function normalizeAssetPath(path: string): string {
     .replace(/^\/+/, "");
 }
 
+function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean {
+  if (!texture) {
+    return false;
+  }
+  const tex = texture as THREE.Texture & {
+    source?: { data?: unknown };
+    image?: unknown;
+  };
+  return Boolean(tex.image || tex.source?.data);
+}
+
 function computePmxLightPreset(root: THREE.Object3D): {
   ambientIntensity: number;
   directionalIntensity: number;
@@ -1028,16 +1039,22 @@ export default function App() {
             m.emissive.convertSRGBToLinear();
           }
           if (m.map) {
-            m.map.colorSpace = THREE.SRGBColorSpace;
-            m.map.needsUpdate = true;
+            if (hasTextureImageData(m.map)) {
+              m.map.colorSpace = THREE.SRGBColorSpace;
+              m.map.needsUpdate = true;
+            }
           }
           if (m.emissiveMap) {
-            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-            m.emissiveMap.needsUpdate = true;
+            if (hasTextureImageData(m.emissiveMap)) {
+              m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+              m.emissiveMap.needsUpdate = true;
+            }
           }
           if (m.matcap) {
-            m.matcap.colorSpace = THREE.SRGBColorSpace;
-            m.matcap.needsUpdate = true;
+            if (hasTextureImageData(m.matcap)) {
+              m.matcap.colorSpace = THREE.SRGBColorSpace;
+              m.matcap.needsUpdate = true;
+            }
           }
           m.needsUpdate = true;
         }

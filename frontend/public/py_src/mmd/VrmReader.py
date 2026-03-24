@@ -247,9 +247,13 @@ class VrmReader(PmxReader):
                                         )
 
                                         # UVデータ
-                                        uvs = self.read_from_accessor(
-                                            vrm, primitive["attributes"]["TEXCOORD_0"]
-                                        )
+                                        if "TEXCOORD_0" in primitive["attributes"]:
+                                            uvs = self.read_from_accessor(
+                                                vrm, primitive["attributes"]["TEXCOORD_0"]
+                                            )
+                                        else:
+                                            # テクスチャ座標がない場合、デフォルト値を使用
+                                            uvs = [MVector2D() for _ in range(len(positions))]
 
                                         # ジョイントデータ(MMDのジョイントとは異なる)
                                         if "JOINTS_0" in primitive["attributes"]:
@@ -458,7 +462,7 @@ class VrmReader(PmxReader):
                                             vertex_idx += 1
 
                                         logger.info(
-                                            f'-- 頂点データ解析[{primitive["material"]}-{primitive["attributes"]["NORMAL"]}-{primitive["attributes"]["TEXCOORD_0"]}]'
+                                            f'-- 頂点データ解析[{primitive["material"]}-{primitive["attributes"]["NORMAL"]}-{primitive["attributes"].get("TEXCOORD_0", "N/A")}]'
                                         )
 
                                         logger.test(
@@ -585,26 +589,57 @@ class VrmReader(PmxReader):
                                         if vrm_material["doubleSided"]:
                                             # 両面描画
                                             flag |= 0x01
-                                        edge_color = MVector4D(
-                                            material_ext["vectorProperties"][
-                                                "_OutlineColor"
-                                            ]
+                                        texture_props = material_ext.get(
+                                            "textureProperties", {}
                                         )
-                                        edge_size = material_ext["floatProperties"][
-                                            "_OutlineWidth"
-                                        ]
+                                        vector_props = material_ext.get(
+                                            "vectorProperties", {}
+                                        )
+                                        float_props = material_ext.get(
+                                            "floatProperties", {}
+                                        )
+
+                                        edge_color_data = vector_props.get(
+                                            "_OutlineColor", [0, 0, 0, 1]
+                                        )
+                                        if (
+                                            not isinstance(
+                                                edge_color_data, (list, tuple)
+                                            )
+                                            or len(edge_color_data) < 4
+                                        ):
+                                            edge_color_data = [0, 0, 0, 1]
+                                        edge_color = MVector4D(edge_color_data)
+                                        edge_size = float_props.get(
+                                            "_OutlineWidth", 0
+                                        )
+
+                                        texture_index = -1
+                                        if "_MainTex" in texture_props:
+                                            candidate_texture_index = (
+                                                texture_props["_MainTex"] + 1
+                                            )
+                                            if 0 <= candidate_texture_index < len(
+                                                pmx.textures
+                                            ):
+                                                texture_index = (
+                                                    candidate_texture_index
+                                                )
+                                            else:
+                                                logger.warning(
+                                                    f'Main texture index out of range: material={vrm_material["name"]}, _MainTex={texture_props["_MainTex"]}'
+                                                )
+                                        else:
+                                            logger.warning(
+                                                f'Main texture missing: material={vrm_material["name"]}'
+                                            )
 
                                         # 0番目は空テクスチャなので+1で設定
                                         m = re.search(hair_regexp, vrm_material["name"])
-                                        if m is not None:
+                                        if m is not None and texture_index > 0:
                                             # 髪材質の場合、合成
                                             hair_img_name = os.path.basename(
-                                                pmx.textures[
-                                                    material_ext["textureProperties"][
-                                                        "_MainTex"
-                                                    ]
-                                                    + 1
-                                                ]
+                                                pmx.textures[texture_index]
                                             )
                                             hair_spe_name = f"{m.groups()[1]}_spe.png"
                                             hair_blend_name = (
@@ -637,9 +672,10 @@ class VrmReader(PmxReader):
 
                                                 # 拡散色の画像
                                                 diffuse_ary = np.array(
-                                                    material_ext["vectorProperties"][
-                                                        "_Color"
-                                                    ]
+                                                    vector_props.get(
+                                                        "_Color",
+                                                        [1, 1, 1, 1],
+                                                    )
                                                 )
                                                 diffuse_img = Image.fromarray(
                                                     np.tile(
@@ -700,37 +736,32 @@ class VrmReader(PmxReader):
                                                 diffuse_color = MVector3D(1, 1, 1)
                                                 specular_color = MVector3D()
                                                 ambient_color = diffuse_color / 2
-                                            else:
-                                                # スペキュラがない場合、ないし反映させない場合、そのまま設定
-                                                texture_index = (
-                                                    material_ext["textureProperties"][
-                                                        "_MainTex"
-                                                    ]
-                                                    + 1
-                                                )
+                                        elif m is not None:
+                                            logger.warning(
+                                                f'Hair blend skipped due to missing main texture: material={vrm_material["name"]}'
+                                            )
                                         else:
                                             # そのまま出力
-                                            texture_index = (
-                                                material_ext["textureProperties"][
-                                                    "_MainTex"
-                                                ]
-                                                + 1
-                                            )
+                                            pass
 
-                                        sphere_texture_index = 0
+                                        sphere_texture_index = -1
                                         sphere_mode = 0
-                                        if (
-                                            "_SphereAdd"
-                                            in material_ext["textureProperties"]
-                                        ):
-                                            sphere_texture_index = (
-                                                material_ext["textureProperties"][
-                                                    "_SphereAdd"
-                                                ]
-                                                + 1
+                                        if "_SphereAdd" in texture_props:
+                                            candidate_sphere_index = (
+                                                texture_props["_SphereAdd"] + 1
                                             )
-                                            # 加算スフィア
-                                            sphere_mode = 2
+                                            if 0 <= candidate_sphere_index < len(
+                                                pmx.textures
+                                            ):
+                                                sphere_texture_index = (
+                                                    candidate_sphere_index
+                                                )
+                                                # 加算スフィア
+                                                sphere_mode = 2
+                                            else:
+                                                logger.warning(
+                                                    f'Sphere texture index out of range: material={vrm_material["name"]}, _SphereAdd={texture_props["_SphereAdd"]}'
+                                                )
 
                                         if (
                                             "vectorProperties" in material_ext
