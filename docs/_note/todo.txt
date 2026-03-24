@@ -3,26 +3,13 @@
 
 ----
 
-・スライダの40の位置に縦線で best
-
-・コピーボタン
-    https://react-icons.github.io/react-icons/search/#q=copy
-    import { IoCopyOutline } from "react-icons/io5";
-
-    Log View とコピーボタンは、タイトルバーつけて枠の中に
-
-・Preview のタイトルの横にVRoid Studio と MikuMikuDanceのリンク
-
-・Convertを押したらT/A Pose Convert は、disabled
-    リロード時に有効化
-
 ・Grid
 
 ・PWA化
 
 ・設定の自動保存 Local Storage
 
-・右下にVersion と About
+・右下にVersion と About、setting reset
 
 ・README.md 更新
 
@@ -49,7 +36,7 @@
 -- 
 済
 
-2026/03/24
+2026/03/23
 
 ・Degly 0 continue?
 
@@ -68,3 +55,18 @@
 
 ・MMDの方が薄い
     → 実装調整して、明るさ1.2、コントラスト1.1
+
+2026/03/24
+
+・スライダの40の位置に縦線で best
+
+・コピーボタン
+    https://react-icons.github.io/react-icons/search/#q=copy
+    import { IoCopyOutline } from "react-icons/io5";
+
+    Log View とコピーボタンは、タイトルバーつけて枠の中に
+
+・Preview のタイトルの横にVRoid Studio と MikuMikuDanceのリンク
+
+・Convertを押したらT/A Pose Convert は、disabled
+    リロード時に有効化

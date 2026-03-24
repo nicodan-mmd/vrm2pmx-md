@@ -1,6 +1,7 @@
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { IoCopyOutline } from "react-icons/io5";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -485,6 +486,10 @@ export default function App() {
   const orbitSyncEnabledRef = useRef(true);
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
+  const [gridEnabled, setGridEnabled] = useState(false);
+  const gridEnabledRef = useRef(false);
+  const vrmGridRef = useRef<THREE.GridHelper | null>(null);
+  const pmxGridRef = useRef<THREE.GridHelper | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
@@ -752,6 +757,10 @@ export default function App() {
       if (loadedMesh) {
         scene.remove(loadedMesh);
       }
+        if (pmxGridRef.current) {
+          scene.remove(pmxGridRef.current);
+          pmxGridRef.current = null;
+        }
       for (const url of objectUrls) {
         URL.revokeObjectURL(url);
       }
@@ -994,13 +1003,23 @@ export default function App() {
       const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const fitHeightDistance = (size.y * 0.5) / Math.tan(halfFov);
       const fitWidthDistance = (size.x * 0.5) / (Math.tan(halfFov) * camera.aspect);
-      const distance = Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.45;
-      const targetY = size.y * 0.08;
+      const distance = Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.25;
+      const targetY = size.y * 0.1;
 
-      camera.position.set(0, targetY, Math.max(distance, 4));
+      camera.position.set(0, targetY, Math.max(distance, 1.2));
       controls.target.set(0, targetY, 0);
       controls.update();
       controls.saveState();
+
+      // TODO: Grid visualization (debug feature)
+      // Grid helper size calculation needs refinement to match camera view proportions
+      // Currently disabled pending further tuning of grid dimensions relative to viewport
+      // const gridSize = Math.max(size.x, size.z) * 1.5;
+      // const gridSubdivisions = Math.ceil(gridSize / 2);
+      // const grid = new THREE.GridHelper(gridSize, gridSubdivisions);
+      // grid.visible = gridEnabledRef.current;
+      // scene.add(grid);
+      // pmxGridRef.current = grid;
 
       onPmxOrbitChanged = () => {
         syncOrbitBetweenViews("pmx");
@@ -1220,6 +1239,17 @@ export default function App() {
     };
   }, []);
 
+    useEffect(() => {
+      gridEnabledRef.current = gridEnabled;
+      // TODO: Grid visibility toggle (debug feature)
+      // Grid helper creation and visibility control pending grid size refinement
+      // if (vrmGridRef.current) {
+      //   vrmGridRef.current.visible = gridEnabled;
+      // }
+      // if (pmxGridRef.current) {
+      //   pmxGridRef.current.visible = gridEnabled;
+      // }
+    }, [gridEnabled]);
   useEffect(() => {
     if (!logEnabled || status !== "uploading") {
       return;
@@ -1294,6 +1324,10 @@ export default function App() {
       if (vrm) {
         scene.remove(vrm.scene);
       }
+        if (vrmGridRef.current) {
+          scene.remove(vrmGridRef.current);
+          vrmGridRef.current = null;
+        }
       renderer.dispose();
     };
 
@@ -1362,6 +1396,16 @@ export default function App() {
       controls.target.set(0, targetY, 0);
       controls.update();
       controls.saveState();
+
+      // TODO: Grid visualization (debug feature)
+      // Grid helper size calculation needs refinement to match camera view proportions
+      // Currently disabled pending further tuning of grid dimensions relative to viewport
+      // const gridSize = Math.max(size.x, size.z) * 1.5;
+      // const gridSubdivisions = Math.ceil(gridSize / 2);
+      // const grid = new THREE.GridHelper(gridSize, gridSubdivisions);
+      // grid.visible = gridEnabledRef.current;
+      // scene.add(grid);
+      // vrmGridRef.current = grid;
 
       onVrmOrbitChanged = () => {
         syncOrbitBetweenViews("vrm");
@@ -1486,7 +1530,12 @@ export default function App() {
             onDragLeave={onVrmDropAreaDragLeave}
             onDrop={onVrmDropAreaDrop}
           >
-            <figcaption>VRM Preview</figcaption>
+            <figcaption className="preview-caption">
+              <span>VRM Preview</span>
+              <a href="https://vroid.com/studio" target="_blank" rel="noopener noreferrer" className="preview-link">
+                VRoid Studio
+              </a>
+            </figcaption>
             <div className="preview-canvas-wrap">
               <canvas
                 ref={vrmCanvasRef}
@@ -1501,7 +1550,12 @@ export default function App() {
             </div>
           </figure>
           <figure className="preview-panel">
-            <figcaption>PMX Preview</figcaption>
+            <figcaption className="preview-caption">
+              <span>PMX Preview</span>
+              <a href="https://sites.google.com/view/vpvp/" target="_blank" rel="noopener noreferrer" className="preview-link">
+                MikuMikuDance
+              </a>
+            </figcaption>
             <canvas
               ref={pmxCanvasRef}
               className="preview-canvas"
@@ -1577,16 +1631,18 @@ export default function App() {
                 </label>
                 <span className="ta-pose-value">{taPoseAngle} deg</span>
               </div>
-              <input
-                id="ta-pose-angle"
-                type="range"
-                min={0}
-                max={90}
-                step={5}
-                value={taPoseAngle}
-                onChange={(event) => setTaPoseAngle(Number(event.target.value))}
-                disabled={!file || isPreviewing || !isVrmReady}
-              />
+              <div className="ta-pose-slider-wrapper">
+                <input
+                  id="ta-pose-angle"
+                  type="range"
+                  min={0}
+                  max={90}
+                  step={5}
+                  value={taPoseAngle}
+                  onChange={(event) => setTaPoseAngle(Number(event.target.value))}
+                  disabled={!file || isPreviewing || !isVrmReady || status === "done" || status === "uploading"}
+                />
+              </div>
             </div>
             <div className="pmx-tools">
               <button
@@ -1604,6 +1660,15 @@ export default function App() {
                   onChange={(event) => setOrbitSyncEnabled(event.target.checked)}
                 />
                 <span>Orbit Sync</span>
+              </label>
+              <label className="pmx-tool-checkbox">
+                <input
+                  type="checkbox"
+                  name="grid"
+                  checked={gridEnabled}
+                  onChange={(event) => setGridEnabled(event.target.checked)}
+                />
+                <span>Grid</span>
               </label>
               <label className="pmx-tool-checkbox">
                 <input
@@ -1675,15 +1740,14 @@ export default function App() {
               <button
                 type="button"
                 className="log-copy-button"
+                title="copy"
                 onClick={() => {
                   void onCopyLog();
                 }}
               >
-                {copyStatus === "done"
-                  ? "Copied"
-                  : copyStatus === "failed"
-                    ? "Copy Failed"
-                    : "Copy"}
+                <IoCopyOutline />
+                {copyStatus === "done" && <span className="copy-status">Copied</span>}
+                {copyStatus === "failed" && <span className="copy-status">Failed</span>}
               </button>
             </div>
             <div ref={logAreaRef} className="log-console" aria-live="polite">

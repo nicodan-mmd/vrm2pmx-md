@@ -84,6 +84,27 @@ h1 {
   color: #2f3f56;
 }
 
+.preview-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2f3f56;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.preview-link:hover {
+  color: #2a5fba;
+  border-bottom-color: #2a5fba;
+}
+
 .preview-canvas {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -225,6 +246,45 @@ h1 {
   accent-color: #2a5fba;
 }
 
+.ta-pose-slider-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 0;
+}
+
+.ta-pose-slider-wrapper input[type="range"] {
+  width: 100%;
+  margin: 0;
+}
+
+/* Best marker at 40deg (40/90 ≈ 44.44%) */
+.ta-pose-slider-wrapper::before {
+  content: "";
+  position: absolute;
+  left: calc(40 / 90 * (100% - 16px) + 8px);
+  transform: translateX(-50%);
+  top: 2px;
+  height: 12px;
+  width: 2px;
+  background-color: #22c55e;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ta-pose-slider-wrapper::after {
+  content: "Best";
+  position: absolute;
+  left: calc(40 / 90 * (100% - 16px) + 8px);
+  transform: translateX(-50%);
+  top: -16px;
+  font-size: 0.6rem;
+  color: #22c55e;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .ta-pose-value {
   font-size: 0.88rem;
   color: #2f3f56;
@@ -313,47 +373,92 @@ button:disabled {
 }
 
 .log-panel {
-  margin-top: 12px;
+  margin-top: 16px;
+  border: 1px solid #c5d9ee;
+  border-radius: 12px;
+  background: #f9fbfd;
+  overflow: hidden;
 }
 
 .log-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  padding: 12px 16px;
+  background: #f0f6fc;
+  border-bottom: 1px solid #c5d9ee;
 }
 
 .log-panel-title {
   margin: 0;
-  font-size: 0.88rem;
-  letter-spacing: 0.03em;
-  color: #2f3f56;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #1e3a5f;
 }
 
 .log-copy-button {
-  border: 1px solid #89a2be;
-  border-radius: 8px;
-  padding: 4px 10px;
-  background: #f3f8ff;
-  color: #2f3f56;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.2;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  color: #1e3a5f;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
 }
 
-.log-copy-button:hover:not(:disabled) {
-  background: #e8f1ff;
-  transform: none;
-  filter: none;
+.log-copy-button:hover {
+  background: #d4e8ff;
+}
+
+.log-copy-button::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e3a5f;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+}
+
+.log-copy-button:hover::after {
+  opacity: 1;
+}
+
+.copy-status {
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-left: 2px;
+  animation: fadeOut 1s ease-in-out 1s forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .log-console {
   width: 100%;
   min-height: 8.5em;
   max-height: 16em;
-  padding: 10px;
-  border: 1px solid #6a839f;
-  border-radius: 10px;
+  padding: 12px 16px;
   background: #0f1722;
   color: #d0f0d6;
   font-family: Consolas, "Courier New", monospace;
@@ -362,6 +467,7 @@ button:disabled {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-y: auto;
+  border: none;
 }
 
 .log-line {
