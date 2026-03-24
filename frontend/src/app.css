@@ -45,6 +45,7 @@ body {
   width: min(860px, 100%);
   border: 1px solid #ffffff;
   background: var(--card);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   border-radius: 22px;
   padding: 28px;
@@ -101,6 +102,43 @@ h1 {
 
 .preview-canvas-wrap {
   position: relative;
+}
+
+.pmx-preview-adjustments {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #c3d3e7;
+  border-radius: 10px;
+  background: #f4f8ff;
+}
+
+.pmx-preview-adjustment-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-preview-adjustment-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2f3f56;
+  letter-spacing: 0.03em;
+}
+
+.pmx-preview-adjustment-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2a5fba;
+  min-width: 2.8em;
+  text-align: right;
+}
+
+.pmx-preview-adjustments input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #2a5fba;
 }
 
 .vrm-drop-placeholder {

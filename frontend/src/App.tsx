@@ -36,6 +36,8 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_JSON_CHUNK = 0x4e4f534a;
 const DEBUG_POSE = false;
 const DEBUG_PMX = false;
+const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
+const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 
 function poseDebug(label: string, payload: unknown): void {
   if (!DEBUG_POSE) {
@@ -72,6 +74,113 @@ function normalizeAssetPath(path: string): string {
     .replace(/\\/g, "/")
     .replace(/^\.\//, "")
     .replace(/^\/+/, "");
+}
+
+function computePmxLightPreset(root: THREE.Object3D): {
+  ambientIntensity: number;
+  directionalIntensity: number;
+  avgLuminance: number;
+  brightMaterialRatio: number;
+} {
+  let totalLuminance = 0;
+  let materialCount = 0;
+  let brightMaterialCount = 0;
+
+  root.traverse((node) => {
+    const maybeMesh = node as THREE.Mesh;
+    if (!maybeMesh.isMesh || !maybeMesh.material) {
+      return;
+    }
+
+    const materials = Array.isArray(maybeMesh.material)
+      ? maybeMesh.material
+      : [maybeMesh.material];
+    for (const material of materials) {
+      if (!material) {
+        continue;
+      }
+      const mat = material as THREE.Material & { color?: THREE.Color };
+      if (!mat.color) {
+        continue;
+      }
+
+      const luminance =
+        mat.color.r * 0.2126 + mat.color.g * 0.7152 + mat.color.b * 0.0722;
+      totalLuminance += luminance;
+      if (luminance >= 0.72) {
+        brightMaterialCount += 1;
+      }
+      materialCount += 1;
+    }
+  });
+
+  if (materialCount === 0) {
+    return {
+      ambientIntensity: 0.72,
+      directionalIntensity: 0.95,
+      avgLuminance: 0,
+      brightMaterialRatio: 0,
+    };
+  }
+
+  const avgLuminance = totalLuminance / materialCount;
+  const brightMaterialRatio = brightMaterialCount / materialCount;
+
+  let directionalIntensity = 0.95;
+  let ambientIntensity = 0.72;
+
+  if (avgLuminance >= 0.7) {
+    directionalIntensity = 0.82;
+    ambientIntensity = 0.6;
+  } else if (avgLuminance >= 0.62) {
+    directionalIntensity = 0.9;
+    ambientIntensity = 0.65;
+  } else if (avgLuminance >= 0.52) {
+    directionalIntensity = 1.0;
+    ambientIntensity = 0.72;
+  } else if (avgLuminance < 0.3) {
+    directionalIntensity = 1.25;
+    ambientIntensity = 0.82;
+  } else {
+    directionalIntensity = 1.12;
+    ambientIntensity = 0.76;
+  }
+
+  if (brightMaterialRatio > 0.35) {
+    directionalIntensity -= 0.08;
+    ambientIntensity -= 0.05;
+  }
+
+  directionalIntensity = THREE.MathUtils.clamp(directionalIntensity, 0.4, 1.8);
+  ambientIntensity = THREE.MathUtils.clamp(ambientIntensity, 0.2, 1.2);
+
+  return {
+    ambientIntensity,
+    directionalIntensity,
+    avgLuminance,
+    brightMaterialRatio,
+  };
+}
+
+function applyPmxLightTuning(
+  baseAmbient: number,
+  baseDirectional: number,
+  brightnessScale: number,
+  contrastFactor: number,
+): { ambientIntensity: number; directionalIntensity: number } {
+  const safeContrast = Math.max(0.5, contrastFactor);
+  const ambientContrast = Math.pow(safeContrast, 1.7);
+  const directionalIntensity = THREE.MathUtils.clamp(
+    baseDirectional * brightnessScale * safeContrast,
+    0.3,
+    2.1,
+  );
+  const ambientIntensity = THREE.MathUtils.clamp(
+    (baseAmbient * brightnessScale) / ambientContrast,
+    0.05,
+    1.3,
+  );
+  return { ambientIntensity, directionalIntensity };
 }
 
 function parseGlbChunks(buffer: ArrayBuffer): GlbChunk[] {
@@ -378,6 +487,8 @@ export default function App() {
   const logEnabledRef = useRef(false);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
+  const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
+  const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -402,6 +513,14 @@ export default function App() {
     controls: OrbitControls;
     baseDistance: number;
     anchorTarget: THREE.Vector3;
+  } | null>(null);
+  const pmxLightRuntimeRef = useRef<{
+    ambientLight: THREE.AmbientLight;
+    keyLight: THREE.DirectionalLight;
+    baseAmbient: number;
+    baseDirectional: number;
+    avgLuminance: number;
+    brightMaterialRatio: number;
   } | null>(null);
   const orbitSyncLockRef = useRef(false);
   const upperArmStateRef = useRef<UpperArmState>({
@@ -451,6 +570,22 @@ export default function App() {
     appendConsoleLine(log.args);
   }
 
+  useEffect(() => {
+    const runtime = pmxLightRuntimeRef.current;
+    if (!runtime) {
+      return;
+    }
+
+    const tuned = applyPmxLightTuning(
+      runtime.baseAmbient,
+      runtime.baseDirectional,
+      pmxBrightnessScale,
+      pmxContrastFactor,
+    );
+    runtime.ambientLight.intensity = tuned.ambientIntensity;
+    runtime.keyLight.intensity = tuned.directionalIntensity;
+  }, [pmxBrightnessScale, pmxContrastFactor]);
+
   function isErrorLogLine(line: string): boolean {
     return /(error|failed|exception|traceback|aborterror|convert\.failed)/i.test(line);
   }
@@ -495,6 +630,7 @@ export default function App() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
     pmxViewRef.current = null;
+    pmxLightRuntimeRef.current = null;
 
     const canvas = pmxCanvasRef.current;
     if (!canvas) {
@@ -626,10 +762,15 @@ export default function App() {
     pmxPreviewCleanupRef.current = disposePreview;
 
     try {
-      scene.background = new THREE.Color("#eef4fb");
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      scene.background = new THREE.Color("#dde8f5");
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      // NoToneMapping: output colors without compression — best for MeshToonMaterial
+      // so sRGB textures appear at full saturation, closer to VRM MToon vibrancy.
+      renderer.toneMapping = THREE.NoToneMapping;
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+      scene.add(ambientLight);
       const keyLight = new THREE.DirectionalLight(0xffffff, 0.95);
-      keyLight.position.set(1.2, 2.5, 2.0);
+      keyLight.position.set(2.8, 2.2, 1.2);
       scene.add(keyLight);
 
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -732,6 +873,12 @@ export default function App() {
             emissiveMap?: THREE.Texture | null;
             matcap?: THREE.Texture | null;
           };
+          if (m.color) {
+            m.color.convertSRGBToLinear();
+          }
+          if (m.emissive) {
+            m.emissive.convertSRGBToLinear();
+          }
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             m.map.needsUpdate = true;
@@ -746,6 +893,33 @@ export default function App() {
           }
           m.needsUpdate = true;
         }
+      });
+
+      const lightPreset = computePmxLightPreset(mesh);
+      pmxLightRuntimeRef.current = {
+        ambientLight,
+        keyLight,
+        baseAmbient: lightPreset.ambientIntensity,
+        baseDirectional: lightPreset.directionalIntensity,
+        avgLuminance: lightPreset.avgLuminance,
+        brightMaterialRatio: lightPreset.brightMaterialRatio,
+      };
+
+      const tunedLight = applyPmxLightTuning(
+        lightPreset.ambientIntensity,
+        lightPreset.directionalIntensity,
+        pmxBrightnessScale,
+        pmxContrastFactor,
+      );
+      ambientLight.intensity = tunedLight.ambientIntensity;
+      keyLight.intensity = tunedLight.directionalIntensity;
+      pmxDebug("light auto adjusted", {
+        avgLuminance: Number(lightPreset.avgLuminance.toFixed(3)),
+        brightMaterialRatio: Number(lightPreset.brightMaterialRatio.toFixed(3)),
+        brightness: Number(pmxBrightnessScale.toFixed(2)),
+        contrast: Number(pmxContrastFactor.toFixed(2)),
+        ambientIntensity: Number(tunedLight.ambientIntensity.toFixed(3)),
+        directionalIntensity: Number(tunedLight.directionalIntensity.toFixed(3)),
       });
 
       scene.add(mesh);
@@ -1127,6 +1301,8 @@ export default function App() {
 
     try {
       scene.background = new THREE.Color("#eaf1fb");
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.NoToneMapping;
       scene.add(new THREE.AmbientLight(0xffffff, 0.65));
       const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
       keyLight.position.set(1.5, 2.0, 2.0);
@@ -1331,6 +1507,44 @@ export default function App() {
               className="preview-canvas"
               aria-label="PMX preview canvas"
             />
+            {/* 明るさデバッグ用（必要時にコメント解除）
+            <div className="pmx-preview-adjustments" aria-label="PMX preview tuning">
+              <div className="pmx-preview-adjustment-row">
+                <label htmlFor="pmx-brightness" className="pmx-preview-adjustment-label">
+                  Brightness
+                </label>
+                <span className="pmx-preview-adjustment-value">
+                  {pmxBrightnessScale.toFixed(2)}
+                </span>
+              </div>
+              <input
+                id="pmx-brightness"
+                type="range"
+                min={0.6}
+                max={1.2}
+                step={0.01}
+                value={pmxBrightnessScale}
+                onChange={(event) => setPmxBrightnessScale(Number(event.target.value))}
+              />
+              <div className="pmx-preview-adjustment-row">
+                <label htmlFor="pmx-contrast" className="pmx-preview-adjustment-label">
+                  Contrast
+                </label>
+                <span className="pmx-preview-adjustment-value">
+                  {pmxContrastFactor.toFixed(2)}
+                </span>
+              </div>
+              <input
+                id="pmx-contrast"
+                type="range"
+                min={0.8}
+                max={1.4}
+                step={0.01}
+                value={pmxContrastFactor}
+                onChange={(event) => setPmxContrastFactor(Number(event.target.value))}
+              />
+            </div>
+            */}
           </figure>
         </section>
 

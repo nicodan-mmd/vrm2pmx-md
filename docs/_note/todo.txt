@@ -1,0 +1,70 @@
+
+・Both Klee 変換成功、踊らない
+
+----
+
+・スライダの40の位置に縦線で best
+
+・コピーボタン
+    https://react-icons.github.io/react-icons/search/#q=copy
+    import { IoCopyOutline } from "react-icons/io5";
+
+    Log View とコピーボタンは、タイトルバーつけて枠の中に
+
+・Preview のタイトルの横にVRoid Studio と MikuMikuDanceのリンク
+
+・Convertを押したらT/A Pose Convert は、disabled
+    リロード時に有効化
+
+・Grid
+
+・PWA化
+
+・設定の自動保存 Local Storage
+
+・右下にVersion と About
+
+・README.md 更新
+
+・favicon
+
+・変換速度の改善可能か
+
+・変換の％表示
+
+・オススメ角度40度
+
+・Google Analytics
+
+・Description
+
+・Bowlroll
+
+・VRM1.0 統合
+
+    ・VRM Previewにドロップ
+        Title (VRM Ver 0.0 only) 
+        → 表示はできる、コンバートでエラー
+
+-- 
+済
+
+2026/03/24
+
+・Degly 0 continue?
+
+・Orbit Sync
+
+・Log  全体枠を上に
+    タイトル右上、コピーボタン
+    例外が出るか
+
+・続けてロード、PMX View Clear
+
+・ドロップ時ファイルパスをファイル選択に
+
+・Rreview VRM → Reload
+    → PMX View、Log Clear
+
+・MMDの方が薄い
+    → 実装調整して、明るさ1.2、コントラスト1.1
