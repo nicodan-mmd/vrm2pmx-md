@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MMDLoader } from "three-stdlib";
+import AboutDialog from "./components/AboutDialog";
 import {
   type ConvertMode,
   convertWithMode,
@@ -40,6 +41,7 @@ const DEBUG_PMX = false;
 const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
 const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
+const APP_VERSION = "1.0";
 
 type UiSettingsSnapshot = {
   mode: ConvertMode;
@@ -508,7 +510,9 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
   const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isUiSettingsHydrated, setIsUiSettingsHydrated] = useState(false);
+  const skipNextSettingsPersistRef = useRef(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -643,6 +647,11 @@ export default function App() {
       return;
     }
 
+    if (skipNextSettingsPersistRef.current) {
+      skipNextSettingsPersistRef.current = false;
+      return;
+    }
+
     const snapshot: UiSettingsSnapshot = {
       mode,
       taPoseAngle,
@@ -690,6 +699,39 @@ export default function App() {
       } catch {
         setCopyStatus("failed");
       }
+    }
+  }
+
+  function onAllReset() {
+    const confirmed = window.confirm("Reset all settings and clear local storage?");
+    if (!confirmed) {
+      return;
+    }
+
+    skipNextSettingsPersistRef.current = true;
+    window.localStorage.removeItem(UI_SETTINGS_STORAGE_KEY);
+
+    cleanupPreview();
+    cleanupPmxPreview();
+    setConvertedOutput(null);
+    setLogLines([]);
+    setCopyStatus("idle");
+    setErrorDetail("");
+    setStatus("idle");
+    setFile(null);
+    setIsVrmReady(false);
+    setMessage("VRM file is not selected yet.");
+    setIsVrmDropActive(false);
+
+    setMode("wasm");
+    setTaPoseAngle(0);
+    setOrbitSyncEnabled(true);
+    setLogEnabled(false);
+    setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
+    setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
+
+    if (vrmInputRef.current) {
+      vrmInputRef.current.value = "";
     }
   }
 
@@ -1842,7 +1884,33 @@ export default function App() {
             </div>
           </section>
         )}
+
+        <footer className="app-footer" aria-label="Application footer actions">
+          <p className="app-version">Version {APP_VERSION}</p>
+          <div className="app-footer-actions">
+            <button
+              type="button"
+              className="footer-action-button"
+              onClick={() => setIsAboutOpen(true)}
+            >
+              About
+            </button>
+            <button
+              type="button"
+              className="footer-action-button footer-action-button-reset"
+              onClick={onAllReset}
+            >
+              All Reset
+            </button>
+          </div>
+        </footer>
       </section>
+
+      <AboutDialog
+        open={isAboutOpen}
+        version={APP_VERSION}
+        onClose={() => setIsAboutOpen(false)}
+      />
     </main>
   );
 }

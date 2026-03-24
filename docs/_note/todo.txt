@@ -3,13 +3,9 @@
 
 ----
 
-・Grid
 
-・PWA化
 
-・設定の自動保存 Local Storage
-
-・右下にVersion と About、setting reset
+・右下にVersion と About、All Reset
 
 ・README.md 更新
 
@@ -19,13 +15,15 @@
 
 ・変換の％表示
 
-・オススメ角度40度
-
 ・Google Analytics
 
 ・Description
 
 ・Bowlroll
+
+・PWA化
+    ボリュームが大きいので後回し
+        docs/PWA-Migration/README.md
 
 ・VRM1.0 統合
 
@@ -59,6 +57,7 @@
 2026/03/24
 
 ・スライダの40の位置に縦線で best
+    ・オススメ角度40度
 
 ・コピーボタン
     https://react-icons.github.io/react-icons/search/#q=copy
@@ -70,3 +69,9 @@
 
 ・Convertを押したらT/A Pose Convert は、disabled
     リロード時に有効化
+
+・Grid
+    → サイズが合わないのでデバッグ用ということでにコメントアウト
+        結果的には初期表示の位置ズレに気づけた
+
+・設定の自動保存 Local Storage
