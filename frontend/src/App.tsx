@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -1291,6 +1292,11 @@ export default function App() {
           detail: rawDetail,
           error,
         });
+        Sentry.withScope((scope) => {
+          scope.setTag("mode", mode);
+          scope.setContext("convert", { fileName: file?.name });
+          Sentry.captureException(error instanceof Error ? error : new Error(rawDetail));
+        });
 
         setStatus("error");
         setConvertProgressPercent(0);
@@ -1302,6 +1308,10 @@ export default function App() {
             backendEnabled,
           }),
         );
+        // エラー時はLog Viewを自動展開してトレースバックを表示
+        setLogEnabled(true);
+        appendConsoleLine(["[ERROR] Convert failed:"]);
+        rawDetail.split("\n").forEach((line) => appendConsoleLine([line]));
         window.alert("Convert error. Please see Log View.");
       }
     } finally {

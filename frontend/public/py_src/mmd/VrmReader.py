@@ -1517,12 +1517,12 @@ class VrmReader(PmxReader):
     ):
         rigidbody = pmx.rigidbodies[bone.name]
         parent_rigidbody = None
-        parent_bone = [b for b in pmx.bones.values() if b.index == bone.parent_index][0]
         target_bone = bone.copy()
         while target_bone.parent_index > -1:
-            parent_bone = [
-                b for b in pmx.bones.values() if b.index == target_bone.parent_index
-            ][0]
+            matched = [b for b in pmx.bones.values() if b.index == target_bone.parent_index]
+            if not matched:
+                break
+            parent_bone = matched[0]
             if parent_bone.name in pmx.rigidbodies:
                 parent_rigidbody = pmx.rigidbodies[parent_bone.name]
                 break

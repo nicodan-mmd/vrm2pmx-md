@@ -212,8 +212,10 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   } catch (error) {
     const detail =
       error instanceof Error
-        ? `${error.message}${error.stack ? `\n${error.stack}` : ""}`
+        ? (error.stack ?? error.message)
         : "Unknown wasm worker error";
+
+    console.error(detail);
 
     const response: WorkerResponse = {
       id: request.id,
