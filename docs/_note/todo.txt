@@ -3,21 +3,18 @@
 
 ----
 
-
 ・テスト、リファクタリング
 
 - 変換テスト
     カッパ 片手だけ動く
     メロン猫覚醒 動き変
 
-
-
-・Bowlroll
-
-    VRM 0.0専用（1.0は非対応）
-    人型（Humanoid）モデル専用
-    ボーン変換メイン（テクスチャや表情は「おまけ」か「動いたらラッキー」）
-    Webブラウザで動くからPython不要！
+- Sentry 運用
+    docs\Sentry-Operation
+    検証モデル
+        \VRoid\VRoid Hub\そるぴ
+            8538742828286332800.vrm
+    sentry-cli 導入
 
 ・VRM1.0 統合
 
@@ -47,56 +44,44 @@
 -- 
 済
 
-2026/03/23
+Ver1.0 2026/03/24 Release
+    2026/03/23
+        ・Degly 0 continue?
+        ・Orbit Sync
+        ・Log  全体枠を上に
+            タイトル右上、コピーボタン
+            例外が出るか
+        ・続けてロード、PMX View Clear
+        ・ドロップ時ファイルパスをファイル選択に
+        ・Rreview VRM → Reload
+            → PMX View、Log Clear
+        ・MMDの方が薄い
+            → 実装調整して、明るさ1.2、コントラスト1.1
+    2026/03/24
+        ・スライダの40の位置に縦線で best
+            ・オススメ角度40度
+        ・コピーボタン
+            https://react-icons.github.io/react-icons/search/#q=copy
+            import { IoCopyOutline } from "react-icons/io5";
+            Log View とコピーボタンは、タイトルバーつけて枠の中に
+        ・Preview のタイトルの横にVRoid Studio と MikuMikuDanceのリンク
+        ・Convertを押したらT/A Pose Convert は、disabled
+            リロード時に有効化
+        ・Grid
+            → サイズが合わないのでデバッグ用ということでにコメントアウト
+                結果的には初期表示の位置ズレに気づけた
+        ・設定の自動保存 Local Storage
+        ・右下にVersion と About、All Reset
+        ・README.md 更新
+        ・favicon
+        ・Google Analytics
+        ・Description
+        ・変換の％表示
+    ・Bowlroll
 
-・Degly 0 continue?
+        VRM 0.0専用（1.0は非対応）
+        人型（Humanoid）モデル専用
+        ボーン変換メイン（テクスチャや表情は「おまけ」か「動いたらラッキー」）
+        Webブラウザで動くからPython不要！
 
-・Orbit Sync
-
-・Log  全体枠を上に
-    タイトル右上、コピーボタン
-    例外が出るか
-
-・続けてロード、PMX View Clear
-
-・ドロップ時ファイルパスをファイル選択に
-
-・Rreview VRM → Reload
-    → PMX View、Log Clear
-
-・MMDの方が薄い
-    → 実装調整して、明るさ1.2、コントラスト1.1
-
-2026/03/24
-
-・スライダの40の位置に縦線で best
-    ・オススメ角度40度
-
-・コピーボタン
-    https://react-icons.github.io/react-icons/search/#q=copy
-    import { IoCopyOutline } from "react-icons/io5";
-
-    Log View とコピーボタンは、タイトルバーつけて枠の中に
-
-・Preview のタイトルの横にVRoid Studio と MikuMikuDanceのリンク
-
-・Convertを押したらT/A Pose Convert は、disabled
-    リロード時に有効化
-
-・Grid
-    → サイズが合わないのでデバッグ用ということでにコメントアウト
-        結果的には初期表示の位置ズレに気づけた
-
-・設定の自動保存 Local Storage
-
-・右下にVersion と About、All Reset
-
-・README.md 更新
-
-・favicon
-
-・Google Analytics
-
-・Description
-
-・変換の％表示
+Ver1.1 2026/xx/xx Release
