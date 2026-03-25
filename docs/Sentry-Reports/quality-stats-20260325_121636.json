@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-03-25T12:16:36.013697",
+  "total_events": 17,
+  "quality_signal_events": 8,
+  "by_signal_code": {
+    "THREE_CLOCK_DEPRECATED": 4,
+    "THREE_TIMER_MIGRATION_WARNING": 4
+  },
+  "by_signal_source": {
+    "user_reported": 4,
+    "auto_detected": 4
+  },
+  "by_mode": {
+    "wasm": 8
+  },
+  "by_result": {
+    "success_user_reported_issue": 4,
+    "success_risk_detected": 4
+  },
+  "by_release": {
+    "vrm2pmx-web@1.0": 8
+  },
+  "signal_matrix": {
+    "THREE_CLOCK_DEPRECATED": {
+      "user_reported": 2,
+      "auto_detected": 2
+    },
+    "THREE_TIMER_MIGRATION_WARNING": {
+      "user_reported": 2,
+      "auto_detected": 2
+    }
+  }
+}
