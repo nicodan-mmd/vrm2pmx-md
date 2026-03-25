@@ -1428,7 +1428,7 @@ export default function App() {
     <main className="page">
       <div className="halo" />
       <section className="card">
-        <h2>VRM to PMX Converter</h2>
+        <h1 className="app-title">VRM to PMX Converter</h1>
         <section className="preview-grid" aria-label="Model previews">
           <figure
             className={`preview-panel${isVrmDropActive ? " preview-panel-dropping" : ""}`}

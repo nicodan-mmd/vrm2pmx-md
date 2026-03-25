@@ -12,6 +12,7 @@
         メロン猫覚醒 動き変
 
 ・VRM1.0 統合
+    https://github.com/miu200521358/vroid2pmx
     ・VRM Previewにドロップ
         Title (VRM Ver 0.0 only) 
         → 表示はできる、コンバートでエラー

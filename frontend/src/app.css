@@ -67,6 +67,14 @@ h2 {
   color: #254466;
 }
 
+.app-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  text-align: center;
+  color: #254466;
+}
+
 .preview-grid {
   margin: 18px 0 24px;
   display: grid;
