@@ -41,6 +41,8 @@ from module.MMath import (  # noqa
     MVector3D,
     MVector4D,
 )
+from service.profile_detection import detect_profile
+from service.vrm_common import define_buf_type as _define_buf_type
 from utils.MException import MKilledException, SizingException  # noqa
 from utils.MLogger import MLogger  # noqa
 
@@ -71,6 +73,178 @@ class VrmReader(PmxReader):
 
     def read_model_name(self):
         return ""
+
+    @staticmethod
+    def _is_vroid_profile(profile_name: str | None) -> bool:
+        return profile_name == "vroid"
+
+    @staticmethod
+    def _normalize_morph_weight(weight: Any) -> float:
+        try:
+            weight_value = float(weight)
+        except (TypeError, ValueError):
+            return 0.0
+
+        return (weight_value / 100.0) if weight_value > 1.0 else weight_value
+
+    def _iter_expression_groups(self, vrm: VrmModel) -> list[dict[str, Any]]:
+        extensions = vrm.json_data.get("extensions", {})
+        vrm0_extension = extensions.get("VRM", {})
+        vrm1_extension = extensions.get("VRMC_vrm", {})
+
+        if (
+            "blendShapeMaster" in vrm0_extension
+            and "blendShapeGroups" in vrm0_extension["blendShapeMaster"]
+        ):
+            return list(vrm0_extension["blendShapeMaster"]["blendShapeGroups"])
+
+        expressions = vrm1_extension.get("expressions", {})
+        expression_groups: list[dict[str, Any]] = []
+        for expression_type in ["preset", "custom"]:
+            expression_map = expressions.get(expression_type, {})
+            if not isinstance(expression_map, dict):
+                continue
+
+            for expression_name, expression in expression_map.items():
+                if not isinstance(expression, dict):
+                    continue
+
+                morph_target_binds = expression.get("morphTargetBinds", [])
+                binds = []
+                for bind in morph_target_binds:
+                    if not isinstance(bind, dict):
+                        continue
+                    binds.append(
+                        {
+                            "index": bind.get("index"),
+                            "weight": bind.get("weight", 0),
+                        }
+                    )
+
+                expression_groups.append({"name": expression_name, "binds": binds})
+
+        return expression_groups
+
+    def _has_optional_physics_source(self, vrm: VrmModel) -> bool:
+        extensions = vrm.json_data.get("extensions", {})
+        if "VRMC_springBone" in extensions:
+            return True
+
+        secondary_animation = extensions.get("VRM", {}).get("secondaryAnimation", {})
+        return bool(secondary_animation.get("boneGroups"))
+
+    def _resolve_center_position(self, pmx: PmxModel, profile_name: str) -> MVector3D:
+        if self._is_vroid_profile(profile_name) and "腰" in pmx.bones:
+            return pmx.bones["腰"].position * 0.7
+
+        return MVector3D(
+            0,
+            (pmx.bones["左足"].position.y() + pmx.bones["左ひざ"].position.y()) / 2,
+            0,
+        )
+
+    def _resolve_groove_position(self, pmx: PmxModel, profile_name: str) -> MVector3D:
+        if self._is_vroid_profile(profile_name) and "腰" in pmx.bones:
+            return pmx.bones["腰"].position * 0.8
+
+        return MVector3D(0, pmx.bones["センター"].position.y() * 1.025, 0)
+
+    def _resolve_both_eyes_position(
+        self, pmx: PmxModel, bone_name: str, profile_name: str
+    ) -> MVector3D:
+        if self._is_vroid_profile(profile_name):
+            if "左目" in pmx.bones and "右目" in pmx.bones:
+                left_eye = pmx.bones["左目"].position
+                right_eye = pmx.bones["右目"].position
+                if left_eye != MVector3D() or right_eye != MVector3D():
+                    return left_eye + ((right_eye - left_eye) / 2)
+
+        return MVector3D(
+            0,
+            pmx.bones["頭"].position.y()
+            + (pmx.bones["頭"].position.y() - pmx.bones["首"].position.y()) * 3,
+            pmx.bones[bone_name].position.z() * 2,
+        )
+
+    def _resolve_material_key(
+        self, material_name: str, alpha_mode: str, profile_name: str
+    ) -> str:
+        if self._is_vroid_profile(profile_name):
+            if "EyeHighlight" in material_name:
+                return "EyeHighlight"
+            if "Eye" in material_name:
+                return "Eye"
+
+        return alpha_mode
+
+    @staticmethod
+    def _resolve_main_texture_index(
+        vrm_material: dict[str, Any],
+        texture_props: dict[str, Any],
+        json_data: dict[str, Any],
+        pmx_texture_count: int,
+    ) -> tuple[int, str]:
+        """Resolve main texture index for PMX material.
+
+        Priority:
+        1) VRM0 materialProperties.textureProperties._MainTex
+        2) glTF pbrMetallicRoughness.baseColorTexture.index -> textures[].source
+        """
+        if "_MainTex" in texture_props:
+            try:
+                candidate = int(texture_props["_MainTex"]) + 1
+            except (TypeError, ValueError):
+                return -1, "_MainTex_invalid"
+
+            if 0 <= candidate < pmx_texture_count:
+                return candidate, "_MainTex"
+            return -1, "_MainTex_out_of_range"
+
+        pbr = vrm_material.get("pbrMetallicRoughness", {})
+        base_color_texture: dict[str, Any] = {}
+        if isinstance(pbr, dict):
+            candidate = pbr.get("baseColorTexture", {})
+            if isinstance(candidate, dict):
+                base_color_texture = candidate
+
+        if not base_color_texture:
+            mtoon_ext = (
+                vrm_material.get("extensions", {})
+                .get("VRMC_materials_mtoon", {})
+            )
+            if isinstance(mtoon_ext, dict):
+                lit_multiply_texture = mtoon_ext.get("litMultiplyTexture", {})
+                if isinstance(lit_multiply_texture, dict):
+                    base_color_texture = lit_multiply_texture
+
+        if not base_color_texture:
+            return -1, "baseColorTexture_missing"
+
+        gltf_texture_index = base_color_texture.get("index")
+        if not isinstance(gltf_texture_index, int):
+            return -1, "baseColorTexture_index_missing"
+
+        textures = json_data.get("textures", [])
+        if not isinstance(textures, list) or not (0 <= gltf_texture_index < len(textures)):
+            return -1, "baseColorTexture_index_out_of_range"
+
+        texture_info = textures[gltf_texture_index]
+        if not isinstance(texture_info, dict):
+            return -1, "texture_info_invalid"
+
+        source_index = texture_info.get("source")
+        if not isinstance(source_index, int):
+            khr_basisu = texture_info.get("extensions", {}).get("KHR_texture_basisu", {})
+            if isinstance(khr_basisu, dict):
+                source_index = khr_basisu.get("source")
+        if not isinstance(source_index, int):
+            return -1, "texture_source_missing"
+
+        candidate = source_index + 1
+        if 0 <= candidate < pmx_texture_count:
+            return candidate, "baseColorTexture"
+
+        return -1, "baseColorTexture_source_out_of_range"
 
     def read_data(self):  # type: ignore[override]
         # Pmxモデル生成
@@ -129,6 +303,17 @@ class VrmReader(PmxReader):
                 json_text = self.read_text(json_buf_size)
 
                 vrm.json_data = json.loads(json_text)
+
+                detection = detect_profile(vrm.json_data, self.file_path)
+                vrm.detected_profile = detection.profile
+                vrm.profile_reason = detection.reason
+                vrm.profile_metadata = detection.as_dict()
+
+                logger.info(
+                    "-- 自動判定 profile=%s reason=%s",
+                    vrm.detected_profile,
+                    vrm.profile_reason,
+                )
 
                 # JSON出力
                 jf = open(
@@ -213,8 +398,12 @@ class VrmReader(PmxReader):
                             node_world_matrices,
                         )
 
+                profile_name = getattr(vrm, "detected_profile", "generic")
+                if self._is_vroid_profile(profile_name):
+                    logger.info("-- VRoidProfile: bone/material tuning enabled")
+
                 # ボーンの定義
-                self.custom_bones(pmx, bones)
+                self.custom_bones(pmx, bones, profile_name)
 
                 logger.info(f"-- ボーンデータ解析[{len(pmx.bones.keys())}]")
                 logger.info("-- ノードワールド行列計算終了")
@@ -543,14 +732,25 @@ class VrmReader(PmxReader):
                                     ):
                                         # 材質種別別に材質の存在がない場合
 
-                                        # VRMの材質拡張情報
-                                        material_ext = [
+                                        # VRMの材質拡張情報（VRM0.x のみ存在、VRM1.x ではデフォルト値を使用）
+                                        _vrm0_material_props = (
+                                            vrm.json_data.get("extensions", {})
+                                            .get("VRM", {})
+                                            .get("materialProperties", [])
+                                        )
+                                        _material_ext_list = [
                                             m
-                                            for m in vrm.json_data["extensions"]["VRM"][
-                                                "materialProperties"
-                                            ]
+                                            for m in _vrm0_material_props
                                             if m["name"] == vrm_material["name"]
-                                        ][0]
+                                        ]
+                                        if _material_ext_list:
+                                            material_ext = _material_ext_list[0]
+                                        else:
+                                            logger.warning(
+                                                "-- materialProperties not found for '%s' (VRM1.0?): using defaults",
+                                                vrm_material["name"],
+                                            )
+                                            material_ext = {}
                                         # 拡散色
                                         diffuse_color_data = vrm_material[
                                             "pbrMetallicRoughness"
@@ -614,29 +814,26 @@ class VrmReader(PmxReader):
                                             "_OutlineWidth", 0
                                         )
 
-                                        texture_index = -1
-                                        if "_MainTex" in texture_props:
-                                            candidate_texture_index = (
-                                                texture_props["_MainTex"] + 1
-                                            )
-                                            if 0 <= candidate_texture_index < len(
-                                                pmx.textures
-                                            ):
-                                                texture_index = (
-                                                    candidate_texture_index
-                                                )
-                                            else:
-                                                logger.warning(
-                                                    f'Main texture index out of range: material={vrm_material["name"]}, _MainTex={texture_props["_MainTex"]}'
-                                                )
-                                        else:
+                                        texture_index, texture_index_source = self._resolve_main_texture_index(
+                                            vrm_material,
+                                            texture_props,
+                                            vrm.json_data,
+                                            len(pmx.textures),
+                                        )
+                                        if texture_index < 0:
                                             logger.warning(
-                                                f'Main texture missing: material={vrm_material["name"]}'
+                                                "Main texture missing or invalid: material=%s source=%s",
+                                                vrm_material["name"],
+                                                texture_index_source,
                                             )
 
                                         # 0番目は空テクスチャなので+1で設定
                                         m = re.search(hair_regexp, vrm_material["name"])
-                                        if m is not None and texture_index > 0:
+                                        if (
+                                            self._is_vroid_profile(profile_name)
+                                            and m is not None
+                                            and texture_index > 0
+                                        ):
                                             # 髪材質の場合、合成
                                             hair_img_name = os.path.basename(
                                                 pmx.textures[texture_index]
@@ -736,7 +933,10 @@ class VrmReader(PmxReader):
                                                 diffuse_color = MVector3D(1, 1, 1)
                                                 specular_color = MVector3D()
                                                 ambient_color = diffuse_color / 2
-                                        elif m is not None:
+                                        elif (
+                                            self._is_vroid_profile(profile_name)
+                                            and m is not None
+                                        ):
                                             logger.warning(
                                                 f'Hair blend skipped due to missing main texture: material={vrm_material["name"]}'
                                             )
@@ -829,14 +1029,10 @@ class VrmReader(PmxReader):
                                         )
 
                                         # 材質順番を決める
-                                        material_key = (
-                                            "EyeHighlight"
-                                            if "EyeHighlight" in material.name
-                                            else (
-                                                "Eye"
-                                                if "Eye" in material.name
-                                                else vrm_material["alphaMode"]
-                                            )
+                                        material_key = self._resolve_material_key(
+                                            material.name,
+                                            vrm_material["alphaMode"],
+                                            profile_name,
                                         )
 
                                         if material_key not in materials_by_type:
@@ -874,18 +1070,10 @@ class VrmReader(PmxReader):
                                 )
 
                 # グループモーフ定義
-                if (
-                    "extensions" in vrm.json_data
-                    and vrm.json_data["extensions"]
-                    and "VRM" in vrm.json_data["extensions"]
-                    and "blendShapeMaster" in vrm.json_data["extensions"]["VRM"]
-                    and "blendShapeGroups"
-                    in vrm.json_data["extensions"]["VRM"]["blendShapeMaster"]
-                ):
-                    for shape in vrm.json_data["extensions"]["VRM"]["blendShapeMaster"][
-                        "blendShapeGroups"
-                    ]:
-                        if len(shape["binds"]) == 0:
+                expression_groups = self._iter_expression_groups(vrm)
+                if expression_groups:
+                    for shape in expression_groups:
+                        if len(shape.get("binds", [])) == 0:
                             continue
 
                         morph_name = shape["name"]
@@ -901,14 +1089,23 @@ class VrmReader(PmxReader):
                             and "binds" in MORPH_PAIRS[shape["name"]]
                         ):
                             for bind in MORPH_PAIRS[shape["name"]]["binds"]:
-                                morph.offsets.append(
-                                    GroupMorphData(pmx.morphs[bind].index, 1)
-                                )
+                                if bind in pmx.morphs:
+                                    morph.offsets.append(
+                                        GroupMorphData(pmx.morphs[bind].index, 1)
+                                    )
                         else:
-                            for bind in shape["binds"]:
+                            for bind in shape.get("binds", []):
+                                if bind.get("index") not in pmx.morphs:
+                                    continue
                                 morph.offsets.append(
-                                    GroupMorphData(bind["index"], bind["weight"] / 100)
+                                    GroupMorphData(
+                                        bind["index"],
+                                        self._normalize_morph_weight(bind.get("weight")),
+                                    )
                                 )
+
+                        if len(morph.offsets) == 0:
+                            continue
                         pmx.morphs[morph_name] = morph
                         pmx.display_slots["表情"].references.append(morph.index)
 
@@ -935,6 +1132,15 @@ class VrmReader(PmxReader):
                             pmx.display_slots["表情"].references.append(morph.index)
 
                 logger.info("-- グループモーフデータ解析")
+
+                enable_optional_physics = (
+                    not self._is_vroid_profile(profile_name)
+                    or self._has_optional_physics_source(vrm)
+                )
+                if not enable_optional_physics:
+                    logger.warning(
+                        "-- VRoidProfile: spring metadata not found, skipping optional physics generation"
+                    )
 
                 bone_vertices = {}
                 # ボーンベースで頂点INDEXの分類
@@ -1001,6 +1207,9 @@ class VrmReader(PmxReader):
                         )
 
                 for bone_name, bone in pmx.bones.items():
+                    if not enable_optional_physics:
+                        continue
+
                     if (
                         bone.name not in pmx.rigidbodies
                         and "捩" not in bone.name
@@ -1325,26 +1534,34 @@ class VrmReader(PmxReader):
                 logger.info("-- 表示枠データ解析")
 
                 # モデル名
-                pmx.name = vrm.json_data["extensions"]["VRM"]["meta"]["title"]
-                if not pmx.name:
-                    pmx.name = os.path.basename(vrm.path).split(".")[0]
+                # モデル名（VRM0.x: extensions.VRM.meta, VRM1.x: extensions.VRMC_vrm.meta）
+                _ext = vrm.json_data.get("extensions", {})
+                _vrm0_meta = _ext.get("VRM", {}).get("meta", {})
+                _vrm1_meta = _ext.get("VRMC_vrm", {}).get("meta", {})
+                _meta_title = _vrm0_meta.get("title") or _vrm1_meta.get("name", "")
+                _meta_author = _vrm0_meta.get("author") or ", ".join(
+                    _vrm1_meta.get("authors", [])
+                )
+                _meta_license = _vrm0_meta.get("licenseName") or _vrm1_meta.get(
+                    "licenseUrl", ""
+                )
+
+                pmx.name = _meta_title or os.path.basename(vrm.path).split(".")[0]
 
                 licence_comment = ""
-                if vrm.json_data["extensions"]["VRM"]["meta"]["licenseName"] == "Other":
+                if _vrm0_meta.get("licenseName") == "Other":
                     licence_dict = urllib.parse.parse_qs(
                         urllib.parse.urlparse(
-                            vrm.json_data["extensions"]["VRM"]["meta"][
-                                "otherPermissionUrl"
-                            ]
+                            _vrm0_meta.get("otherPermissionUrl", "")
                         ).query
                     )
                     for k, v in licence_dict.items():
                         licence_comment += f'　　{k}: {",".join(v)}\r\n'
 
                 pmx.comment = (
-                    f"モデル名: {vrm.json_data['extensions']['VRM']['meta']['title']}\r\n"
-                    + f"作者: {vrm.json_data['extensions']['VRM']['meta']['author']}\r\n"
-                    + f"ライセンス: {vrm.json_data['extensions']['VRM']['meta']['licenseName']}\r\n{licence_comment}\r\n"
+                    f"モデル名: {_meta_title}\r\n"
+                    + f"作者: {_meta_author}\r\n"
+                    + f"ライセンス: {_meta_license}\r\n{licence_comment}\r\n"
                     + "変換: Vrm2PmxConverter (@miu200521358)"
                 )
 
@@ -2219,7 +2436,7 @@ class VrmReader(PmxReader):
         return local
 
     # ボーンの再定義
-    def custom_bones(self, pmx: PmxModel, bones: dict):
+    def custom_bones(self, pmx: PmxModel, bones: dict, profile_name: str = "generic"):
         # MMDで定義されているボーン
         bone_idx = 0
         for node_name, bone_config in self.bone_pairs.items():
@@ -2259,11 +2476,8 @@ class VrmReader(PmxReader):
                 pmx.bones[bone_name].position = MVector3D(0, 0, 0)
                 pmx.bones[bone_name].flag = 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010
             elif bone_name == "センター":
-                pmx.bones[bone_name].position = MVector3D(
-                    0,
-                    (pmx.bones["左足"].position.y() + pmx.bones["左ひざ"].position.y())
-                    / 2,
-                    0,
+                pmx.bones[bone_name].position = self._resolve_center_position(
+                    pmx, profile_name
                 )
                 pmx.bones[bone_name].flag = 0x0000 | 0x0002 | 0x0004 | 0x0008 | 0x0010
                 pmx.bones[bone_name].tail_index = -1
@@ -2271,8 +2485,8 @@ class VrmReader(PmxReader):
                     0, -pmx.bones["センター"].position.y(), 0
                 )
             elif bone_name == "グルーブ":
-                pmx.bones[bone_name].position = MVector3D(
-                    0, pmx.bones["センター"].position.y() * 1.025, 0
+                pmx.bones[bone_name].position = self._resolve_groove_position(
+                    pmx, profile_name
                 )
                 pmx.bones[bone_name].flag = (
                     0x0000 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x2000
@@ -2324,11 +2538,10 @@ class VrmReader(PmxReader):
                 pmx.bones[bone_name].effect_factor = 1
             elif "両目" == bone_name:
                 pmx.bones[bone_name].flag = 0x0000 | 0x0002 | 0x0008 | 0x0010
-                pmx.bones[bone_name].position = MVector3D(
-                    0,
-                    pmx.bones["頭"].position.y()
-                    + (pmx.bones["頭"].position.y() - pmx.bones["首"].position.y()) * 3,
-                    pmx.bones[bone_name].position.z() * 2,
+                pmx.bones[bone_name].position = self._resolve_both_eyes_position(
+                    pmx,
+                    bone_name,
+                    profile_name,
                 )
                 pmx.bones[bone_name].tail_index = -1
                 pmx.bones[bone_name].tail_position = MVector3D(0, 0, -1)
@@ -2403,11 +2616,31 @@ class VrmReader(PmxReader):
     ):
         node = vrm.json_data["nodes"][node_idx]
 
-        human_nodes = [
-            b
-            for b in vrm.json_data["extensions"]["VRM"]["humanoid"]["humanBones"]
-            if b["node"] == node_idx
-        ]
+        # humanBones: VRM0.x はリスト、VRM1.x は {bone_name: {node: idx}} の dict
+        _ext_data = vrm.json_data.get("extensions", {})
+        _vrm0_humanoid = _ext_data.get("VRM", {}).get("humanoid", {})
+        _vrm1_humanoid = _ext_data.get("VRMC_vrm", {}).get("humanoid", {})
+
+        if "humanBones" in _vrm0_humanoid and isinstance(
+            _vrm0_humanoid["humanBones"], list
+        ):
+            # VRM0.x: [{"bone": "hips", "node": 0}, ...]
+            human_nodes = [
+                b
+                for b in _vrm0_humanoid["humanBones"]
+                if b.get("node") == node_idx
+            ]
+        elif "humanBones" in _vrm1_humanoid and isinstance(
+            _vrm1_humanoid["humanBones"], dict
+        ):
+            # VRM1.x: {"hips": {"node": 0}, "spine": {"node": 1}, ...}
+            human_nodes = [
+                {"bone": bone_name, "node": bone_data.get("node")}
+                for bone_name, bone_data in _vrm1_humanoid["humanBones"].items()
+                if isinstance(bone_data, dict) and bone_data.get("node") == node_idx
+            ]
+        else:
+            human_nodes = []
         # 人体ボーンの場合のみ人体データ取得
         human_node = None if len(human_nodes) == 0 else human_nodes[0]
         bone_name = node["name"]
@@ -2787,20 +3020,8 @@ class VrmReader(PmxReader):
         return matrices
 
     def define_buf_type(self, componentType: int):
-        if componentType == 5120:
-            return "b", 1
-        elif componentType == 5121:
-            return "B", 1
-        elif componentType == 5122:
-            return "h", 2
-        elif componentType == 5123:
-            return "H", 2
-        elif componentType == 5124:
-            return "i", 4
-        elif componentType == 5125:
-            return "I", 4
-
-        return "f", 4
+        """vrm_common.define_buf_type へのデリゲート（後方互換維持）。"""
+        return _define_buf_type(componentType)
 
     def read_text(self, format_size):
         bresult = self.unpack(format_size, "{0}s".format(format_size))

@@ -13,6 +13,8 @@
   "service/Vrm2PmxBytesService.py",
   "service/Vrm2PmxExportService.py",
   "service/__init__.py",
+  "service/profile_detection.py",
+  "service/vrm_common.py",
   "utils/MException.py",
   "utils/MFileUtils.py",
   "utils/MFormUtils.py",

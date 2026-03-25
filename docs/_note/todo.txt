@@ -1,15 +1,19 @@
-
-・Both Klee 変換成功、踊らない
-
+----
+未
 ----
 
-・PWAインストールボタン
+
+・Biome導入
 
 ・テスト
 
     - 変換テスト
         カッパ 片手だけ動く
         メロン猫覚醒 動き変
+    - 変換後テスト
+        Both Klee 変換成功、踊らない
+
+・ニコニコ動画 動画作成
 
 ・VRM1.0 統合
     https://github.com/miu200521358/vroid2pmx
@@ -70,7 +74,7 @@ Ver1.0 2026/03/24 Release
         ボーン変換メイン（テクスチャや表情は「おまけ」か「動いたらラッキー」）
         Webブラウザで動くからPython不要！
 
-Ver1.1 2026/xx/xx Release
+Ver1.1 2026/03/25 Release
     2026/03/25
     ・ボタンの色、グラデーション要らない
     - Sentry 運用
@@ -88,7 +92,14 @@ Ver1.1 2026/xx/xx Release
         シェーダー（MToon → MMD基本）: ライティングや輪郭線の再現度。
         表情（BlendShape → モーフ）: 名前変換の対応表など。
     ・リファクタリング app.tsx 分割
+Ver1.2 2026/03/25 Release
 
     ・PWA化
         ボリュームが大きいので後回し
             docs/PWA-Migration/README.md
+    ・PWAインストールボタン
+
+Ver1.3 2026/03/26 Release
+・VRM1.0対応
+・品質崩れ検知難しい → 常に
+・0 only Convert 消す

@@ -16,6 +16,25 @@ export type QualitySignalReportInput = {
   status: string;
   result: string;
   conversionReportId: string;
+  previewSnapshots?: {
+    vrmDataUrl?: string;
+    pmxDataUrl?: string;
+    width: number;
+    height: number;
+  };
+  pmxPreviewDiagnostics?: {
+    zipEntryCount: number;
+    zipFileCount: number;
+    zipTextureFileCount: number;
+    zipTextureSamples: string[];
+    zipPmxEntries: string[];
+    selectedPmxPath: string;
+    assetKeyCount: number;
+    materialCount: number;
+    materialSlotCount: number;
+    colorTextureCount: number;
+    textureCoverage: number;
+  };
 };
 
 export function detectQualityRiskSignals(logLines: string[]): string[] {
@@ -68,6 +87,8 @@ export function reportQualitySignals({
   status,
   result,
   conversionReportId,
+  previewSnapshots,
+  pmxPreviewDiagnostics,
 }: QualitySignalReportInput): boolean {
   const normalizedSignals = [...new Set(signals.map(normalizeQualitySignalCode))];
   let firstEventId: string | undefined;
@@ -101,6 +122,33 @@ export function reportQualitySignals({
         detectedSignals: normalizedSignals,
         conversionReportId,
       });
+
+      if (previewSnapshots) {
+        scope.setContext("preview_snapshot_meta", {
+          width: previewSnapshots.width,
+          height: previewSnapshots.height,
+          hasVrm: Boolean(previewSnapshots.vrmDataUrl),
+          hasPmx: Boolean(previewSnapshots.pmxDataUrl),
+        });
+
+        // Keep payload size bounded while still attaching visual evidence.
+        if (previewSnapshots.vrmDataUrl) {
+          scope.setExtra(
+            "preview_vrm_data_url",
+            previewSnapshots.vrmDataUrl.slice(0, 120_000),
+          );
+        }
+        if (previewSnapshots.pmxDataUrl) {
+          scope.setExtra(
+            "preview_pmx_data_url",
+            previewSnapshots.pmxDataUrl.slice(0, 120_000),
+          );
+        }
+      }
+
+      if (pmxPreviewDiagnostics) {
+        scope.setContext("pmx_preview_diagnostics", pmxPreviewDiagnostics);
+      }
 
       const eventId = Sentry.captureMessage(
         `convert.quality_signal.${source}.${signalCode}`,

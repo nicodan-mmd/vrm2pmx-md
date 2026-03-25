@@ -38,6 +38,7 @@ type UpperArmState = {
   rightBone: THREE.Object3D | null;
   leftBaseQuaternion: THREE.Quaternion | null;
   rightBaseQuaternion: THREE.Quaternion | null;
+  armPoseSign: 1 | -1;
 };
 
 type ConvertedOutput = {
@@ -45,7 +46,25 @@ type ConvertedOutput = {
   fileExtension: "zip" | "pmx";
 };
 
+type PmxPreviewDiagnostics = {
+  zipEntryCount: number;
+  zipFileCount: number;
+  zipTextureFileCount: number;
+  zipTextureSamples: string[];
+  zipPmxEntries: string[];
+  selectedPmxPath: string;
+  assetKeyCount: number;
+  materialCount: number;
+  materialSlotCount: number;
+  colorTextureCount: number;
+  textureCoverage: number;
+};
+
 const DEBUG_PMX = false;
+const NON_QUALITY_RUNTIME_SIGNALS = new Set<string>([
+  "three-clock-deprecated",
+  "three-timer-migration-warning",
+]);
 
 function getProfileLabel(profile: ProfileDetectionResult["profile"]): string {
   return profile === "vroid" ? "VRoid" : "Generic";
@@ -218,6 +237,33 @@ function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean
   return Boolean(tex.image || tex.source?.data);
 }
 
+function captureCanvasSnapshotDataUrl(
+  canvas: HTMLCanvasElement | null,
+  width: number,
+  height: number,
+): string | null {
+  if (!canvas) {
+    return null;
+  }
+
+  const sourceWidth = canvas.width || canvas.clientWidth;
+  const sourceHeight = canvas.height || canvas.clientHeight;
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return null;
+  }
+
+  const tmp = document.createElement("canvas");
+  tmp.width = width;
+  tmp.height = height;
+  const ctx = tmp.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+
+  ctx.drawImage(canvas, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+  return tmp.toDataURL("image/jpeg", 0.72);
+}
+
 function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
   const { pwaInstall, supported, isInstalled } = useReactPWAInstall();
 
@@ -288,6 +334,7 @@ export default function App() {
   const [lastUsedMode, setLastUsedMode] = useState<"backend" | "wasm" | null>(null);
   const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
   const [lastConversionReportId, setLastConversionReportId] = useState<string | null>(null);
+  const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -320,6 +367,7 @@ export default function App() {
     rightBone: null,
     leftBaseQuaternion: null,
     rightBaseQuaternion: null,
+    armPoseSign: 1,
   });
   const backendEnabled = isBackendFallbackEnabled();
   const appLocale = useMemo(
@@ -640,6 +688,17 @@ export default function App() {
 
       const zipReader = new ZipReader(new BlobReader(zipBlob));
       const entries = await zipReader.getEntries();
+      const entryFileNames = entries
+        .map((entry) => {
+          const current = entry as unknown as { filename?: string; directory?: boolean };
+          if (current.directory || !current.filename) {
+            return null;
+          }
+          return normalizeAssetPath(current.filename);
+        })
+        .filter((name): name is string => Boolean(name));
+      const textureEntryNames = entryFileNames.filter((name) => /\.(png|jpe?g|bmp|tga|dds|webp)$/i.test(name));
+      const pmxEntryCandidates = entryFileNames.filter((name) => /\.pmx$/i.test(name));
       pmxDebug("zip entries", {
         count: entries.length,
         files: entries
@@ -788,6 +847,8 @@ export default function App() {
 
       const skinnedMeshes: THREE.SkinnedMesh[] = [];
       const materialNames: string[] = [];
+      let materialSlotCount = 0;
+      let colorTextureCount = 0;
       mesh.traverse((object) => {
         const maybeSkinnedMesh = object as THREE.SkinnedMesh;
         if (maybeSkinnedMesh.isSkinnedMesh) {
@@ -803,17 +864,47 @@ export default function App() {
           ? maybeMesh.material
           : [maybeMesh.material];
         for (const material of materials) {
+          materialSlotCount += 1;
           if (material && typeof material.name === "string" && material.name) {
             materialNames.push(material.name);
           }
+
+          const toon = material as THREE.MeshToonMaterial | null;
+          if (toon?.map && hasTextureImageData(toon.map)) {
+            colorTextureCount += 1;
+          }
         }
       });
+
+      const textureCoverage = materialSlotCount > 0
+        ? colorTextureCount / materialSlotCount
+        : 0;
+      if (materialSlotCount >= 6 && colorTextureCount === 0) {
+        runtimeQualitySignalsRef.current.add("pmx-missing-color-textures");
+      }
+
+      pmxPreviewDiagnosticsRef.current = {
+        zipEntryCount: entries.length,
+        zipFileCount: entryFileNames.length,
+        zipTextureFileCount: textureEntryNames.length,
+        zipTextureSamples: textureEntryNames.slice(0, 20),
+        zipPmxEntries: pmxEntryCandidates.slice(0, 5),
+        selectedPmxPath: pmxPath,
+        assetKeyCount: assetMap.size,
+        materialCount: new Set(materialNames).size,
+        materialSlotCount,
+        colorTextureCount,
+        textureCoverage: Number(textureCoverage.toFixed(3)),
+      };
 
       pmxDebug("mesh summary", {
         type: mesh.type,
         childCount: mesh.children.length,
         skinnedMeshCount: skinnedMeshes.length,
         materialCount: new Set(materialNames).size,
+        materialSlotCount,
+        colorTextureCount,
+        textureCoverage: Number(textureCoverage.toFixed(3)),
         sampleMaterials: [...new Set(materialNames)].slice(0, 40),
       });
 
@@ -921,6 +1012,8 @@ export default function App() {
     setErrorDetail("");
     setConvertedOutput(null);
     setDetectedQualityRiskSignals([]);
+    runtimeQualitySignalsRef.current.clear();
+    pmxPreviewDiagnosticsRef.current = null;
     setConvertProgressPercent(2);
     setConvertProgressStage("init");
     abortControllerRef.current = new AbortController();
@@ -970,21 +1063,22 @@ export default function App() {
       setConvertProgressPercent(100);
       setConvertProgressStage("done");
       setStatus("done");
+      const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
+      const qualityRiskSignals = [
+        ...new Set([
+          ...detectQualityRiskSignals(convertLogLines),
+          ...Array.from(runtimeQualitySignalsRef.current),
+        ]),
+      ].filter((signal) => !NON_QUALITY_RUNTIME_SIGNALS.has(signal));
+      setDetectedQualityRiskSignals(qualityRiskSignals);
+
       if (result.fallbackReason) {
-        setDetectedQualityRiskSignals([]);
         setMessage(
-          `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`,
+          qualityRiskSignals.length > 0
+            ? `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`
+            : `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.`,
         );
       } else {
-        const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
-        const qualityRiskSignals = [
-          ...new Set([
-            ...detectQualityRiskSignals(convertLogLines),
-            ...Array.from(runtimeQualitySignalsRef.current),
-          ]),
-        ];
-        setDetectedQualityRiskSignals(qualityRiskSignals);
-
         setMessage(
           qualityRiskSignals.length > 0
             ? `Converted and previewed via ${result.usedMode}. Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`
@@ -1077,6 +1171,19 @@ export default function App() {
       return;
     }
 
+    const snapshotWidth = 320;
+    const snapshotHeight = 320;
+    const vrmDataUrl = captureCanvasSnapshotDataUrl(
+      vrmCanvasRef.current,
+      snapshotWidth,
+      snapshotHeight,
+    );
+    const pmxDataUrl = captureCanvasSnapshotDataUrl(
+      pmxCanvasRef.current,
+      snapshotWidth,
+      snapshotHeight,
+    );
+
     reportQualitySignals({
       source: "user_reported",
       signals:
@@ -1092,6 +1199,13 @@ export default function App() {
       status: "success_but_quality_issue",
       result: "success_user_reported_issue",
       conversionReportId: lastConversionReportId ?? createConversionReportId(),
+      previewSnapshots: {
+        vrmDataUrl: vrmDataUrl ?? undefined,
+        pmxDataUrl: pmxDataUrl ?? undefined,
+        width: snapshotWidth,
+        height: snapshotHeight,
+      },
+      pmxPreviewDiagnostics: pmxPreviewDiagnosticsRef.current ?? undefined,
     });
 
     setMessage(i18n.qualityReportSubmittedMessage);
@@ -1111,21 +1225,23 @@ export default function App() {
       rightBone: null,
       leftBaseQuaternion: null,
       rightBaseQuaternion: null,
+      armPoseSign: 1,
     };
   }
 
   function applyUpperArmAngle(angleDeg: number) {
     const angleRad = THREE.MathUtils.degToRad(angleDeg);
     const state = upperArmStateRef.current;
+    const signedAngle = angleRad * state.armPoseSign;
 
     if (state.leftBone && state.leftBaseQuaternion) {
       state.leftBone.quaternion.copy(state.leftBaseQuaternion);
-      state.leftBone.rotateZ(angleRad);
+      state.leftBone.rotateZ(signedAngle);
     }
 
     if (state.rightBone && state.rightBaseQuaternion) {
       state.rightBone.quaternion.copy(state.rightBaseQuaternion);
-      state.rightBone.rotateZ(-angleRad);
+      state.rightBone.rotateZ(-signedAngle);
     }
   }
 
@@ -1208,6 +1324,11 @@ export default function App() {
     setMessage("Loading VRM preview...");
     cleanupPreview();
 
+    const profileForPreview = (await detectProfileFromFile(targetFile)) ?? detectedProfileResult;
+    const isVrm1Preview = Boolean(profileForPreview?.hasVrm1Extension);
+    const previewRootYaw = isVrm1Preview ? 0 : Math.PI;
+    const armPoseSign: 1 | -1 = isVrm1Preview ? -1 : 1;
+
     const canvas = vrmCanvasRef.current;
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -1277,7 +1398,7 @@ export default function App() {
       }
 
       scene.add(vrm.scene);
-      vrm.scene.rotation.y = Math.PI;
+      vrm.scene.rotation.y = previewRootYaw;
 
       const humanoid = vrm.humanoid;
       const leftUpperArm =
@@ -1294,6 +1415,7 @@ export default function App() {
         rightBone: rightUpperArm,
         leftBaseQuaternion: leftUpperArm ? leftUpperArm.quaternion.clone() : null,
         rightBaseQuaternion: rightUpperArm ? rightUpperArm.quaternion.clone() : null,
+        armPoseSign,
       };
       applyUpperArmAngle(taPoseAngle);
 
@@ -1486,7 +1608,6 @@ export default function App() {
               {!isVrmReady && !isPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
                   <div>Drop VRM file here</div>
-                  <div className="vrm-drop-hint">(Only VRM 0.0 can be converted)</div>
                 </div>
               )}
             </div>
@@ -1632,7 +1753,7 @@ export default function App() {
             <label htmlFor="vrm-input" className="input-label file-input-label">
               Choose VRM file
             </label>
-            {status === "done" && convertedOutput && detectedQualityRiskSignals.length > 0 && (
+            {status === "done" && convertedOutput && (
               <button
                 type="button"
                 className="download-button quality-report-button"

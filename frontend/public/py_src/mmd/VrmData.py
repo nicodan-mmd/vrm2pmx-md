@@ -22,3 +22,6 @@ class VrmModel:
         self.path: str = ""
         self.digest: str = ""
         self.json_data: dict[str, Any] = {}
+        self.detected_profile: str = "generic"
+        self.profile_reason: str = "not-detected"
+        self.profile_metadata: dict[str, Any] = {}

@@ -177,6 +177,75 @@ class VrmReader(PmxReader):
 
         return alpha_mode
 
+    @staticmethod
+    def _resolve_main_texture_index(
+        vrm_material: dict[str, Any],
+        texture_props: dict[str, Any],
+        json_data: dict[str, Any],
+        pmx_texture_count: int,
+    ) -> tuple[int, str]:
+        """Resolve main texture index for PMX material.
+
+        Priority:
+        1) VRM0 materialProperties.textureProperties._MainTex
+        2) glTF pbrMetallicRoughness.baseColorTexture.index -> textures[].source
+        """
+        if "_MainTex" in texture_props:
+            try:
+                candidate = int(texture_props["_MainTex"]) + 1
+            except (TypeError, ValueError):
+                return -1, "_MainTex_invalid"
+
+            if 0 <= candidate < pmx_texture_count:
+                return candidate, "_MainTex"
+            return -1, "_MainTex_out_of_range"
+
+        pbr = vrm_material.get("pbrMetallicRoughness", {})
+        base_color_texture: dict[str, Any] = {}
+        if isinstance(pbr, dict):
+            candidate = pbr.get("baseColorTexture", {})
+            if isinstance(candidate, dict):
+                base_color_texture = candidate
+
+        if not base_color_texture:
+            mtoon_ext = (
+                vrm_material.get("extensions", {})
+                .get("VRMC_materials_mtoon", {})
+            )
+            if isinstance(mtoon_ext, dict):
+                lit_multiply_texture = mtoon_ext.get("litMultiplyTexture", {})
+                if isinstance(lit_multiply_texture, dict):
+                    base_color_texture = lit_multiply_texture
+
+        if not base_color_texture:
+            return -1, "baseColorTexture_missing"
+
+        gltf_texture_index = base_color_texture.get("index")
+        if not isinstance(gltf_texture_index, int):
+            return -1, "baseColorTexture_index_missing"
+
+        textures = json_data.get("textures", [])
+        if not isinstance(textures, list) or not (0 <= gltf_texture_index < len(textures)):
+            return -1, "baseColorTexture_index_out_of_range"
+
+        texture_info = textures[gltf_texture_index]
+        if not isinstance(texture_info, dict):
+            return -1, "texture_info_invalid"
+
+        source_index = texture_info.get("source")
+        if not isinstance(source_index, int):
+            khr_basisu = texture_info.get("extensions", {}).get("KHR_texture_basisu", {})
+            if isinstance(khr_basisu, dict):
+                source_index = khr_basisu.get("source")
+        if not isinstance(source_index, int):
+            return -1, "texture_source_missing"
+
+        candidate = source_index + 1
+        if 0 <= candidate < pmx_texture_count:
+            return candidate, "baseColorTexture"
+
+        return -1, "baseColorTexture_source_out_of_range"
+
     def read_data(self):  # type: ignore[override]
         # Pmxモデル生成
         vrm = VrmModel()
@@ -745,24 +814,17 @@ class VrmReader(PmxReader):
                                             "_OutlineWidth", 0
                                         )
 
-                                        texture_index = -1
-                                        if "_MainTex" in texture_props:
-                                            candidate_texture_index = (
-                                                texture_props["_MainTex"] + 1
-                                            )
-                                            if 0 <= candidate_texture_index < len(
-                                                pmx.textures
-                                            ):
-                                                texture_index = (
-                                                    candidate_texture_index
-                                                )
-                                            else:
-                                                logger.warning(
-                                                    f'Main texture index out of range: material={vrm_material["name"]}, _MainTex={texture_props["_MainTex"]}'
-                                                )
-                                        else:
+                                        texture_index, texture_index_source = self._resolve_main_texture_index(
+                                            vrm_material,
+                                            texture_props,
+                                            vrm.json_data,
+                                            len(pmx.textures),
+                                        )
+                                        if texture_index < 0:
                                             logger.warning(
-                                                f'Main texture missing: material={vrm_material["name"]}'
+                                                "Main texture missing or invalid: material=%s source=%s",
+                                                vrm_material["name"],
+                                                texture_index_source,
                                             )
 
                                         # 0番目は空テクスチャなので+1で設定

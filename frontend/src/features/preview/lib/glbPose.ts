@@ -151,6 +151,11 @@ function findHumanoidBoneNodeIndex(
   return typeof node === "number" ? node : null;
 }
 
+function isVrm1Model(gltfJson: Record<string, unknown>): boolean {
+  const extensions = (gltfJson.extensions ?? {}) as Record<string, unknown>;
+  return "VRMC_vrm" in extensions;
+}
+
 function snapshotBoneNodeState(
   nodes: Array<Record<string, unknown>>,
   nodeIndex: number | null,
@@ -180,11 +185,6 @@ function snapshotBoneNodeState(
 }
 
 export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): ArrayBuffer {
-  if (angleDeg === 0) {
-    poseDebug("skip(angle=0)", {});
-    return buffer;
-  }
-
   const chunks = parseGlbChunks(buffer);
   const jsonIndex = chunks.findIndex((chunk) => chunk.type === GLB_JSON_CHUNK);
   if (jsonIndex < 0) {
@@ -196,104 +196,182 @@ export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): Array
     .replace(/\u0000+$/g, "")
     .trimEnd();
   const gltfJson = JSON.parse(jsonText) as Record<string, unknown>;
+  const vrm1 = isVrm1Model(gltfJson);
+  if (angleDeg === 0 && !vrm1) {
+    poseDebug("skip(angle=0, non-vrm1)", {});
+    return buffer;
+  }
   const nodes = (gltfJson.nodes ?? []) as Array<Record<string, unknown>>;
 
-  const { leftNodeIndex, rightNodeIndex } = findUpperArmNodeIndices(gltfJson);
-  if (leftNodeIndex == null || rightNodeIndex == null) {
-    throw new Error("UpperArm bones were not found in VRM humanoid definition.");
-  }
-  poseDebug("humanoid nodes found", {
-    leftNodeIndex,
-    rightNodeIndex,
-    angleDeg,
-    nodeCount: nodes.length,
-  });
+  // VRM1.0 is opposite in forward definition from legacy conversion assumptions.
+  // Apply half turn on scene roots before arm posing so PMX conversion keeps facing.
+  if (vrm1) {
+    const scenes = (Array.isArray(gltfJson.scenes) ? gltfJson.scenes : []) as Array<
+      Record<string, unknown>
+    >;
+    const sceneIndex = typeof gltfJson.scene === "number" ? gltfJson.scene : 0;
+    const activeScene = scenes[sceneIndex] ?? scenes[0] ?? null;
+    const rootNodeIndices = Array.isArray(activeScene?.nodes)
+      ? (activeScene?.nodes as unknown[])
+          .filter((value): value is number => typeof value === "number")
+      : [];
 
-  const angleRad = THREE.MathUtils.degToRad(angleDeg);
-  const leftDelta = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), angleRad);
-  const rightDelta = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angleRad);
+    const halfTurn = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      Math.PI,
+    );
 
-  const trackedBones = [
-    "leftUpperArm",
-    "leftLowerArm",
-    "leftHand",
-    "rightUpperArm",
-    "rightLowerArm",
-    "rightHand",
-  ];
-  const boneNodeIndices = Object.fromEntries(
-    trackedBones.map((boneName) => [
-      boneName,
-      findHumanoidBoneNodeIndex(gltfJson, boneName),
-    ]),
-  ) as Record<string, number | null>;
-  const beforeState = Object.fromEntries(
-    trackedBones.map((boneName) => [
-      boneName,
-      snapshotBoneNodeState(nodes, boneNodeIndices[boneName]),
-    ]),
-  );
-  poseDebug("tracked bone states(before)", beforeState);
+    for (const nodeIndex of rootNodeIndices) {
+      const node = nodes[nodeIndex];
+      if (!node) {
+        continue;
+      }
 
-  const rotateNodeLocalRotation = (nodeIndex: number, delta: THREE.Quaternion) => {
-    const node = nodes[nodeIndex];
-    if (!node) {
-      return { nodeIndex, mode: "missing", before: null, after: null };
+      if (Array.isArray(node.rotation) && node.rotation.length >= 4) {
+        const before = new THREE.Quaternion(
+          Number(node.rotation[0] ?? 0),
+          Number(node.rotation[1] ?? 0),
+          Number(node.rotation[2] ?? 0),
+          Number(node.rotation[3] ?? 1),
+        );
+        const after = before.clone().multiply(halfTurn).normalize();
+        node.rotation = [after.x, after.y, after.z, after.w];
+        continue;
+      }
+
+      if (Array.isArray(node.matrix) && node.matrix.length === 16) {
+        const matrix = new THREE.Matrix4().fromArray(
+          (node.matrix as number[]).map((value) => Number(value)),
+        );
+        const position = new THREE.Vector3();
+        const rotation = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        matrix.decompose(position, rotation, scale);
+        rotation.multiply(halfTurn).normalize();
+        matrix.compose(position, rotation, scale);
+        node.matrix = [...matrix.elements];
+        continue;
+      }
+
+      node.rotation = [halfTurn.x, halfTurn.y, halfTurn.z, halfTurn.w];
     }
 
-    if (Array.isArray(node.rotation) && node.rotation.length >= 4) {
-      const beforeValues = (node.rotation as number[]).map((value) => Number(value));
-      const before = new THREE.Quaternion(
-        beforeValues[0] ?? 0,
-        beforeValues[1] ?? 0,
-        beforeValues[2] ?? 0,
-        beforeValues[3] ?? 1,
-      );
-      const after = before.clone().multiply(delta).normalize();
-      node.rotation = [after.x, after.y, after.z, after.w];
+    poseDebug("vrm1 forward fix applied", {
+      sceneIndex,
+      rootNodeCount: rootNodeIndices.length,
+    });
+  }
+
+  if (angleDeg !== 0) {
+    const { leftNodeIndex, rightNodeIndex } = findUpperArmNodeIndices(gltfJson);
+    if (leftNodeIndex == null || rightNodeIndex == null) {
+      throw new Error("UpperArm bones were not found in VRM humanoid definition.");
+    }
+    poseDebug("humanoid nodes found", {
+      leftNodeIndex,
+      rightNodeIndex,
+      angleDeg,
+      nodeCount: nodes.length,
+    });
+
+    const angleRad = THREE.MathUtils.degToRad(angleDeg);
+    const armSign = vrm1 ? -1 : 1;
+    const leftDelta = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      angleRad * armSign,
+    );
+    const rightDelta = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      -angleRad * armSign,
+    );
+    poseDebug("profile-aware pose sign", {
+      angleDeg,
+      vrm1,
+      armSign,
+    });
+
+    const trackedBones = [
+      "leftUpperArm",
+      "leftLowerArm",
+      "leftHand",
+      "rightUpperArm",
+      "rightLowerArm",
+      "rightHand",
+    ];
+    const boneNodeIndices = Object.fromEntries(
+      trackedBones.map((boneName) => [
+        boneName,
+        findHumanoidBoneNodeIndex(gltfJson, boneName),
+      ]),
+    ) as Record<string, number | null>;
+    const beforeState = Object.fromEntries(
+      trackedBones.map((boneName) => [
+        boneName,
+        snapshotBoneNodeState(nodes, boneNodeIndices[boneName]),
+      ]),
+    );
+    poseDebug("tracked bone states(before)", beforeState);
+
+    const rotateNodeLocalRotation = (nodeIndex: number, delta: THREE.Quaternion) => {
+      const node = nodes[nodeIndex];
+      if (!node) {
+        return { nodeIndex, mode: "missing", before: null, after: null };
+      }
+
+      if (Array.isArray(node.rotation) && node.rotation.length >= 4) {
+        const beforeValues = (node.rotation as number[]).map((value) => Number(value));
+        const before = new THREE.Quaternion(
+          beforeValues[0] ?? 0,
+          beforeValues[1] ?? 0,
+          beforeValues[2] ?? 0,
+          beforeValues[3] ?? 1,
+        );
+        const after = before.clone().multiply(delta).normalize();
+        node.rotation = [after.x, after.y, after.z, after.w];
+        return {
+          nodeIndex,
+          mode: "rotation",
+          before: [before.x, before.y, before.z, before.w],
+          after: [after.x, after.y, after.z, after.w],
+        };
+      }
+
+      if (Array.isArray(node.matrix) && node.matrix.length === 16) {
+        const matrixValues = (node.matrix as number[]).map((value) => Number(value));
+        const matrix = new THREE.Matrix4().fromArray(matrixValues);
+        const position = new THREE.Vector3();
+        const rotation = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        matrix.decompose(position, rotation, scale);
+        const before = [rotation.x, rotation.y, rotation.z, rotation.w];
+        rotation.multiply(delta).normalize();
+        const after = [rotation.x, rotation.y, rotation.z, rotation.w];
+        matrix.compose(position, rotation, scale);
+        node.matrix = [...matrix.elements];
+        return { nodeIndex, mode: "matrix", before, after };
+      }
+
+      node.rotation = [delta.x, delta.y, delta.z, delta.w];
       return {
         nodeIndex,
-        mode: "rotation",
-        before: [before.x, before.y, before.z, before.w],
-        after: [after.x, after.y, after.z, after.w],
+        mode: "created-rotation",
+        before: [0, 0, 0, 1],
+        after: [delta.x, delta.y, delta.z, delta.w],
       };
-    }
-
-    if (Array.isArray(node.matrix) && node.matrix.length === 16) {
-      const matrixValues = (node.matrix as number[]).map((value) => Number(value));
-      const matrix = new THREE.Matrix4().fromArray(matrixValues);
-      const position = new THREE.Vector3();
-      const rotation = new THREE.Quaternion();
-      const scale = new THREE.Vector3();
-      matrix.decompose(position, rotation, scale);
-      const before = [rotation.x, rotation.y, rotation.z, rotation.w];
-      rotation.multiply(delta).normalize();
-      const after = [rotation.x, rotation.y, rotation.z, rotation.w];
-      matrix.compose(position, rotation, scale);
-      node.matrix = [...matrix.elements];
-      return { nodeIndex, mode: "matrix", before, after };
-    }
-
-    node.rotation = [delta.x, delta.y, delta.z, delta.w];
-    return {
-      nodeIndex,
-      mode: "created-rotation",
-      before: [0, 0, 0, 1],
-      after: [delta.x, delta.y, delta.z, delta.w],
     };
-  };
 
-  const leftStats = rotateNodeLocalRotation(leftNodeIndex, leftDelta);
-  const rightStats = rotateNodeLocalRotation(rightNodeIndex, rightDelta);
-  poseDebug("upperArm local rotation stats", { leftStats, rightStats });
+    const leftStats = rotateNodeLocalRotation(leftNodeIndex, leftDelta);
+    const rightStats = rotateNodeLocalRotation(rightNodeIndex, rightDelta);
+    poseDebug("upperArm local rotation stats", { leftStats, rightStats });
 
-  const afterState = Object.fromEntries(
-    trackedBones.map((boneName) => [
-      boneName,
-      snapshotBoneNodeState(nodes, boneNodeIndices[boneName]),
-    ]),
-  );
-  poseDebug("tracked bone states(after)", afterState);
+    const afterState = Object.fromEntries(
+      trackedBones.map((boneName) => [
+        boneName,
+        snapshotBoneNodeState(nodes, boneNodeIndices[boneName]),
+      ]),
+    );
+    poseDebug("tracked bone states(after)", afterState);
+  }
 
   const encodedJson = new TextEncoder().encode(JSON.stringify(gltfJson));
   const paddedLength = Math.ceil(encodedJson.byteLength / 4) * 4;
