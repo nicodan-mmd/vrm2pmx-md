@@ -42,6 +42,7 @@ from module.MMath import (  # noqa
     MVector4D,
 )
 from service.profile_detection import detect_profile
+from service.vrm_common import define_buf_type as _define_buf_type
 from utils.MException import MKilledException, SizingException  # noqa
 from utils.MLogger import MLogger  # noqa
 
@@ -2799,20 +2800,8 @@ class VrmReader(PmxReader):
         return matrices
 
     def define_buf_type(self, componentType: int):
-        if componentType == 5120:
-            return "b", 1
-        elif componentType == 5121:
-            return "B", 1
-        elif componentType == 5122:
-            return "h", 2
-        elif componentType == 5123:
-            return "H", 2
-        elif componentType == 5124:
-            return "i", 4
-        elif componentType == 5125:
-            return "I", 4
-
-        return "f", 4
+        """vrm_common.define_buf_type へのデリゲート（後方互換維持）。"""
+        return _define_buf_type(componentType)
 
     def read_text(self, format_size):
         bresult = self.unpack(format_size, "{0}s".format(format_size))
