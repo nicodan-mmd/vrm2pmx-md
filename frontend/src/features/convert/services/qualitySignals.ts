@@ -114,7 +114,8 @@ export function reportQualitySignals({
   });
 
   if (dialogEnabled && firstEventId) {
-    Sentry.showReportDialog({ eventId: firstEventId });
+    // Sentry.showReportDialog は使用しない（フォームを出さない）
+    void firstEventId;
   }
 
   return true;

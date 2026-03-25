@@ -982,26 +982,17 @@ export default function App() {
           error,
         });
         if (isErrorReportingEnabled) {
-          const shouldSend = window.confirm(
-            "An error occurred. Do you want to open the error report form and send an anonymous report?",
-          );
-          if (shouldSend) {
-            let eventId: string | undefined;
-            Sentry.withScope((scope) => {
-              scope.setTag("mode", mode);
-              scope.setTag("event_type", "error");
-              scope.setContext("convert", {
-                status: "failed",
-                backendEnabled,
-              });
-              eventId = Sentry.captureException(
-                error instanceof Error ? error : new Error(rawDetail),
-              );
+          Sentry.withScope((scope) => {
+            scope.setTag("mode", mode);
+            scope.setTag("event_type", "error");
+            scope.setContext("convert", {
+              status: "failed",
+              backendEnabled,
             });
-            if (eventId) {
-              Sentry.showReportDialog({ eventId });
-            }
-          }
+            Sentry.captureException(
+              error instanceof Error ? error : new Error(rawDetail),
+            );
+          });
         }
 
         setStatus("error");
