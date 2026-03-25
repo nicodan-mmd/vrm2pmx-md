@@ -1,0 +1,31 @@
+{
+  "updatedAt": "2026-03-25",
+  "notes": [
+    "VRM samples are managed outside workspace.",
+    "Non-VRoid compatibility is mandatory.",
+    "Auto profile detection is assumed; no mode switch button."
+  ],
+  "samples": {
+    "nonVroid": [
+      "D:/Users/maedashingo/Downloads/MMD/opensourceavatars.com/CosmicPerson.vrm",
+      "D:/Users/maedashingo/Downloads/MMD/Model_/ユニティちゃん/UnityChan/UnityChan.vrm",
+      "D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM09A.vrm"
+    ],
+    "vrm10": [
+      "D:/Users/maedashingo/Downloads/MMD/VRoid/original/v1.0/AvatarSample_A.vrm",
+      "D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM10A.vrm"
+    ],
+    "vrm10Fallback": [
+      "D:/Users/maedashingo/Downloads/MMD/VRoid/original/AvatarSample_A_1.0.vrm"
+    ],
+    "vroid": [
+      "D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー_リンリン.vrm",
+      "D:/Users/maedashingo/Downloads/MMD/VRoid/VRoid Hub/仮面ライダーブルーアイズ/4590875026920364234.vrm"
+    ]
+  },
+  "scanSummary": {
+    "downloadsMmdTotalVrm": 30,
+    "vroidFolderTotalVrm": 25,
+    "nonVroidPathCandidates": 5
+  }
+}

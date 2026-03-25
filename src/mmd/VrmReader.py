@@ -41,6 +41,7 @@ from module.MMath import (  # noqa
     MVector3D,
     MVector4D,
 )
+from service.profile_detection import detect_profile
 from utils.MException import MKilledException, SizingException  # noqa
 from utils.MLogger import MLogger  # noqa
 
@@ -129,6 +130,17 @@ class VrmReader(PmxReader):
                 json_text = self.read_text(json_buf_size)
 
                 vrm.json_data = json.loads(json_text)
+
+                detection = detect_profile(vrm.json_data, self.file_path)
+                vrm.detected_profile = detection.profile
+                vrm.profile_reason = detection.reason
+                vrm.profile_metadata = detection.as_dict()
+
+                logger.info(
+                    "-- 自動判定 profile=%s reason=%s",
+                    vrm.detected_profile,
+                    vrm.profile_reason,
+                )
 
                 # JSON出力
                 jf = open(
