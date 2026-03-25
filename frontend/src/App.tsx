@@ -1522,30 +1522,8 @@ export default function App() {
       setStatus("done");
       if (result.fallbackReason) {
         setDetectedQualityRiskSignals([]);
-        let fallbackReportSubmitted = false;
-        if (isErrorReportingEnabled) {
-          const shouldSendFallbackReport = window.confirm(
-            i18n.fallbackReportConfirm(mode, result.usedMode, result.fallbackReason),
-          );
-          if (shouldSendFallbackReport) {
-            fallbackReportSubmitted = reportQualitySignals({
-              source: "fallback",
-              signals: [result.fallbackReason],
-              level: "warning",
-              requestedMode: mode,
-              usedMode: result.usedMode,
-              backendEnabled,
-              fileExtension: result.fileExtension,
-              dialogEnabled: false,
-              status: "success_with_fallback",
-              result: "fallback",
-              conversionReportId,
-            });
-          }
-        }
-
         setMessage(
-          `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.${fallbackReportSubmitted ? ` ${i18n.fallbackReportSubmittedMessage}` : ""}`,
+          `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`,
         );
       } else {
         const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
@@ -1556,31 +1534,11 @@ export default function App() {
           ]),
         ];
         setDetectedQualityRiskSignals(qualityRiskSignals);
-        let autoReportSubmitted = false;
-
-        if (isErrorReportingEnabled && qualityRiskSignals.length > 0) {
-          const shouldSendAutoQualityReport = window.confirm(
-            i18n.qualityAutoReportConfirm(qualityRiskSignals.join(", ")),
-          );
-          if (shouldSendAutoQualityReport) {
-            autoReportSubmitted = reportQualitySignals({
-              source: "auto_detected",
-              signals: qualityRiskSignals,
-              level: "warning",
-              requestedMode: mode,
-              usedMode: result.usedMode,
-              backendEnabled,
-              fileExtension: result.fileExtension,
-              dialogEnabled: false,
-              status: "success_with_quality_risk_signals",
-              result: "success_risk_detected",
-              conversionReportId,
-            });
-          }
-        }
 
         setMessage(
-          `Converted and previewed via ${result.usedMode}. Press Download ZIP to save file.${autoReportSubmitted ? ` ${i18n.qualityReportSubmittedMessage}` : ""}`,
+          qualityRiskSignals.length > 0
+            ? `Converted and previewed via ${result.usedMode}. Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`
+            : `Converted and previewed via ${result.usedMode}. Press Download ZIP to save file.`,
         );
       }
     } catch (error) {
