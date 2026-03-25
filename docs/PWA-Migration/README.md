@@ -35,56 +35,68 @@ Status: On hold (postponed)
 ### Phase 1: Installable App Baseline
 
 Goal:
+
 - Make app installable with basic PWA metadata and service worker setup.
 
 Tasks:
+
 1. Add PWA plugin for Vite.
 2. Add web app manifest (name, short_name, icons, theme_color).
 3. Add service worker registration in app entry.
 4. Add basic head metadata (theme color, mobile-related tags).
 
 Expected result:
+
 - App can be installed on supported browsers.
 - Static assets are managed by PWA build pipeline.
 
 ### Phase 2: Conversion-Aware Caching
 
 Goal:
+
 - Stabilize runtime file availability for conversion workflow.
 
 Tasks:
+
 1. Define cache policy for py_src manifest and synced Python files.
 2. Ensure worker-related runtime files are included in caching strategy.
 3. Add cache versioning and invalidation rules.
 
 Expected result:
+
 - Revisit/startup reliability improves.
 - Reduced runtime fetch failures due to stale cache mismatch.
 
 ### Phase 3: Offline Scope Definition and Implementation
 
 Goal:
+
 - Decide and implement realistic offline behavior.
 
 Tasks:
+
 1. Decide target: partial offline or full offline.
 2. Evaluate Pyodide dependency strategy (CDN vs bundled/local).
 3. Validate impact on bundle size and first-load time.
 
 Expected result:
+
 - Clear offline support statement and tested behavior.
 
 ### Phase 4: QA and Release Readiness
 
 Goal:
+
 - Ship safely without breaking conversion behavior.
 
 Tasks:
+
 1. Validate install/update lifecycle on major targets.
 2. Run regression checks for conversion and preview workflows.
 3. Prepare release notes and README updates.
 
 Expected result:
+
 - Predictable updates and stable user experience.
 
 ## Open Questions (To Decide Before Resuming)
@@ -97,6 +109,7 @@ Expected result:
 ## Suggested Re-Entry Plan
 
 When resuming PWA work:
+
 1. Start from Phase 1 only.
 2. Merge and verify in small PRs.
 3. Move to Phase 2 after install/update behavior is confirmed.

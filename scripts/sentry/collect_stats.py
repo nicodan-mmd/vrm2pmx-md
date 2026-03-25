@@ -80,14 +80,11 @@ def parse_events(output: str) -> list[dict]:
                 
                 # Look for "key: value" pattern
                 if ": " in part:
-                    try:
-                        key, value = part.split(": ", 1)
-                        key = key.strip()
-                        value = value.strip()
-                        if key and value and len(key) < 50:  # Reasonable key length
-                            current_event["tags"][key] = value
-                    except:
-                        pass
+                    key, value = part.split(": ", 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if key and value and len(key) < 50:  # Reasonable key length
+                        current_event["tags"][key] = value
 
     # Add last event
     if current_event and current_event.get("tags"):
