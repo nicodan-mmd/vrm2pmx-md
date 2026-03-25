@@ -3,6 +3,11 @@
 Updated: 2026-03-24
 Status: On hold (postponed)
 
+## Preparation Artifacts
+
+- Execution checklist: `docs/PWA-Migration/01-Execution-Checklist.md`
+- Use this checklist when restarting implementation on a dedicated branch.
+
 ## Purpose
 
 - Keep current PWA discussion in one place so implementation can resume smoothly later.
