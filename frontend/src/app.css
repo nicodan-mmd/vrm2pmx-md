@@ -604,7 +604,7 @@ button:disabled {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.78rem;
-  background: linear-gradient(120deg, #7ca891, #93b8a4);
+  background: linear-gradient(120deg, #7ea8c9, #98bdd9);
 }
 
 .install-hint {

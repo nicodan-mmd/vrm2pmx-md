@@ -93,7 +93,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     installButtonLabel: "Install",
     installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
     installDialogTitle: "アプリをインストール",
-    installDialogDescription: "ホーム画面からすぐ起動できます。",
+    installDialogDescription: "デスクトップやホーム画面からすぐ起動できます。",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
