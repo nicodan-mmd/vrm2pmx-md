@@ -332,6 +332,58 @@ h2 {
   gap: 10px;
 }
 
+.profile-detection-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #c8d9eb;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f5f9ff, #edf5fc);
+}
+
+.profile-detection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-generic {
+  background: #dceaf8;
+  color: #234f78;
+}
+
+.profile-vroid {
+  background: #e7f2df;
+  color: #2f6a2a;
+}
+
+.profile-detection-reason {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #36516e;
+}
+
+.profile-detection-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.78rem;
+  color: #5b748f;
+}
+
 input[type="file"] {
   width: 100%;
   border: 1px dashed #89a2be;

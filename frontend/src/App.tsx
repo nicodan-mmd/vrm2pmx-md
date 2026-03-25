@@ -24,6 +24,10 @@ import {
   createConversionReportId,
   reportQualitySignals,
 } from "./features/convert/services/qualitySignals";
+import {
+  detectProfileFromFile,
+  type ProfileDetectionResult,
+} from "./features/convert/services/profileDetection";
 import { useUiSettings, PMX_LIGHT_DEFAULT_INTENSITY_SCALE, PMX_LIGHT_DEFAULT_CONTRAST_FACTOR } from "./features/settings/hooks/useUiSettings";
 import { useErrorReportingConsent } from "./features/settings/hooks/useErrorReportingConsent";
 
@@ -42,6 +46,24 @@ type ConvertedOutput = {
 };
 
 const DEBUG_PMX = false;
+
+function getProfileLabel(profile: ProfileDetectionResult["profile"]): string {
+  return profile === "vroid" ? "VRoid" : "Generic";
+}
+
+function getProfileFlags(result: ProfileDetectionResult): string[] {
+  const flags = [];
+  if (result.hasVrm0Extension) {
+    flags.push("VRM0");
+  }
+  if (result.hasVrm1Extension) {
+    flags.push("VRM1");
+  }
+  if (result.hasSpringExtension) {
+    flags.push("Spring");
+  }
+  return flags;
+}
 
 type AppLocale = "ja" | "en";
 
@@ -259,8 +281,10 @@ export default function App() {
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
   const [convertProgressStage, setConvertProgressStage] = useState<WorkerProgressStage | "done" | null>(null);
   const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
+  const [detectedProfileResult, setDetectedProfileResult] = useState<ProfileDetectionResult | null>(null);
   const [detectedQualityRiskSignals, setDetectedQualityRiskSignals] = useState<string[]>([]);
   const runtimeQualitySignalsRef = useRef<Set<string>>(new Set());
+  const profileDetectionRequestIdRef = useRef(0);
   const [lastUsedMode, setLastUsedMode] = useState<"backend" | "wasm" | null>(null);
   const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
   const [lastConversionReportId, setLastConversionReportId] = useState<string | null>(null);
@@ -415,6 +439,7 @@ export default function App() {
     cleanupPreview();
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setDetectedProfileResult(null);
     setDetectedQualityRiskSignals([]);
     setLastUsedMode(null);
     setLastFallbackReason(null);
@@ -1348,9 +1373,27 @@ export default function App() {
     await previewVrmFile(file);
   }
 
+  async function updateDetectedProfile(selected: File | null): Promise<void> {
+    const requestId = profileDetectionRequestIdRef.current + 1;
+    profileDetectionRequestIdRef.current = requestId;
+
+    if (!selected) {
+      setDetectedProfileResult(null);
+      return;
+    }
+
+    const detection = await detectProfileFromFile(selected);
+    if (profileDetectionRequestIdRef.current !== requestId) {
+      return;
+    }
+
+    setDetectedProfileResult(detection);
+  }
+
   function applySelectedVrmFile(selected: File | null) {
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setDetectedProfileResult(null);
     setLogLines([]);
     setCopyStatus("idle");
     setErrorDetail("");
@@ -1365,6 +1408,7 @@ export default function App() {
       return;
     }
 
+    void updateDetectedProfile(selected);
     void previewVrmFile(selected);
   }
 
@@ -1619,6 +1663,25 @@ export default function App() {
               {isPreviewing ? "Reloading..." : "Reload VRM"}
             </button>
           </div>
+
+          {file && detectedProfileResult && (
+            <section className="profile-detection-card" aria-label="Auto detection result">
+              <div className="profile-detection-header">
+                <span className={`profile-badge profile-${detectedProfileResult.profile}`}>
+                  Auto: {getProfileLabel(detectedProfileResult.profile)}
+                </span>
+                <span className="profile-detection-reason">{detectedProfileResult.reason}</span>
+              </div>
+              <div className="profile-detection-meta">
+                {getProfileFlags(detectedProfileResult).length > 0 && (
+                  <span>{getProfileFlags(detectedProfileResult).join(" / ")}</span>
+                )}
+                {detectedProfileResult.generator && (
+                  <span>Generator: {detectedProfileResult.generator}</span>
+                )}
+              </div>
+            </section>
+          )}
 
           <div className="convert-actions">
             <button
