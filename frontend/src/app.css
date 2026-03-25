@@ -604,6 +604,7 @@ button:disabled {
   background: #f2f7fc;
   font-size: 0.8rem;
   color: #2d4664;
+  -webkit-user-select: none;
   user-select: none;
 }
 
