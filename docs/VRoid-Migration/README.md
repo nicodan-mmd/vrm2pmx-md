@@ -1,6 +1,6 @@
 # VRoid-Migration
 
-更新日: 2026-03-25
+更新日: 2026-03-26
 
 ## 目的
 
@@ -31,9 +31,30 @@
 6. 06-Validation-Checklist.md: 実施チェック項目
 7. 07-Risks-Mitigation.md: リスク・監視・ロールバック
 8. 08-Phase0-Inventory.md: Phase 0 の棚卸し記録
+9. **09-PR-G-Regression-Testing.md**: 回帰テストスイート実装 (26テスト, 100% PASS)
 
 ## 合意済み制約
 
 - 変換中心で進める（読込拡張は優先度を下げる）。
 - 非VRoid互換維持を最優先ガードレールにする。
 - ボタン追加ではなく自動判定を採用する。
+
+## 実装進捗
+
+### Completed
+
+| Phase | 内容 | コミット | テスト |
+|---|---|---|---|
+| PR-A | Profile detection API | d481e2c | ✅ |
+| PR-B | Shared utility extraction | d2fd3e2 | ✅ |
+| PR-C | Access guards | ccc66c6 | ✅ |
+| PR-D | Bone/mesh tuning | d28c14b | ✅ |
+| PR-E | Expression mapping + physics guards | 5493c2a | ✅ |
+| PR-F | Frontend detection display | 4c53923 | ✅ |
+| **PR-G** | **Regression testing suite** | **bcda2e6, e33ae40** | **✅ 26/26 PASS** |
+
+### Current Phase Gates
+
+- ✅ **PR-A～F**: すべて実装完了、マージ済み
+- ✅ **Gate 1**: 検知機能、バックエンド処理、フロントエンド表示
+- ⏳ **Gate 2**: 実サンプル VRM で完全変換パス確認 → [09-PR-G-Regression-Testing.md](09-PR-G-Regression-Testing.md) 参照
