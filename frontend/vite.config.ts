@@ -11,8 +11,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       includeAssets: [
-        "assets/favicon/favicon.svg",
+        "assets/favicon/app-icon.svg",
+        "assets/favicon/pwa-192.png",
+        "assets/favicon/pwa-512.png",
         "assets/favicon/favicon-32.png",
         "assets/favicon/apple-touch-icon.png",
       ],
@@ -28,9 +34,16 @@ export default defineConfig({
         scope: ".",
         icons: [
           {
-            src: "assets/favicon/favicon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
+            src: "assets/favicon/pwa-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "assets/favicon/pwa-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
           },
           {
             src: "assets/favicon/favicon-32.png",

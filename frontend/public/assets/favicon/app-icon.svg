@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(0.999649,0,0,0.999649,-11.640662,-10.458629)">
+        <path d="M1024,125.161L1024,920.123C1024,976.802 977.984,1022.818 921.306,1022.818L126.343,1022.818C69.665,1022.818 23.649,976.802 23.649,920.123L23.649,125.161C23.649,68.482 69.665,22.467 126.343,22.467L921.306,22.467C977.984,22.467 1024,68.482 1024,125.161Z" style="fill:rgb(134,175,203);stroke:rgb(19,122,127);stroke-width:12.5px;"/>
+    </g>
+    <g id="レイヤー1">
+        <g transform="matrix(1,0,0,1,-100.278868,413.74288)">
+            <g transform="matrix(645.833333,0,0,645.833333,1061.778868,304.923786)">
+            </g>
+            <text x="139.529px" y="304.924px" style="font-family:'BlockmodRegular', 'Blockmod';font-size:645.833px;">VP</text>
+        </g>
+    </g>
+</svg>
