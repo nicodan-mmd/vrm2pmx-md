@@ -10,6 +10,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from mmd.PmxData import Bone, PmxModel
+from mmd.VrmData import VrmModel
 from mmd.VrmReader import VrmReader
 from module.MMath import MVector3D
 
@@ -53,6 +54,55 @@ class VrmReaderProfileTestCase(unittest.TestCase):
             self.reader._resolve_material_key("N00_000_FaceEye_00", "OPAQUE", "generic"),
             "OPAQUE",
         )
+
+    def test_iter_expression_groups_reads_vrm1_expressions(self):
+        vrm = VrmModel()
+        vrm.json_data = {
+            "extensions": {
+                "VRMC_vrm": {
+                    "expressions": {
+                        "preset": {
+                            "happy": {
+                                "morphTargetBinds": [
+                                    {"index": 1, "weight": 0.75},
+                                    {"index": 2, "weight": 1.0},
+                                ]
+                            }
+                        },
+                        "custom": {
+                            "surprisePlus": {
+                                "morphTargetBinds": [{"index": 3, "weight": 85}]
+                            }
+                        },
+                    }
+                }
+            }
+        }
+
+        actual = self.reader._iter_expression_groups(vrm)
+
+        self.assertEqual(actual[0]["name"], "happy")
+        self.assertEqual(actual[0]["binds"][0]["weight"], 0.75)
+        self.assertEqual(actual[1]["name"], "surprisePlus")
+        self.assertEqual(actual[1]["binds"][0]["index"], 3)
+
+    def test_has_optional_physics_source_detects_vrm1_spring(self):
+        vrm = VrmModel()
+        vrm.json_data = {"extensions": {"VRMC_springBone": {"colliders": []}}}
+
+        self.assertTrue(self.reader._has_optional_physics_source(vrm))
+
+    def test_has_optional_physics_source_detects_vrm0_secondary_animation(self):
+        vrm = VrmModel()
+        vrm.json_data = {
+            "extensions": {"VRM": {"secondaryAnimation": {"boneGroups": [{}]}}}
+        }
+
+        self.assertTrue(self.reader._has_optional_physics_source(vrm))
+
+    def test_normalize_morph_weight_supports_vrm0_and_vrm1_ranges(self):
+        self.assertEqual(self.reader._normalize_morph_weight(90), 0.9)
+        self.assertEqual(self.reader._normalize_morph_weight(0.5), 0.5)
 
 
 if __name__ == "__main__":

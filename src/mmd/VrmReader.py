@@ -78,6 +78,61 @@ class VrmReader(PmxReader):
     def _is_vroid_profile(profile_name: str | None) -> bool:
         return profile_name == "vroid"
 
+    @staticmethod
+    def _normalize_morph_weight(weight: Any) -> float:
+        try:
+            weight_value = float(weight)
+        except (TypeError, ValueError):
+            return 0.0
+
+        return (weight_value / 100.0) if weight_value > 1.0 else weight_value
+
+    def _iter_expression_groups(self, vrm: VrmModel) -> list[dict[str, Any]]:
+        extensions = vrm.json_data.get("extensions", {})
+        vrm0_extension = extensions.get("VRM", {})
+        vrm1_extension = extensions.get("VRMC_vrm", {})
+
+        if (
+            "blendShapeMaster" in vrm0_extension
+            and "blendShapeGroups" in vrm0_extension["blendShapeMaster"]
+        ):
+            return list(vrm0_extension["blendShapeMaster"]["blendShapeGroups"])
+
+        expressions = vrm1_extension.get("expressions", {})
+        expression_groups: list[dict[str, Any]] = []
+        for expression_type in ["preset", "custom"]:
+            expression_map = expressions.get(expression_type, {})
+            if not isinstance(expression_map, dict):
+                continue
+
+            for expression_name, expression in expression_map.items():
+                if not isinstance(expression, dict):
+                    continue
+
+                morph_target_binds = expression.get("morphTargetBinds", [])
+                binds = []
+                for bind in morph_target_binds:
+                    if not isinstance(bind, dict):
+                        continue
+                    binds.append(
+                        {
+                            "index": bind.get("index"),
+                            "weight": bind.get("weight", 0),
+                        }
+                    )
+
+                expression_groups.append({"name": expression_name, "binds": binds})
+
+        return expression_groups
+
+    def _has_optional_physics_source(self, vrm: VrmModel) -> bool:
+        extensions = vrm.json_data.get("extensions", {})
+        if "VRMC_springBone" in extensions:
+            return True
+
+        secondary_animation = extensions.get("VRM", {}).get("secondaryAnimation", {})
+        return bool(secondary_animation.get("boneGroups"))
+
     def _resolve_center_position(self, pmx: PmxModel, profile_name: str) -> MVector3D:
         if self._is_vroid_profile(profile_name) and "腰" in pmx.bones:
             return pmx.bones["腰"].position * 0.7
@@ -953,18 +1008,10 @@ class VrmReader(PmxReader):
                                 )
 
                 # グループモーフ定義
-                if (
-                    "extensions" in vrm.json_data
-                    and vrm.json_data["extensions"]
-                    and "VRM" in vrm.json_data["extensions"]
-                    and "blendShapeMaster" in vrm.json_data["extensions"]["VRM"]
-                    and "blendShapeGroups"
-                    in vrm.json_data["extensions"]["VRM"]["blendShapeMaster"]
-                ):
-                    for shape in vrm.json_data["extensions"]["VRM"]["blendShapeMaster"][
-                        "blendShapeGroups"
-                    ]:
-                        if len(shape["binds"]) == 0:
+                expression_groups = self._iter_expression_groups(vrm)
+                if expression_groups:
+                    for shape in expression_groups:
+                        if len(shape.get("binds", [])) == 0:
                             continue
 
                         morph_name = shape["name"]
@@ -980,14 +1027,23 @@ class VrmReader(PmxReader):
                             and "binds" in MORPH_PAIRS[shape["name"]]
                         ):
                             for bind in MORPH_PAIRS[shape["name"]]["binds"]:
-                                morph.offsets.append(
-                                    GroupMorphData(pmx.morphs[bind].index, 1)
-                                )
+                                if bind in pmx.morphs:
+                                    morph.offsets.append(
+                                        GroupMorphData(pmx.morphs[bind].index, 1)
+                                    )
                         else:
-                            for bind in shape["binds"]:
+                            for bind in shape.get("binds", []):
+                                if bind.get("index") not in pmx.morphs:
+                                    continue
                                 morph.offsets.append(
-                                    GroupMorphData(bind["index"], bind["weight"] / 100)
+                                    GroupMorphData(
+                                        bind["index"],
+                                        self._normalize_morph_weight(bind.get("weight")),
+                                    )
                                 )
+
+                        if len(morph.offsets) == 0:
+                            continue
                         pmx.morphs[morph_name] = morph
                         pmx.display_slots["表情"].references.append(morph.index)
 
@@ -1014,6 +1070,15 @@ class VrmReader(PmxReader):
                             pmx.display_slots["表情"].references.append(morph.index)
 
                 logger.info("-- グループモーフデータ解析")
+
+                enable_optional_physics = (
+                    not self._is_vroid_profile(profile_name)
+                    or self._has_optional_physics_source(vrm)
+                )
+                if not enable_optional_physics:
+                    logger.warning(
+                        "-- VRoidProfile: spring metadata not found, skipping optional physics generation"
+                    )
 
                 bone_vertices = {}
                 # ボーンベースで頂点INDEXの分類
@@ -1080,6 +1145,9 @@ class VrmReader(PmxReader):
                         )
 
                 for bone_name, bone in pmx.bones.items():
+                    if not enable_optional_physics:
+                        continue
+
                     if (
                         bone.name not in pmx.rigidbodies
                         and "捩" not in bone.name
