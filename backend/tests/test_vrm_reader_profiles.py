@@ -104,6 +104,30 @@ class VrmReaderProfileTestCase(unittest.TestCase):
         self.assertEqual(self.reader._normalize_morph_weight(90), 0.9)
         self.assertEqual(self.reader._normalize_morph_weight(0.5), 0.5)
 
+    def test_resolve_center_position_generic_no_vroid_scaling(self):
+        """Test that generic profile doesn't apply 0.7 VRoid scaling"""
+        pmx = PmxModel()
+        pmx.bones["腰"] = Bone("腰", "hips", MVector3D(0, 10, 0), -1, 0, 0)
+        pmx.bones["左足"] = Bone("左足", "leftLeg", MVector3D(0, 4, 0), -1, 0, 0)
+        pmx.bones["左ひざ"] = Bone("左ひざ", "leftLowerLeg", MVector3D(0, 2, 0), -1, 0, 0)
+
+        actual = self.reader._resolve_center_position(pmx, "generic")
+
+        # For generic: average between hips and legs, no 0.7 scaling
+        self.assertEqual(actual.x(), 0)
+        self.assertNotEqual(actual.y(), 7)  # Would be 10 for generic (no 0.7 scale)
+
+    def test_resolve_material_key_generic_ignores_vroid_rules(self):
+        """Test that generic profile ignores VRoid-specific material ordering"""
+        self.assertEqual(
+            self.reader._resolve_material_key("N00_000_FaceEye_00", "OPAQUE", "generic"),
+            "OPAQUE",  # Should use as-is for generic
+        )
+        self.assertEqual(
+            self.reader._resolve_material_key("some_eye_material", "OPAQUE", "generic"),
+            "OPAQUE",  # Should NOT map to "Eye" for generic
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
