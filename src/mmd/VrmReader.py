@@ -556,14 +556,25 @@ class VrmReader(PmxReader):
                                     ):
                                         # 材質種別別に材質の存在がない場合
 
-                                        # VRMの材質拡張情報
-                                        material_ext = [
+                                        # VRMの材質拡張情報（VRM0.x のみ存在、VRM1.x ではデフォルト値を使用）
+                                        _vrm0_material_props = (
+                                            vrm.json_data.get("extensions", {})
+                                            .get("VRM", {})
+                                            .get("materialProperties", [])
+                                        )
+                                        _material_ext_list = [
                                             m
-                                            for m in vrm.json_data["extensions"]["VRM"][
-                                                "materialProperties"
-                                            ]
+                                            for m in _vrm0_material_props
                                             if m["name"] == vrm_material["name"]
-                                        ][0]
+                                        ]
+                                        if _material_ext_list:
+                                            material_ext = _material_ext_list[0]
+                                        else:
+                                            logger.warning(
+                                                "-- materialProperties not found for '%s' (VRM1.0?): using defaults",
+                                                vrm_material["name"],
+                                            )
+                                            material_ext = {}
                                         # 拡散色
                                         diffuse_color_data = vrm_material[
                                             "pbrMetallicRoughness"
@@ -1338,26 +1349,34 @@ class VrmReader(PmxReader):
                 logger.info("-- 表示枠データ解析")
 
                 # モデル名
-                pmx.name = vrm.json_data["extensions"]["VRM"]["meta"]["title"]
-                if not pmx.name:
-                    pmx.name = os.path.basename(vrm.path).split(".")[0]
+                # モデル名（VRM0.x: extensions.VRM.meta, VRM1.x: extensions.VRMC_vrm.meta）
+                _ext = vrm.json_data.get("extensions", {})
+                _vrm0_meta = _ext.get("VRM", {}).get("meta", {})
+                _vrm1_meta = _ext.get("VRMC_vrm", {}).get("meta", {})
+                _meta_title = _vrm0_meta.get("title") or _vrm1_meta.get("name", "")
+                _meta_author = _vrm0_meta.get("author") or ", ".join(
+                    _vrm1_meta.get("authors", [])
+                )
+                _meta_license = _vrm0_meta.get("licenseName") or _vrm1_meta.get(
+                    "licenseUrl", ""
+                )
+
+                pmx.name = _meta_title or os.path.basename(vrm.path).split(".")[0]
 
                 licence_comment = ""
-                if vrm.json_data["extensions"]["VRM"]["meta"]["licenseName"] == "Other":
+                if _vrm0_meta.get("licenseName") == "Other":
                     licence_dict = urllib.parse.parse_qs(
                         urllib.parse.urlparse(
-                            vrm.json_data["extensions"]["VRM"]["meta"][
-                                "otherPermissionUrl"
-                            ]
+                            _vrm0_meta.get("otherPermissionUrl", "")
                         ).query
                     )
                     for k, v in licence_dict.items():
                         licence_comment += f'　　{k}: {",".join(v)}\r\n'
 
                 pmx.comment = (
-                    f"モデル名: {vrm.json_data['extensions']['VRM']['meta']['title']}\r\n"
-                    + f"作者: {vrm.json_data['extensions']['VRM']['meta']['author']}\r\n"
-                    + f"ライセンス: {vrm.json_data['extensions']['VRM']['meta']['licenseName']}\r\n{licence_comment}\r\n"
+                    f"モデル名: {_meta_title}\r\n"
+                    + f"作者: {_meta_author}\r\n"
+                    + f"ライセンス: {_meta_license}\r\n{licence_comment}\r\n"
                     + "変換: Vrm2PmxConverter (@miu200521358)"
                 )
 
@@ -2416,11 +2435,31 @@ class VrmReader(PmxReader):
     ):
         node = vrm.json_data["nodes"][node_idx]
 
-        human_nodes = [
-            b
-            for b in vrm.json_data["extensions"]["VRM"]["humanoid"]["humanBones"]
-            if b["node"] == node_idx
-        ]
+        # humanBones: VRM0.x はリスト、VRM1.x は {bone_name: {node: idx}} の dict
+        _ext_data = vrm.json_data.get("extensions", {})
+        _vrm0_humanoid = _ext_data.get("VRM", {}).get("humanoid", {})
+        _vrm1_humanoid = _ext_data.get("VRMC_vrm", {}).get("humanoid", {})
+
+        if "humanBones" in _vrm0_humanoid and isinstance(
+            _vrm0_humanoid["humanBones"], list
+        ):
+            # VRM0.x: [{"bone": "hips", "node": 0}, ...]
+            human_nodes = [
+                b
+                for b in _vrm0_humanoid["humanBones"]
+                if b.get("node") == node_idx
+            ]
+        elif "humanBones" in _vrm1_humanoid and isinstance(
+            _vrm1_humanoid["humanBones"], dict
+        ):
+            # VRM1.x: {"hips": {"node": 0}, "spine": {"node": 1}, ...}
+            human_nodes = [
+                {"bone": bone_name, "node": bone_data.get("node")}
+                for bone_name, bone_data in _vrm1_humanoid["humanBones"].items()
+                if isinstance(bone_data, dict) and bone_data.get("node") == node_idx
+            ]
+        else:
+            human_nodes = []
         # 人体ボーンの場合のみ人体データ取得
         human_node = None if len(human_nodes) == 0 else human_nodes[0]
         bone_name = node["name"]
