@@ -588,10 +588,30 @@ button:disabled {
   font-weight: 700;
 }
 
+.app-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .app-footer-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.footer-install-button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  background: linear-gradient(120deg, #7ca891, #93b8a4);
+}
+
+.install-hint {
+  max-width: 320px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: #5a708a;
 }
 
 .footer-consent-checkbox {
@@ -750,6 +770,11 @@ button:disabled {
   .app-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .app-footer-meta {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .app-footer-actions {

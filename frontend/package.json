@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@material-ui/core": "^4.12.4",
     "@pixiv/three-vrm": "^3.5.1",
     "@sentry/react": "^10.45.0",
     "@zip.js/zip.js": "^2.8.23",
@@ -17,6 +18,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.6.0",
+    "react-pwa-install": "^1.0.12",
     "three": "^0.183.2",
     "three-stdlib": "^2.36.1"
   },

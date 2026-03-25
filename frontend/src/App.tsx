@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MMDLoader } from "three-stdlib";
+import { useReactPWAInstall } from "react-pwa-install";
 import AboutDialog from "./components/AboutDialog";
 import { APP_VERSION } from "./constants/appInfo";
 import {
@@ -59,6 +60,10 @@ type AppI18n = {
   qualityAutoReportConfirm: (signals: string) => string;
   taPoseZeroConfirm: string;
   taPoseZeroCanceled: string;
+  installButtonLabel: string;
+  installUnsupportedHint: string;
+  installDialogTitle: string;
+  installDialogDescription: string;
 };
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
@@ -85,6 +90,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
     taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
     taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
+    installButtonLabel: "Install",
+    installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
+    installDialogTitle: "アプリをインストール",
+    installDialogDescription: "ホーム画面からすぐ起動できます。",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -109,6 +118,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       `Conversion succeeded, but possible quality-risk signals were detected in logs.\n\nDetected signals: ${signals}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
     taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
     taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
+    installButtonLabel: "Install",
+    installUnsupportedHint: "Use your browser menu and choose \"Add to Home Screen\".",
+    installDialogTitle: "Install App",
+    installDialogDescription: "Launch quickly from your home screen.",
   },
 };
 
@@ -181,6 +194,33 @@ function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean
     image?: unknown;
   };
   return Boolean(tex.image || tex.source?.data);
+}
+
+function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
+  const { pwaInstall, supported, isInstalled } = useReactPWAInstall();
+
+  if (isInstalled()) {
+    return null;
+  }
+
+  if (!supported()) {
+    return <span className="install-hint">{i18n.installUnsupportedHint}</span>;
+  }
+
+  const onInstallClick = () => {
+    void pwaInstall({
+      title: i18n.installDialogTitle,
+      description: i18n.installDialogDescription,
+    }).catch(() => {
+      // User canceled native install prompt.
+    });
+  };
+
+  return (
+    <button type="button" className="footer-action-button footer-install-button" onClick={onInstallClick}>
+      {i18n.installButtonLabel}
+    </button>
+  );
 }
 
 export default function App() {
@@ -1651,7 +1691,10 @@ export default function App() {
         )}
 
         <footer className="app-footer" aria-label="Application footer actions">
-          <p className="app-version">Version {APP_VERSION}</p>
+          <div className="app-footer-meta">
+            <p className="app-version">Version {APP_VERSION}</p>
+            <PwaInstallControl i18n={i18n} />
+          </div>
           <div className="app-footer-actions">
             <label className="footer-consent-checkbox" title="Anonymous error reporting">
               <input
