@@ -8,6 +8,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MMDLoader } from "three-stdlib";
 import AboutDialog from "./components/AboutDialog";
+import { APP_VERSION } from "./constants/appInfo";
 import {
   type ConvertMode,
   convertWithMode,
@@ -43,9 +44,10 @@ const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
 const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
 const ERROR_REPORTING_STORAGE_KEY = "vrm2pmx.errorReporting.enabled.v1";
-const APP_VERSION = "1.0";
 
 type AppLocale = "ja" | "en";
+type QualitySignalSource = "fallback" | "auto_detected" | "user_reported";
+type QualitySignalLevel = "warning" | "info";
 
 type AppI18n = {
   errorReportingModalTitle: string;
@@ -135,6 +137,102 @@ function detectQualityRiskSignals(logLines: string[]): string[] {
   }
 
   return [...new Set(signals)];
+}
+
+function normalizeQualitySignalCode(signal: string): string {
+  const normalized = signal
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+
+  return normalized || "UNKNOWN_SIGNAL";
+}
+
+function createConversionReportId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `convert-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+type QualitySignalReportInput = {
+  source: QualitySignalSource;
+  signals: string[];
+  level: QualitySignalLevel;
+  requestedMode: ConvertMode;
+  usedMode: ConvertMode | null;
+  backendEnabled: boolean;
+  fileExtension?: ConvertedOutput["fileExtension"];
+  dialogEnabled?: boolean;
+  status: string;
+  result: string;
+  conversionReportId: string;
+};
+
+function reportQualitySignals({
+  source,
+  signals,
+  level,
+  requestedMode,
+  usedMode,
+  backendEnabled,
+  fileExtension,
+  dialogEnabled = false,
+  status,
+  result,
+  conversionReportId,
+}: QualitySignalReportInput): boolean {
+  const normalizedSignals = [...new Set(signals.map(normalizeQualitySignalCode))];
+  let firstEventId: string | undefined;
+
+  if (normalizedSignals.length === 0) {
+    return false;
+  }
+
+  normalizedSignals.forEach((signalCode, index) => {
+    Sentry.withScope((scope) => {
+      scope.setLevel(level);
+      scope.setTag("mode", requestedMode);
+      scope.setTag("event_type", "quality_signal");
+      scope.setTag("signal_source", source);
+      scope.setTag("signal_code", signalCode);
+      scope.setTag("signal_count", String(normalizedSignals.length));
+      scope.setTag("result", result);
+      scope.setTag("backend_enabled", backendEnabled ? "true" : "false");
+      if (usedMode) {
+        scope.setTag("used_mode", usedMode);
+      }
+      if (fileExtension) {
+        scope.setTag("file_extension", fileExtension);
+      }
+      scope.setContext("convert", {
+        status,
+        requestedMode,
+        usedMode,
+        backendEnabled,
+        fileExtension,
+        detectedSignals: normalizedSignals,
+        conversionReportId,
+      });
+
+      const eventId = Sentry.captureMessage(
+        `convert.quality_signal.${source}.${signalCode}`,
+        level,
+      );
+
+      if (index === 0) {
+        firstEventId = eventId;
+      }
+    });
+  });
+
+  if (dialogEnabled && firstEventId) {
+    Sentry.showReportDialog({ eventId: firstEventId });
+  }
+
+  return true;
 }
 
 function getStageProgressPercent(stage: WorkerProgressStage): number {
@@ -651,6 +749,7 @@ export default function App() {
   const runtimeQualitySignalsRef = useRef<Set<string>>(new Set());
   const [lastUsedMode, setLastUsedMode] = useState<"backend" | "wasm" | null>(null);
   const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
+  const [lastConversionReportId, setLastConversionReportId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -886,6 +985,7 @@ export default function App() {
     setDetectedQualityRiskSignals([]);
     setLastUsedMode(null);
     setLastFallbackReason(null);
+    setLastConversionReportId(null);
     setLogLines([]);
     logLinesRef.current = [];
     setCopyStatus("idle");
@@ -1405,9 +1505,11 @@ export default function App() {
         blob: result.blob,
         fileExtension: result.fileExtension,
       };
+      const conversionReportId = createConversionReportId();
       setConvertedOutput(nextOutput);
       setLastUsedMode(result.usedMode);
       setLastFallbackReason(result.fallbackReason ?? null);
+      setLastConversionReportId(conversionReportId);
 
       if (result.fileExtension === "zip") {
         await previewPmxFromZip(result.blob, orbitSyncEnabled);
@@ -1426,25 +1528,19 @@ export default function App() {
             i18n.fallbackReportConfirm(mode, result.usedMode, result.fallbackReason),
           );
           if (shouldSendFallbackReport) {
-            let eventId: string | undefined;
-            Sentry.withScope((scope) => {
-              scope.setLevel("warning");
-              scope.setTag("mode", mode);
-              scope.setTag("event_type", "dict_candidate");
-              scope.setTag("result", "fallback");
-              scope.setContext("convert", {
-                status: "success_with_fallback",
-                requestedMode: mode,
-                usedMode: result.usedMode,
-                fallbackReason: result.fallbackReason,
-                backendEnabled,
-              });
-              eventId = Sentry.captureMessage("convert.fallback", "warning");
+            fallbackReportSubmitted = reportQualitySignals({
+              source: "fallback",
+              signals: [result.fallbackReason],
+              level: "warning",
+              requestedMode: mode,
+              usedMode: result.usedMode,
+              backendEnabled,
+              fileExtension: result.fileExtension,
+              dialogEnabled: true,
+              status: "success_with_fallback",
+              result: "fallback",
+              conversionReportId,
             });
-            fallbackReportSubmitted = true;
-            if (eventId) {
-              Sentry.showReportDialog({ eventId });
-            }
           }
         }
 
@@ -1467,22 +1563,19 @@ export default function App() {
             i18n.qualityAutoReportConfirm(qualityRiskSignals.join(", ")),
           );
           if (shouldSendAutoQualityReport) {
-            Sentry.withScope((scope) => {
-              scope.setLevel("warning");
-              scope.setTag("mode", mode);
-              scope.setTag("event_type", "quality_auto_detection");
-              scope.setTag("result", "success_risk_detected");
-              scope.setContext("convert", {
-                status: "success_with_quality_risk_signals",
-                requestedMode: mode,
-                usedMode: result.usedMode,
-                backendEnabled,
-                fileExtension: result.fileExtension,
-                detectedSignals: qualityRiskSignals,
-              });
-              Sentry.captureMessage("convert.quality.auto-detected", "warning");
+            autoReportSubmitted = reportQualitySignals({
+              source: "auto_detected",
+              signals: qualityRiskSignals,
+              level: "warning",
+              requestedMode: mode,
+              usedMode: result.usedMode,
+              backendEnabled,
+              fileExtension: result.fileExtension,
+              dialogEnabled: true,
+              status: "success_with_quality_risk_signals",
+              result: "success_risk_detected",
+              conversionReportId,
             });
-            autoReportSubmitted = true;
           }
         }
 
@@ -1594,21 +1687,21 @@ export default function App() {
       return;
     }
 
-    Sentry.withScope((scope) => {
-      scope.setLevel("info");
-      scope.setTag("mode", mode);
-      scope.setTag("event_type", "quality_feedback");
-      scope.setTag("result", "success_user_reported_issue");
-      scope.setContext("convert", {
-        status: "success_but_quality_issue",
-        requestedMode: mode,
-        usedMode: lastUsedMode,
-        fallbackReason: lastFallbackReason,
-        backendEnabled,
-        fileExtension: convertedOutput.fileExtension,
-        detectedSignals: detectedQualityRiskSignals,
-      });
-      Sentry.captureMessage("convert.quality.issue", "info");
+    reportQualitySignals({
+      source: "user_reported",
+      signals:
+        detectedQualityRiskSignals.length > 0
+          ? detectedQualityRiskSignals
+          : [lastFallbackReason ?? "user-reported-visual-issue"],
+      level: "info",
+      requestedMode: mode,
+      usedMode: lastUsedMode,
+      backendEnabled,
+      fileExtension: convertedOutput.fileExtension,
+      dialogEnabled: true,
+      status: "success_but_quality_issue",
+      result: "success_user_reported_issue",
+      conversionReportId: lastConversionReportId ?? createConversionReportId(),
     });
 
     setMessage(i18n.qualityReportSubmittedMessage);

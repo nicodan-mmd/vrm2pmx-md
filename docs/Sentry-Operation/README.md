@@ -12,6 +12,16 @@
 
 送るのは構造化JSON（理由コード中心）
 
+集計用タグは固定化する
+
+event_type=quality_signal
+
+signal_source=fallback | auto_detected | user_reported
+
+signal_code=理由コード（例: RIGIDBODY_OTHERS_FALLBACK）
+
+release=どの版で起きたかを示す識別子（例: vrm2pmx-web@1.0）
+
 モデル固有名はハッシュ化 or 送らない
 
 運用で大事な分離
