@@ -74,6 +74,54 @@ class VrmReader(PmxReader):
     def read_model_name(self):
         return ""
 
+    @staticmethod
+    def _is_vroid_profile(profile_name: str | None) -> bool:
+        return profile_name == "vroid"
+
+    def _resolve_center_position(self, pmx: PmxModel, profile_name: str) -> MVector3D:
+        if self._is_vroid_profile(profile_name) and "腰" in pmx.bones:
+            return pmx.bones["腰"].position * 0.7
+
+        return MVector3D(
+            0,
+            (pmx.bones["左足"].position.y() + pmx.bones["左ひざ"].position.y()) / 2,
+            0,
+        )
+
+    def _resolve_groove_position(self, pmx: PmxModel, profile_name: str) -> MVector3D:
+        if self._is_vroid_profile(profile_name) and "腰" in pmx.bones:
+            return pmx.bones["腰"].position * 0.8
+
+        return MVector3D(0, pmx.bones["センター"].position.y() * 1.025, 0)
+
+    def _resolve_both_eyes_position(
+        self, pmx: PmxModel, bone_name: str, profile_name: str
+    ) -> MVector3D:
+        if self._is_vroid_profile(profile_name):
+            if "左目" in pmx.bones and "右目" in pmx.bones:
+                left_eye = pmx.bones["左目"].position
+                right_eye = pmx.bones["右目"].position
+                if left_eye != MVector3D() or right_eye != MVector3D():
+                    return left_eye + ((right_eye - left_eye) / 2)
+
+        return MVector3D(
+            0,
+            pmx.bones["頭"].position.y()
+            + (pmx.bones["頭"].position.y() - pmx.bones["首"].position.y()) * 3,
+            pmx.bones[bone_name].position.z() * 2,
+        )
+
+    def _resolve_material_key(
+        self, material_name: str, alpha_mode: str, profile_name: str
+    ) -> str:
+        if self._is_vroid_profile(profile_name):
+            if "EyeHighlight" in material_name:
+                return "EyeHighlight"
+            if "Eye" in material_name:
+                return "Eye"
+
+        return alpha_mode
+
     def read_data(self):  # type: ignore[override]
         # Pmxモデル生成
         vrm = VrmModel()
@@ -226,8 +274,12 @@ class VrmReader(PmxReader):
                             node_world_matrices,
                         )
 
+                profile_name = getattr(vrm, "detected_profile", "generic")
+                if self._is_vroid_profile(profile_name):
+                    logger.info("-- VRoidProfile: bone/material tuning enabled")
+
                 # ボーンの定義
-                self.custom_bones(pmx, bones)
+                self.custom_bones(pmx, bones, profile_name)
 
                 logger.info(f"-- ボーンデータ解析[{len(pmx.bones.keys())}]")
                 logger.info("-- ノードワールド行列計算終了")
@@ -660,7 +712,11 @@ class VrmReader(PmxReader):
 
                                         # 0番目は空テクスチャなので+1で設定
                                         m = re.search(hair_regexp, vrm_material["name"])
-                                        if m is not None and texture_index > 0:
+                                        if (
+                                            self._is_vroid_profile(profile_name)
+                                            and m is not None
+                                            and texture_index > 0
+                                        ):
                                             # 髪材質の場合、合成
                                             hair_img_name = os.path.basename(
                                                 pmx.textures[texture_index]
@@ -760,7 +816,10 @@ class VrmReader(PmxReader):
                                                 diffuse_color = MVector3D(1, 1, 1)
                                                 specular_color = MVector3D()
                                                 ambient_color = diffuse_color / 2
-                                        elif m is not None:
+                                        elif (
+                                            self._is_vroid_profile(profile_name)
+                                            and m is not None
+                                        ):
                                             logger.warning(
                                                 f'Hair blend skipped due to missing main texture: material={vrm_material["name"]}'
                                             )
@@ -853,14 +912,10 @@ class VrmReader(PmxReader):
                                         )
 
                                         # 材質順番を決める
-                                        material_key = (
-                                            "EyeHighlight"
-                                            if "EyeHighlight" in material.name
-                                            else (
-                                                "Eye"
-                                                if "Eye" in material.name
-                                                else vrm_material["alphaMode"]
-                                            )
+                                        material_key = self._resolve_material_key(
+                                            material.name,
+                                            vrm_material["alphaMode"],
+                                            profile_name,
                                         )
 
                                         if material_key not in materials_by_type:
@@ -2251,7 +2306,7 @@ class VrmReader(PmxReader):
         return local
 
     # ボーンの再定義
-    def custom_bones(self, pmx: PmxModel, bones: dict):
+    def custom_bones(self, pmx: PmxModel, bones: dict, profile_name: str = "generic"):
         # MMDで定義されているボーン
         bone_idx = 0
         for node_name, bone_config in self.bone_pairs.items():
@@ -2291,11 +2346,8 @@ class VrmReader(PmxReader):
                 pmx.bones[bone_name].position = MVector3D(0, 0, 0)
                 pmx.bones[bone_name].flag = 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010
             elif bone_name == "センター":
-                pmx.bones[bone_name].position = MVector3D(
-                    0,
-                    (pmx.bones["左足"].position.y() + pmx.bones["左ひざ"].position.y())
-                    / 2,
-                    0,
+                pmx.bones[bone_name].position = self._resolve_center_position(
+                    pmx, profile_name
                 )
                 pmx.bones[bone_name].flag = 0x0000 | 0x0002 | 0x0004 | 0x0008 | 0x0010
                 pmx.bones[bone_name].tail_index = -1
@@ -2303,8 +2355,8 @@ class VrmReader(PmxReader):
                     0, -pmx.bones["センター"].position.y(), 0
                 )
             elif bone_name == "グルーブ":
-                pmx.bones[bone_name].position = MVector3D(
-                    0, pmx.bones["センター"].position.y() * 1.025, 0
+                pmx.bones[bone_name].position = self._resolve_groove_position(
+                    pmx, profile_name
                 )
                 pmx.bones[bone_name].flag = (
                     0x0000 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x2000
@@ -2356,11 +2408,10 @@ class VrmReader(PmxReader):
                 pmx.bones[bone_name].effect_factor = 1
             elif "両目" == bone_name:
                 pmx.bones[bone_name].flag = 0x0000 | 0x0002 | 0x0008 | 0x0010
-                pmx.bones[bone_name].position = MVector3D(
-                    0,
-                    pmx.bones["頭"].position.y()
-                    + (pmx.bones["頭"].position.y() - pmx.bones["首"].position.y()) * 3,
-                    pmx.bones[bone_name].position.z() * 2,
+                pmx.bones[bone_name].position = self._resolve_both_eyes_position(
+                    pmx,
+                    bone_name,
+                    profile_name,
                 )
                 pmx.bones[bone_name].tail_index = -1
                 pmx.bones[bone_name].tail_position = MVector3D(0, 0, -1)
