@@ -641,6 +641,10 @@ button:disabled {
   background: linear-gradient(120deg, #dfaa80, #ebbf9d);
 }
 
+.footer-action-button.footer-install-button {
+  background: linear-gradient(120deg, #7ea8c9, #98bdd9);
+}
+
 .footer-action-button-reset {
   background: linear-gradient(120deg, #bd8790, #d4a5ac);
 }
