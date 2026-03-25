@@ -57,6 +57,8 @@ type AppI18n = {
   qualityReportSubmittedMessage: string;
   qualityReportEnableHint: string;
   qualityAutoReportConfirm: (signals: string) => string;
+  taPoseZeroConfirm: string;
+  taPoseZeroCanceled: string;
 };
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
@@ -81,6 +83,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "Error Reporting を有効にすると、成功時の品質崩れケースを匿名で報告できます。",
     qualityAutoReportConfirm: (signals) =>
       `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
+    taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
+    taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -103,6 +107,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "Enable Error Reporting to anonymously report successful conversions with quality issues.",
     qualityAutoReportConfirm: (signals) =>
       `Conversion succeeded, but possible quality-risk signals were detected in logs.\n\nDetected signals: ${signals}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
+    taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
+    taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
   },
 };
 
@@ -838,12 +844,10 @@ export default function App() {
     }
 
     if (taPoseAngle === 0) {
-      const shouldContinue = window.confirm(
-        "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
-      );
+      const shouldContinue = window.confirm(i18n.taPoseZeroConfirm);
       if (!shouldContinue) {
         setErrorDetail("");
-        setMessage("Conversion canceled at 0 degree pose setting.");
+        setMessage(i18n.taPoseZeroCanceled);
         return;
       }
     }
