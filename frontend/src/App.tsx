@@ -169,7 +169,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     restrictedRedistributionModificationProceed: "続行",
     previewShaderErrorTitle: "PMXプレビューエラー",
     previewShaderErrorMessage:
-      "変換は成功しましたが、PMXプレビューの描画でエラーが発生しました。\n「品質崩れを報告」で送信していただければ将来の改善につながります。",
+      "変換は成功していますが、PMXプレビューの描画でエラーが発生しました。\nZIPはダウンロード可能です。\n「品質崩れを報告」で送信していただければ将来の改善につながります。",
     previewShaderErrorOk: "OK",
   },
   en: {
@@ -207,7 +207,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     restrictedRedistributionModificationProceed: "Proceed",
     previewShaderErrorTitle: "PMX Preview Error",
     previewShaderErrorMessage:
-      "Conversion succeeded, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
+      "Conversion succeeded, and ZIP download is available, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
     previewShaderErrorOk: "OK",
   },
 };
@@ -1077,8 +1077,8 @@ export default function App() {
       setLogEnabled(true);
       setMessage(
         appLocale === "ja"
-          ? "変換は成功しましたが、PMXプレビュー描画でエラーが発生しました。ZIPはダウンロードできます。"
-          : "Conversion succeeded, but PMX preview rendering failed. You can still download the ZIP.",
+          ? "変換は成功しているので、ZIPはダウンロード可能です。PMXプレビュー描画ではエラーが発生しました。"
+          : "Conversion succeeded, so ZIP download is available. PMX preview rendering failed.",
       );
       void Swal.fire({
         title: i18n.previewShaderErrorTitle,
