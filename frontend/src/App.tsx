@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
+import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
