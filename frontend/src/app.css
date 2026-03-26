@@ -169,6 +169,10 @@ h2 {
   font-size: 1.16rem;
 }
 
+.metadata-info-button-alert {
+  color: #cc6666;
+}
+
 .metadata-info-button:disabled {
   background: transparent;
   color: #a5afba;
