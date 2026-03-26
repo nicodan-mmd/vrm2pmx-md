@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/react";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FaCircleInfo } from "react-icons/fa6";
 import { IoCopyOutline } from "react-icons/io5";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -58,6 +59,17 @@ type PmxPreviewDiagnostics = {
   materialSlotCount: number;
   colorTextureCount: number;
   textureCoverage: number;
+};
+
+type InfoRow = {
+  label: string;
+  value: string;
+  isLink: boolean;
+};
+
+type VrmInfoData = {
+  summaryRows: InfoRow[];
+  licenseRows: InfoRow[];
 };
 
 const DEBUG_PMX = false;
@@ -226,6 +238,108 @@ function normalizeAssetPath(path: string): string {
     .replace(/^\/+/, "");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function isLikelyUrl(value: string): boolean {
+  return /^https?:\/\//iu.test(value.trim());
+}
+
+function createInfoRow(label: string, value: string): InfoRow {
+  return {
+    label,
+    value,
+    isLink: isLikelyUrl(value),
+  };
+}
+
+function pushInfoRow(rows: InfoRow[], label: string, value: unknown) {
+  const text = asString(value);
+  if (!text) {
+    return;
+  }
+  rows.push(createInfoRow(label, text));
+}
+
+function extractVrmInfoData(gltf: unknown): VrmInfoData {
+  const parserJson = asRecord((gltf as { parser?: { json?: unknown } })?.parser?.json);
+  const extensions = asRecord(parserJson.extensions);
+  const asset = asRecord(parserJson.asset);
+  const vrm1 = asRecord(extensions.VRMC_vrm);
+  const vrm0Meta = asRecord(asRecord(extensions.VRM).meta);
+  const vrm1Meta = asRecord(vrm1.meta);
+
+  const summaryRows: InfoRow[] = [];
+  const licenseRows: InfoRow[] = [];
+
+  if (Object.keys(vrm1Meta).length > 0) {
+    pushInfoRow(summaryRows, "Title", vrm1Meta.name);
+
+    const authors = asStringArray(vrm1Meta.authors);
+    if (authors.length > 0) {
+      summaryRows.push(createInfoRow("Author", authors.join(", ")));
+    }
+
+    pushInfoRow(summaryRows, "Version", vrm1Meta.version || vrm1.specVersion || asset.version);
+
+    pushInfoRow(summaryRows, "Contact", vrm1Meta.contactInformation);
+    pushInfoRow(summaryRows, "Copyright", vrm1Meta.copyrightInformation);
+
+    const references = asStringArray(vrm1Meta.references);
+    references.forEach((reference, index) => {
+      summaryRows.push(createInfoRow(`Reference ${index + 1}`, reference));
+    });
+
+    pushInfoRow(licenseRows, "Avatar Permission", vrm1Meta.avatarPermission);
+    pushInfoRow(licenseRows, "Commercial Usage", vrm1Meta.commercialUsage);
+    pushInfoRow(licenseRows, "Credit Notation", vrm1Meta.creditNotation);
+    pushInfoRow(licenseRows, "Modification", vrm1Meta.modification);
+    pushInfoRow(licenseRows, "Allow Redistribution", vrm1Meta.allowRedistribution);
+    pushInfoRow(licenseRows, "Allow Violent Usage", vrm1Meta.allowExcessivelyViolentUsage);
+    pushInfoRow(licenseRows, "Allow Sexual Usage", vrm1Meta.allowExcessivelySexualUsage);
+    pushInfoRow(licenseRows, "Allow Political/Religious", vrm1Meta.allowPoliticalOrReligiousUsage);
+    pushInfoRow(licenseRows, "Allow Antisocial/Hate", vrm1Meta.allowAntisocialOrHateUsage);
+    pushInfoRow(licenseRows, "License URL", vrm1Meta.licenseUrl);
+    pushInfoRow(licenseRows, "Other License URL", vrm1Meta.otherLicenseUrl);
+    pushInfoRow(licenseRows, "Third Party Licenses", vrm1Meta.thirdPartyLicenses);
+
+    return { summaryRows, licenseRows };
+  }
+
+  pushInfoRow(summaryRows, "Title", vrm0Meta.title);
+  pushInfoRow(summaryRows, "Author", vrm0Meta.author);
+  pushInfoRow(summaryRows, "Contact", vrm0Meta.contactInformation);
+  pushInfoRow(summaryRows, "Reference", vrm0Meta.reference);
+  pushInfoRow(summaryRows, "Version", vrm0Meta.version);
+
+  pushInfoRow(licenseRows, "Allowed User", vrm0Meta.allowedUserName);
+  pushInfoRow(licenseRows, "Violent Usage", vrm0Meta.violentUssageName);
+  pushInfoRow(licenseRows, "Sexual Usage", vrm0Meta.sexualUssageName);
+  pushInfoRow(licenseRows, "Commercial Usage", vrm0Meta.commercialUssageName);
+  pushInfoRow(licenseRows, "License Name", vrm0Meta.licenseName);
+  pushInfoRow(licenseRows, "Other Permission URL", vrm0Meta.otherPermissionUrl);
+  pushInfoRow(licenseRows, "Other License URL", vrm0Meta.otherLicenseUrl);
+
+  return { summaryRows, licenseRows };
+}
+
 function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean {
   if (!texture) {
     return false;
@@ -318,6 +432,9 @@ export default function App() {
   const logLinesRef = useRef<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
+  const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
+  const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -381,6 +498,14 @@ export default function App() {
     [file, isPreviewing, isVrmReady, status],
   );
   const canDownload = useMemo(
+    () => !!convertedOutput && status !== "uploading",
+    [convertedOutput, status],
+  );
+  const canOpenVrmMetadata = useMemo(
+    () => isVrmReady && !isPreviewing,
+    [isPreviewing, isVrmReady],
+  );
+  const canOpenPmxMetadata = useMemo(
     () => !!convertedOutput && status !== "uploading",
     [convertedOutput, status],
   );
@@ -501,6 +626,9 @@ export default function App() {
     setConvertProgressStage(null);
     setFile(null);
     setIsVrmReady(false);
+    setVrmInfoData({ summaryRows: [], licenseRows: [] });
+    setIsVrmMetadataOpen(false);
+    setIsPmxMetadataOpen(false);
     setMessage("VRM file is not selected yet.");
     setIsVrmDropActive(false);
 
@@ -1212,6 +1340,17 @@ export default function App() {
     setDetectedQualityRiskSignals([]);
   }
 
+  function onOpenMetadata(target: "vrm" | "pmx") {
+    if (target === "vrm") {
+      setIsVrmMetadataOpen((prev) => !prev);
+      setIsPmxMetadataOpen(false);
+      return;
+    }
+
+    setIsPmxMetadataOpen((prev) => !prev);
+    setIsVrmMetadataOpen(false);
+  }
+
   function onCancel() {
     abortControllerRef.current?.abort();
   }
@@ -1305,6 +1444,31 @@ export default function App() {
   }, [copyStatus]);
 
   useEffect(() => {
+    if (!isVrmMetadataOpen && !isPmxMetadataOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+
+      if (target.closest(".preview-metadata-popup") || target.closest(".metadata-info-button")) {
+        return;
+      }
+
+      setIsVrmMetadataOpen(false);
+      setIsPmxMetadataOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [isPmxMetadataOpen, isVrmMetadataOpen]);
+
+  useEffect(() => {
     return () => {
       cleanupPreview();
       cleanupPmxPreview();
@@ -1320,6 +1484,7 @@ export default function App() {
 
     setIsPreviewing(true);
     setIsVrmReady(false);
+    setVrmInfoData({ summaryRows: [], licenseRows: [] });
     setErrorDetail("");
     setMessage("Loading VRM preview...");
     cleanupPreview();
@@ -1391,6 +1556,7 @@ export default function App() {
       loader.register((parser: GLTFParser) => new VRMLoaderPlugin(parser));
       const arrayBuffer = await targetFile.arrayBuffer();
       const gltf = await loader.parseAsync(arrayBuffer, "");
+      setVrmInfoData(extractVrmInfoData(gltf));
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
 
       if (!vrm) {
@@ -1608,11 +1774,85 @@ export default function App() {
                 className="preview-canvas"
                 aria-label="VRM preview canvas"
               />
+              {isVrmMetadataOpen && (
+                <section className="preview-metadata-popup" aria-label="VRM metadata popup">
+                  <header className="preview-metadata-popup-header">
+                    <strong>VRM Info</strong>
+                    <button
+                      type="button"
+                      className="preview-metadata-close"
+                      aria-label="Close VRM metadata popup"
+                      onClick={() => setIsVrmMetadataOpen(false)}
+                    >
+                      x
+                    </button>
+                  </header>
+                  <div className="preview-metadata-popup-body">
+                    <div className="preview-info-section-title">Basic</div>
+                    {vrmInfoData.summaryRows.length > 0 ? (
+                      <div className="preview-info-list">
+                        {vrmInfoData.summaryRows.map((row) => (
+                          <div key={`basic-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{row.label}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span className="preview-info-value">{row.value}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>Info is not available.</p>
+                    )}
+                    <div className="preview-info-section-title">License</div>
+                    {vrmInfoData.licenseRows.length > 0 ? (
+                      <div className="preview-info-list">
+                        {vrmInfoData.licenseRows.map((row) => (
+                          <div key={`license-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{row.label}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span className="preview-info-value">{row.value}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>License info is not available.</p>
+                    )}
+                  </div>
+                </section>
+              )}
               {!isVrmReady && !isPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
                   <div>Drop VRM file here</div>
                 </div>
               )}
+              <button
+                type="button"
+                className="metadata-info-button"
+                aria-label="Show VRM metadata"
+                onClick={() => onOpenMetadata("vrm")}
+                disabled={!canOpenVrmMetadata}
+              >
+                <FaCircleInfo />
+              </button>
             </div>
           </figure>
           <figure className="preview-panel">
@@ -1622,11 +1862,40 @@ export default function App() {
                 MikuMikuDance
               </a>
             </figcaption>
-            <canvas
-              ref={pmxCanvasRef}
-              className="preview-canvas"
-              aria-label="PMX preview canvas"
-            />
+            <div className="preview-canvas-wrap">
+              <canvas
+                ref={pmxCanvasRef}
+                className="preview-canvas"
+                aria-label="PMX preview canvas"
+              />
+              {isPmxMetadataOpen && (
+                <section className="preview-metadata-popup" aria-label="PMX metadata popup">
+                  <header className="preview-metadata-popup-header">
+                    <strong>PMX Info</strong>
+                    <button
+                      type="button"
+                      className="preview-metadata-close"
+                      aria-label="Close PMX metadata popup"
+                      onClick={() => setIsPmxMetadataOpen(false)}
+                    >
+                      x
+                    </button>
+                  </header>
+                  <div className="preview-metadata-popup-body">
+                    <p>Info preview area (coming soon)</p>
+                  </div>
+                </section>
+              )}
+              <button
+                type="button"
+                className="metadata-info-button"
+                aria-label="Show PMX metadata"
+                onClick={() => onOpenMetadata("pmx")}
+                disabled={!canOpenPmxMetadata}
+              >
+                <FaCircleInfo />
+              </button>
+            </div>
             {/* 明るさデバッグ用（必要時にコメント解除）
             <div className="pmx-preview-adjustments" aria-label="PMX preview tuning">
               <div className="pmx-preview-adjustment-row">
