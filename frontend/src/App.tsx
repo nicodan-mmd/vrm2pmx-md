@@ -126,6 +126,9 @@ type AppI18n = {
   restrictedRedistributionModificationConfirm: string;
   restrictedRedistributionModificationCancel: string;
   restrictedRedistributionModificationProceed: string;
+  previewShaderErrorTitle: string;
+  previewShaderErrorMessage: string;
+  previewShaderErrorOk: string;
 };
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
@@ -160,6 +163,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "このモデルは、改変または、再配布が禁止されています。変換する場合は、個人の責任において実行してください",
     restrictedRedistributionModificationCancel: "キャンセル",
     restrictedRedistributionModificationProceed: "続行",
+    previewShaderErrorTitle: "PMXプレビューエラー",
+    previewShaderErrorMessage:
+      "変換は成功しましたが、PMXプレビューの描画でエラーが発生しました。\n「品質崩れを報告」で送信していただければ将来の改善につながります。",
+    previewShaderErrorOk: "OK",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -192,6 +199,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "This model prohibits modification or redistribution. If you proceed with conversion, please do so at your own responsibility.",
     restrictedRedistributionModificationCancel: "Cancel",
     restrictedRedistributionModificationProceed: "Proceed",
+    previewShaderErrorTitle: "PMX Preview Error",
+    previewShaderErrorMessage:
+      "Conversion succeeded, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
+    previewShaderErrorOk: "OK",
   },
 };
 
@@ -1047,8 +1058,28 @@ export default function App() {
     let onPmxOrbitChanged: (() => void) | null = null;
     let frameId = 0;
     let loadedMesh: THREE.Object3D | null = null;
+    let hasShownShaderErrorDialog = false;
     const objectUrls: string[] = [];
     const assetMap = new Map<string, string>();
+
+    const showPreviewShaderErrorDialog = () => {
+      if (hasShownShaderErrorDialog) {
+        return;
+      }
+      hasShownShaderErrorDialog = true;
+      setLogEnabled(true);
+      setMessage(
+        appLocale === "ja"
+          ? "変換は成功しましたが、PMXプレビュー描画でエラーが発生しました。ZIPはダウンロードできます。"
+          : "Conversion succeeded, but PMX preview rendering failed. You can still download the ZIP.",
+      );
+      void Swal.fire({
+        title: i18n.previewShaderErrorTitle,
+        html: i18n.previewShaderErrorMessage.replace(/\n/g, "<br>"),
+        icon: "error",
+        confirmButtonText: i18n.previewShaderErrorOk,
+      });
+    };
 
     const fitRendererSize = () => {
       const width = canvas.clientWidth || 320;
@@ -1094,6 +1125,19 @@ export default function App() {
       scene.add(keyLight);
 
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const rendererWithShaderDebug = renderer as THREE.WebGLRenderer & {
+        debug?: {
+          onShaderError?: (...args: unknown[]) => void;
+        };
+      };
+      if (rendererWithShaderDebug.debug) {
+        rendererWithShaderDebug.debug.onShaderError = () => {
+          runtimeQualitySignalsRef.current.add("pmx-shader-compile-failed");
+          appendConsoleLine(["[ERROR] PMX preview shader compile failed."]);
+          showPreviewShaderErrorDialog();
+        };
+      }
+
       fitRendererSize();
       window.addEventListener("resize", fitRendererSize);
 
@@ -1401,7 +1445,13 @@ export default function App() {
       const renderLoop = () => {
         frameId = window.requestAnimationFrame(renderLoop);
         controls.update();
-        renderer.render(scene, camera);
+        try {
+          renderer.render(scene, camera);
+        } catch (error) {
+          window.cancelAnimationFrame(frameId);
+          appendConsoleLine(["[ERROR] PMX preview render failed:", formatLogArg(error)]);
+          showPreviewShaderErrorDialog();
+        }
       };
       renderLoop();
     } catch (error) {
