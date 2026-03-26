@@ -1585,7 +1585,10 @@ export default function App() {
     <main className="page">
       <div className="halo" />
       <section className="card">
-        <h1 className="app-title">VRM to PMX Converter</h1>
+        <h1 className="app-title">
+          VRM to MMD Converter (Web)
+          <span className="app-subtitle">A web-based modernization of vrm2pmx and vroid2pmx mix</span>
+        </h1>
         <section className="preview-grid" aria-label="Model previews">
           <figure
             className={`preview-panel${isVrmDropActive ? " preview-panel-dropping" : ""}`}

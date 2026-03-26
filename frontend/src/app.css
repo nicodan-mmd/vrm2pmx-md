@@ -75,6 +75,14 @@ h2 {
   color: #254466;
 }
 
+.app-subtitle {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.5em;
+  font-weight: 400;
+  color: #48637f;
+}
+
 .preview-grid {
   margin: 18px 0 24px;
   display: grid;
@@ -419,7 +427,10 @@ input[type="file"] {
 
 .file-label-row .quality-report-button {
   align-self: flex-start;
-  min-width: 220px;
+  min-width: 168px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  line-height: 1;
 }
 
 .convert-button {
@@ -463,16 +474,16 @@ input[type="file"] {
 }
 
 .quality-report-button {
-  background: linear-gradient(120deg, #ff6a00, #ff8a00);
-  color: #fffdf7;
+  background: linear-gradient(120deg, #dfaa80, #ebbf9d);
+  color: var(--button-ink);
 }
 
 .quality-report-button:hover:not(:disabled) {
-  filter: saturate(1.12) brightness(1.02);
+  filter: saturate(1.05);
 }
 
 .quality-report-button:focus-visible {
-  outline: 2px solid #ff6a00;
+  outline: 2px solid #dfaa80;
   outline-offset: 2px;
 }
 

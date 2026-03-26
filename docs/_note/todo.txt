@@ -3,9 +3,17 @@
 ----
 
 
-・Biome導入
+・Installボタン Firefoxだと文言になってる
+・メタデータボタン
+・ライセンス確認
 
-・テスト
+・中国語対応
+・コーヒー奢ってください
+
+・ニコニコ動画 動画作成
+
+-- 
+テスト
 
     - 変換テスト
         カッパ 片手だけ動く
@@ -13,22 +21,11 @@
     - 変換後テスト
         Both Klee 変換成功、踊らない
 
-・ニコニコ動画 動画作成
-
-・VRM1.0 統合
-    https://github.com/miu200521358/vroid2pmx
-    ・VRM Previewにドロップ
-        Title (VRM Ver 0.0 only) 
-        → 表示はできる、コンバートでエラー
-
-・メタデータ表示ボタン
-
-
 --
 保留
 
 ・変換速度の改善可能か
-    Rustで可能だが段階的
+    Rustで可能だが段階的にもしくはGo？
 
 
 -- 
@@ -100,6 +97,23 @@ Ver1.2 2026/03/25 Release
     ・PWAインストールボタン
 
 Ver1.3 2026/03/26 Release
-・VRM1.0対応
-・品質崩れ検知難しい → 常に
-・0 only Convert 消す
+
+
+
+    ・VRM1.0対応
+    ・品質崩れ検知難しい → 常に
+    ・0 only Convert 消す
+
+    ・Biome導入
+    ・VRM1.0 統合
+        https://github.com/miu200521358/vroid2pmx
+        ・VRM Previewにドロップ
+        Title (VRM Ver 0.0 only)
+        → 表示はできる、コンバートでエラー
+
+    ・タイトル変更
+        説明の小さい文字
+        VRM to MMD Converter (Web)
+        A web-based modernization of vrm2pmx and vroid2pmx mix
+
+    ・品質崩れを報告は、パステルオレンジで小さめに
