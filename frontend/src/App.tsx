@@ -1065,6 +1065,7 @@ export default function App() {
     let frameId = 0;
     let loadedMesh: THREE.Object3D | null = null;
     let hasShownShaderErrorDialog = false;
+    let hasAppliedMaterialFallback = false;
     const objectUrls: string[] = [];
     const assetMap = new Map<string, string>();
 
@@ -1085,6 +1086,86 @@ export default function App() {
         icon: "error",
         confirmButtonText: i18n.previewShaderErrorOk,
       });
+    };
+
+    const applyPmxPreviewMaterialFallback = (reason: string): boolean => {
+      if (hasAppliedMaterialFallback || !loadedMesh) {
+        return false;
+      }
+
+      let replacedMaterialCount = 0;
+      loadedMesh.traverse((object) => {
+        const maybeMesh = object as THREE.Mesh;
+        if (!maybeMesh.isMesh) {
+          return;
+        }
+
+        const toStandard = (material: THREE.Material | null | undefined): THREE.Material | null => {
+          if (!material) {
+            return null;
+          }
+          const source = material as THREE.Material & {
+            color?: THREE.Color;
+            map?: THREE.Texture | null;
+            emissive?: THREE.Color;
+            emissiveMap?: THREE.Texture | null;
+            alphaMap?: THREE.Texture | null;
+            transparent?: boolean;
+            opacity?: number;
+            side?: THREE.Side;
+            alphaTest?: number;
+            name?: string;
+          };
+
+          const fallback = new THREE.MeshStandardMaterial({
+            color: source.color ? source.color.clone() : new THREE.Color(0xffffff),
+            map: source.map ?? null,
+            emissive: source.emissive ? source.emissive.clone() : new THREE.Color(0x000000),
+            emissiveMap: source.emissiveMap ?? null,
+            alphaMap: source.alphaMap ?? null,
+            transparent: source.transparent ?? false,
+            opacity: typeof source.opacity === "number" ? source.opacity : 1,
+            side: source.side ?? THREE.FrontSide,
+            alphaTest: typeof source.alphaTest === "number" ? source.alphaTest : 0,
+            roughness: 1,
+            metalness: 0,
+          });
+          fallback.name = source.name ?? "";
+          fallback.needsUpdate = true;
+          return fallback;
+        };
+
+        if (Array.isArray(maybeMesh.material)) {
+          const nextMaterials = maybeMesh.material.map((material) => {
+            const fallback = toStandard(material);
+            if (fallback) {
+              replacedMaterialCount += 1;
+            }
+            return fallback;
+          });
+          if (nextMaterials.some((mat) => mat !== null)) {
+            maybeMesh.material = nextMaterials.filter((mat): mat is THREE.Material => mat !== null);
+          }
+          return;
+        }
+
+        const fallback = toStandard(maybeMesh.material);
+        if (fallback) {
+          maybeMesh.material = fallback;
+          replacedMaterialCount += 1;
+        }
+      });
+
+      if (replacedMaterialCount <= 0) {
+        return false;
+      }
+
+      hasAppliedMaterialFallback = true;
+      runtimeQualitySignalsRef.current.add("pmx-preview-material-fallback");
+      appendConsoleLine([
+        `[WARN] PMX preview fallback material enabled (${reason}), replaced materials: ${replacedMaterialCount}`,
+      ]);
+      return true;
     };
 
     const fitRendererSize = () => {
@@ -1140,7 +1221,10 @@ export default function App() {
         rendererWithShaderDebug.debug.onShaderError = () => {
           runtimeQualitySignalsRef.current.add("pmx-shader-compile-failed");
           appendConsoleLine(["[ERROR] PMX preview shader compile failed."]);
-          showPreviewShaderErrorDialog();
+          const recovered = applyPmxPreviewMaterialFallback("shader-compile");
+          if (!recovered) {
+            showPreviewShaderErrorDialog();
+          }
         };
       }
 
@@ -1454,9 +1538,12 @@ export default function App() {
         try {
           renderer.render(scene, camera);
         } catch (error) {
-          window.cancelAnimationFrame(frameId);
           appendConsoleLine(["[ERROR] PMX preview render failed:", formatLogArg(error)]);
-          showPreviewShaderErrorDialog();
+          const recovered = applyPmxPreviewMaterialFallback("render-error");
+          if (!recovered) {
+            window.cancelAnimationFrame(frameId);
+            showPreviewShaderErrorDialog();
+          }
         }
       };
       renderLoop();
