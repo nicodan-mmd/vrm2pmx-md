@@ -764,6 +764,8 @@ export default function App() {
     baseDistance: number;
     anchorTarget: THREE.Vector3;
   } | null>(null);
+  const vrmIdleManagerRef = useRef<ReturnType<typeof createIdleRotationManager> | null>(null);
+  const pmxIdleManagerRef = useRef<ReturnType<typeof createIdleRotationManager> | null>(null);
   const pmxLightRuntimeRef = useRef<{
     ambientLight: THREE.AmbientLight;
     keyLight: THREE.DirectionalLight;
@@ -1081,10 +1083,6 @@ export default function App() {
     return {
       resetInactivityTimer: () => {
         const state = idleAnimationRef.current[stateKey];
-        // Ignore timer reset if already rotating (to avoid interruption from updateRotation's change events)
-        if (state.isRotating) {
-          return;
-        }
         if (state.inactivityTimeoutId) {
           clearTimeout(state.inactivityTimeoutId);
         }
@@ -1114,7 +1112,7 @@ export default function App() {
           return;
         }
         const view = viewRef.current;
-        const rotationSpeed = 0.0375 * (state.rotationDirection === 1 ? 1 : -1);
+        const rotationSpeed = 0.01875 * (state.rotationDirection === 1 ? 1 : -1);
         const angle = THREE.MathUtils.degToRad(rotationSpeed * deltaTime);
         const targetToCamera = view.camera.position.clone().sub(view.controls.target);
         targetToCamera.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
@@ -1604,11 +1602,10 @@ export default function App() {
         anchorTarget: controls.target.clone(),
       };
       pmxIdleManager = createIdleRotationManager(pmxViewRef, "pmxState");
+      pmxIdleManagerRef.current = pmxIdleManager;
       controls.addEventListener("change", onPmxOrbitChanged);
-      controls.addEventListener("change", () => pmxIdleManager!.resetInactivityTimer());
-      canvas.addEventListener("click", () => {
-        pmxIdleManager!.stopRotation();
-      });
+      controls.addEventListener("start", () => pmxIdleManager!.stopRotation());
+      controls.addEventListener("end", () => pmxIdleManager!.resetInactivityTimer());
       pmxIdleManager.resetInactivityTimer();
 
       if (syncOrbitFromVrm) {
@@ -2190,11 +2187,10 @@ export default function App() {
         anchorTarget: controls.target.clone(),
       };
       const vrmIdleManager = createIdleRotationManager(vrmViewRef, "vrmState");
+      vrmIdleManagerRef.current = vrmIdleManager;
       controls.addEventListener("change", onVrmOrbitChanged);
-      controls.addEventListener("change", () => vrmIdleManager.resetInactivityTimer());
-      canvas.addEventListener("click", () => {
-        vrmIdleManager.stopRotation();
-      });
+      controls.addEventListener("start", () => vrmIdleManager.stopRotation());
+      controls.addEventListener("end", () => vrmIdleManager.resetInactivityTimer());
       vrmIdleManager.resetInactivityTimer();
 
       const renderLoop = () => {
@@ -2343,7 +2339,9 @@ export default function App() {
                 VRoid Studio
               </a>
             </figcaption>
-            <div className="preview-canvas-wrap">
+            <div className="preview-canvas-wrap" onPointerDown={() => {
+              vrmIdleManagerRef.current?.stopRotation();
+            }}>
               <canvas
                 ref={vrmCanvasRef}
                 className="preview-canvas"
@@ -2445,7 +2443,9 @@ export default function App() {
                 MikuMikuDance
               </a>
             </figcaption>
-            <div className="preview-canvas-wrap">
+            <div className="preview-canvas-wrap" onPointerDown={() => {
+              pmxIdleManagerRef.current?.stopRotation();
+            }}>
               <canvas
                 ref={pmxCanvasRef}
                 className="preview-canvas"
