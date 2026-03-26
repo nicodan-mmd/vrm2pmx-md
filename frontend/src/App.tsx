@@ -72,6 +72,11 @@ type VrmInfoData = {
   licenseRows: InfoRow[];
 };
 
+type PmxInfoData = {
+  summaryRows: InfoRow[];
+  licenseRows: InfoRow[];
+};
+
 const DEBUG_PMX = false;
 const NON_QUALITY_RUNTIME_SIGNALS = new Set<string>([
   "three-clock-deprecated",
@@ -270,6 +275,14 @@ function createInfoRow(label: string, value: string): InfoRow {
   };
 }
 
+function extractUrls(value: string): string[] {
+  const matches = value.match(/https?:\/\/[^\s)"'<>]+/giu);
+  if (!matches) {
+    return [];
+  }
+  return [...new Set(matches)];
+}
+
 function pushInfoRow(rows: InfoRow[], label: string, value: unknown) {
   const text = asString(value);
   if (!text) {
@@ -336,6 +349,38 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
   pushInfoRow(licenseRows, "License Name", vrm0Meta.licenseName);
   pushInfoRow(licenseRows, "Other Permission URL", vrm0Meta.otherPermissionUrl);
   pushInfoRow(licenseRows, "Other License URL", vrm0Meta.otherLicenseUrl);
+
+  return { summaryRows, licenseRows };
+}
+
+function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
+  const geometry = mesh.geometry as THREE.BufferGeometry & { userData?: unknown };
+  const mmd = asRecord(asRecord(geometry.userData).MMD);
+  const metadata = asRecord(mmd.metadata);
+
+  const summaryRows: InfoRow[] = [];
+  const licenseRows: InfoRow[] = [];
+
+  pushInfoRow(summaryRows, "Model Name", metadata.modelName || metadata.name || mesh.name);
+  pushInfoRow(summaryRows, "Model Name EN", metadata.englishModelName);
+  pushInfoRow(summaryRows, "Comment", metadata.comment);
+  pushInfoRow(summaryRows, "Comment EN", metadata.englishComment);
+  pushInfoRow(summaryRows, "Vertices", metadata.vertexCount);
+  pushInfoRow(summaryRows, "Faces", metadata.faceCount);
+  pushInfoRow(summaryRows, "Materials", metadata.materialCount);
+  pushInfoRow(summaryRows, "Bones", metadata.boneCount);
+  pushInfoRow(summaryRows, "Morphs", metadata.morphCount);
+  pushInfoRow(summaryRows, "Rigid Bodies", metadata.rigidBodyCount);
+  pushInfoRow(summaryRows, "Constraints", metadata.constraintCount);
+
+  pushInfoRow(licenseRows, "License", metadata.licenseName);
+  pushInfoRow(licenseRows, "Copyright", metadata.copyright);
+
+  const commentUrls = [asString(metadata.comment), asString(metadata.englishComment)]
+    .flatMap((comment) => extractUrls(comment));
+  commentUrls.forEach((url, index) => {
+    licenseRows.push(createInfoRow(`Reference URL ${index + 1}`, url));
+  });
 
   return { summaryRows, licenseRows };
 }
@@ -435,6 +480,7 @@ export default function App() {
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
+  const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({ summaryRows: [], licenseRows: [] });
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -508,6 +554,14 @@ export default function App() {
   const canOpenPmxMetadata = useMemo(
     () => !!convertedOutput && status !== "uploading",
     [convertedOutput, status],
+  );
+  const pmxSummaryRowsForDisplay = useMemo(
+    () => (pmxInfoData.summaryRows.length > 0 ? pmxInfoData.summaryRows : vrmInfoData.summaryRows),
+    [pmxInfoData.summaryRows, vrmInfoData.summaryRows],
+  );
+  const pmxLicenseRowsForDisplay = useMemo(
+    () => (pmxInfoData.licenseRows.length > 0 ? pmxInfoData.licenseRows : vrmInfoData.licenseRows),
+    [pmxInfoData.licenseRows, vrmInfoData.licenseRows],
   );
   const logText = useMemo(() => logLines.join("\n"), [logLines]);
 
@@ -627,6 +681,7 @@ export default function App() {
     setFile(null);
     setIsVrmReady(false);
     setVrmInfoData({ summaryRows: [], licenseRows: [] });
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
     setIsVrmMetadataOpen(false);
     setIsPmxMetadataOpen(false);
     setMessage("VRM file is not selected yet.");
@@ -749,6 +804,7 @@ export default function App() {
     }
 
     cleanupPmxPreview();
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
 
     const canvas = pmxCanvasRef.current;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -900,6 +956,7 @@ export default function App() {
         console.warn = originalConsoleWarn;
       }
       loadedMesh = mesh;
+      setPmxInfoData(extractPmxInfoData(mesh));
 
       // MMDLoader does not tag color textures as sRGB, causing double-gamma and
       // washed-out colors in Three.js r152+ (SRGBColorSpace output default).
@@ -1343,12 +1400,10 @@ export default function App() {
   function onOpenMetadata(target: "vrm" | "pmx") {
     if (target === "vrm") {
       setIsVrmMetadataOpen((prev) => !prev);
-      setIsPmxMetadataOpen(false);
       return;
     }
 
     setIsPmxMetadataOpen((prev) => !prev);
-    setIsVrmMetadataOpen(false);
   }
 
   function onCancel() {
@@ -1654,6 +1709,8 @@ export default function App() {
     if (!file) return;
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsPmxMetadataOpen(false);
     setLogLines([]);
     setCopyStatus("idle");
     setErrorDetail("");
@@ -1681,6 +1738,8 @@ export default function App() {
   function applySelectedVrmFile(selected: File | null) {
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsPmxMetadataOpen(false);
     setDetectedProfileResult(null);
     setLogLines([]);
     setCopyStatus("idle");
@@ -1882,7 +1941,54 @@ export default function App() {
                     </button>
                   </header>
                   <div className="preview-metadata-popup-body">
-                    <p>Info preview area (coming soon)</p>
+                    <div className="preview-info-section-title">Basic</div>
+                    {pmxSummaryRowsForDisplay.length > 0 ? (
+                      <div className="preview-info-list">
+                        {pmxSummaryRowsForDisplay.map((row) => (
+                          <div key={`pmx-basic-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{row.label}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span className="preview-info-value">{row.value}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>Info is not available.</p>
+                    )}
+                    <div className="preview-info-section-title">License</div>
+                    {pmxLicenseRowsForDisplay.length > 0 ? (
+                      <div className="preview-info-list">
+                        {pmxLicenseRowsForDisplay.map((row) => (
+                          <div key={`pmx-license-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{row.label}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span className="preview-info-value">{row.value}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>License info is not available.</p>
+                    )}
                   </div>
                 </section>
               )}
