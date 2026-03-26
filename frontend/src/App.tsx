@@ -504,6 +504,58 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
   return { summaryRows, licenseRows };
 }
 
+function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
+  const lines: string[] = [];
+
+  if (infoData.summaryRows.length > 0) {
+    lines.push(locale === "ja" ? "=== 基本情報 ===" : "=== Basic Information ===");
+    infoData.summaryRows.forEach((row) => {
+      const localizedLabel = localizeMetadataLabel(row.label, locale);
+      lines.push(`${localizedLabel}: ${row.value}`);
+    });
+    lines.push("");
+  }
+
+  if (infoData.licenseRows.length > 0) {
+    lines.push(locale === "ja" ? "=== ライセンス情報 ===" : "=== License Information ===");
+    infoData.licenseRows.forEach((row) => {
+      const localizedLabel = localizeMetadataLabel(row.label, locale);
+      const localizedValue = localizeAllowDisallow(row.value, locale).text;
+      lines.push(`${localizedLabel}: ${localizedValue}`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+async function addLicenseToZip(
+  zipBlob: Blob,
+  licenseText: string,
+): Promise<Blob> {
+  const zipReader = new ZipReader(new BlobReader(zipBlob));
+  const entries = await zipReader.getEntries();
+
+  const zipWriter = new BlobWriter("application/zip");
+  const writer = new ZipWriter(zipWriter);
+
+  for (const entry of entries) {
+    if (entry.filename !== "license.txt") {
+      if (entry.getData) {
+        const data = await entry.getData(new BlobWriter());
+        await writer.add(entry.filename, new BlobReader(data), {
+          lastModDate: entry.lastModDate,
+          comment: entry.comment,
+        });
+      }
+    }
+  }
+
+  await writer.add("license.txt", new BlobReader(new Blob([licenseText], { type: "text/plain" })));
+  await zipReader.close();
+  const newZipBlob = await writer.close();
+  return newZipBlob;
+}
+
 function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
   const geometry = mesh.geometry as THREE.BufferGeometry & { userData?: unknown };
   const mmd = asRecord(asRecord(geometry.userData).MMD);
@@ -1420,8 +1472,14 @@ export default function App() {
         signal: abortControllerRef.current.signal,
       });
 
+      let outputBlob = result.blob;
+      if (result.fileExtension === "zip") {
+        const licenseText = generateLicenseText(vrmInfoData, appLocale);
+        outputBlob = await addLicenseToZip(result.blob, licenseText);
+      }
+
       const nextOutput: ConvertedOutput = {
-        blob: result.blob,
+        blob: outputBlob,
         fileExtension: result.fileExtension,
       };
       const conversionReportId = createConversionReportId();
@@ -1431,7 +1489,7 @@ export default function App() {
       setLastConversionReportId(conversionReportId);
 
       if (result.fileExtension === "zip") {
-        await previewPmxFromZip(result.blob, orbitSyncEnabled);
+        await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
         throw new Error("Current preview supports ZIP output with PMX resources.");
       }
