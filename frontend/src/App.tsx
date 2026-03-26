@@ -4,6 +4,7 @@ import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { IoCopyOutline } from "react-icons/io5";
+import Swal from "sweetalert2";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -122,6 +123,9 @@ type AppI18n = {
   installUnsupportedHint: string;
   installDialogTitle: string;
   installDialogDescription: string;
+  restrictedRedistributionModificationConfirm: string;
+  restrictedRedistributionModificationCancel: string;
+  restrictedRedistributionModificationProceed: string;
 };
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
@@ -152,6 +156,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
     installDialogTitle: "アプリをインストール",
     installDialogDescription: "デスクトップやホーム画面からすぐ起動できます。",
+    restrictedRedistributionModificationConfirm:
+      "このモデルは、改変または、再配布が禁止されています。変換する場合は、個人の責任において実行してください",
+    restrictedRedistributionModificationCancel: "キャンセル",
+    restrictedRedistributionModificationProceed: "続行",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -180,6 +188,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     installUnsupportedHint: "Use your browser menu and choose \"Add to Home Screen\".",
     installDialogTitle: "Install App",
     installDialogDescription: "Launch quickly from your home screen.",
+    restrictedRedistributionModificationConfirm:
+      "This model prohibits modification or redistribution. If you proceed with conversion, please do so at your own responsibility.",
+    restrictedRedistributionModificationCancel: "Cancel",
+    restrictedRedistributionModificationProceed: "Proceed",
   },
 };
 
@@ -524,6 +536,26 @@ function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
   return { summaryRows, licenseRows };
 }
 
+function isRedistributionOrModificationNG(infoData: VrmInfoData): boolean {
+  for (const row of infoData.licenseRows) {
+    const label = row.label.toLowerCase();
+    const value = row.value.toLowerCase();
+    if (
+      (label.includes("redistribution") || label.includes("allow redistribution")) &&
+      (value === "ng" || value === "disallow" || value === "prohibited" || value === "=再配布禁止=" || value.includes("prohibited"))
+    ) {
+      return true;
+    }
+    if (
+      (label.includes("modification") || label === "改変の許可") &&
+      (value === "ng" || value === "disallow" || value === "prohibited" || value === "改変禁止" || value.includes("prohibited"))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean {
   if (!texture) {
     return false;
@@ -620,6 +652,7 @@ export default function App() {
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
   const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({ summaryRows: [], licenseRows: [] });
+  const [isVrmRedistributionOrModificationNG, setIsVrmRedistributionOrModificationNG] = useState(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -821,6 +854,7 @@ export default function App() {
     setIsVrmReady(false);
     setVrmInfoData({ summaryRows: [], licenseRows: [] });
     setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsVrmRedistributionOrModificationNG(false);
     setIsVrmMetadataOpen(false);
     setIsPmxMetadataOpen(false);
     setMessage("VRM file is not selected yet.");
@@ -1332,6 +1366,24 @@ export default function App() {
       }
     }
 
+    if (isVrmRedistributionOrModificationNG) {
+      const result = await Swal.fire({
+        title: "Confirm",
+        html: i18n.restrictedRedistributionModificationConfirm,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: i18n.restrictedRedistributionModificationProceed,
+        cancelButtonText: i18n.restrictedRedistributionModificationCancel,
+        reverseButtons: true,
+      });
+
+      if (!result.isConfirmed) {
+        setErrorDetail("");
+        setMessage("Conversion cancelled due to redistribution/modification restrictions.");
+        return;
+      }
+    }
+
     setStatus("uploading");
     setErrorDetail("");
     setConvertedOutput(null);
@@ -1679,6 +1731,7 @@ export default function App() {
     setIsPreviewing(true);
     setIsVrmReady(false);
     setVrmInfoData({ summaryRows: [], licenseRows: [] });
+    setIsVrmRedistributionOrModificationNG(false);
     setErrorDetail("");
     setMessage("Loading VRM preview...");
     cleanupPreview();
@@ -1750,7 +1803,9 @@ export default function App() {
       loader.register((parser: GLTFParser) => new VRMLoaderPlugin(parser));
       const arrayBuffer = await targetFile.arrayBuffer();
       const gltf = await loader.parseAsync(arrayBuffer, "");
-      setVrmInfoData(extractVrmInfoData(gltf));
+      const infoData = extractVrmInfoData(gltf);
+      setVrmInfoData(infoData);
+      setIsVrmRedistributionOrModificationNG(isRedistributionOrModificationNG(infoData));
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
 
       if (!vrm) {
@@ -2052,7 +2107,7 @@ export default function App() {
               )}
               <button
                 type="button"
-                className="metadata-info-button"
+                className={`metadata-info-button${isVrmRedistributionOrModificationNG ? " metadata-info-button-alert" : ""}`}
                 aria-label="Show VRM metadata"
                 onClick={() => onOpenMetadata("vrm")}
                 disabled={!canOpenVrmMetadata}
