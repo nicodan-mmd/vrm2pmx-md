@@ -773,6 +773,21 @@ export default function App() {
     brightMaterialRatio: number;
   } | null>(null);
   const orbitSyncLockRef = useRef(false);
+  const idleAnimationRef = useRef<{
+    vrmState: {
+      isRotating: boolean;
+      rotationDirection: 1 | -1;
+      inactivityTimeoutId: ReturnType<typeof setTimeout> | null;
+    };
+    pmxState: {
+      isRotating: boolean;
+      rotationDirection: 1 | -1;
+      inactivityTimeoutId: ReturnType<typeof setTimeout> | null;
+    };
+  }>({
+    vrmState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
+    pmxState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
+  });
   const upperArmStateRef = useRef<UpperArmState>({
     leftBone: null,
     rightBone: null,
@@ -963,6 +978,11 @@ export default function App() {
     pmxPreviewCleanupRef.current = null;
     pmxViewRef.current = null;
     pmxLightRuntimeRef.current = null;
+    idleAnimationRef.current.pmxState.isRotating = false;
+    if (idleAnimationRef.current.pmxState.inactivityTimeoutId) {
+      clearTimeout(idleAnimationRef.current.pmxState.inactivityTimeoutId);
+      idleAnimationRef.current.pmxState.inactivityTimeoutId = null;
+    }
 
     const canvas = pmxCanvasRef.current;
     if (!canvas) {
@@ -1045,6 +1065,52 @@ export default function App() {
     } finally {
       orbitSyncLockRef.current = false;
     }
+  }
+
+  function createIdleRotationManager(
+    viewRef: React.MutableRefObject<{
+      camera: THREE.PerspectiveCamera;
+      controls: OrbitControls;
+      baseDistance: number;
+      anchorTarget: THREE.Vector3;
+    } | null>,
+    stateKey: "vrmState" | "pmxState",
+  ) {
+    return {
+      resetInactivityTimer: () => {
+        const state = idleAnimationRef.current[stateKey];
+        if (state.inactivityTimeoutId) {
+          clearTimeout(state.inactivityTimeoutId);
+        }
+        state.isRotating = false;
+        state.inactivityTimeoutId = setTimeout(() => {
+          if (viewRef.current) {
+            state.isRotating = true;
+            state.rotationDirection = Math.random() < 0.5 ? 1 : -1;
+          }
+        }, 20000);
+      },
+      stopRotation: () => {
+        const state = idleAnimationRef.current[stateKey];
+        if (state.inactivityTimeoutId) {
+          clearTimeout(state.inactivityTimeoutId);
+          state.inactivityTimeoutId = null;
+        }
+        state.isRotating = false;
+      },
+      updateRotation: (deltaTime: number) => {
+        const state = idleAnimationRef.current[stateKey];
+        if (!state.isRotating || !viewRef.current) {
+          return;
+        }
+        const view = viewRef.current;
+        const rotationSpeed = 0.3 * (state.rotationDirection === 1 ? 1 : -1);
+        const angle = THREE.MathUtils.degToRad(rotationSpeed * deltaTime);
+        const targetToCamera = view.camera.position.clone().sub(view.controls.target);
+        targetToCamera.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+        view.camera.position.copy(view.controls.target).add(targetToCamera);
+      },
+    };
   }
 
   async function previewPmxFromZip(zipBlob: Blob, syncOrbitFromVrm = false): Promise<void> {
@@ -1199,6 +1265,7 @@ export default function App() {
 
     pmxPreviewCleanupRef.current = disposePreview;
 
+    let pmxIdleManager: ReturnType<typeof createIdleRotationManager> | null = null;
     try {
       scene.background = new THREE.Color("#dde8f5");
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1526,15 +1593,27 @@ export default function App() {
         baseDistance: camera.position.distanceTo(controls.target),
         anchorTarget: controls.target.clone(),
       };
+      pmxIdleManager = createIdleRotationManager(pmxViewRef, "pmxState");
       controls.addEventListener("change", onPmxOrbitChanged);
+      controls.addEventListener("change", () => pmxIdleManager!.resetInactivityTimer());
+      canvas.addEventListener("click", () => {
+        pmxIdleManager!.resetInactivityTimer();
+      });
+      pmxIdleManager.resetInactivityTimer();
 
       if (syncOrbitFromVrm) {
         syncOrbitBetweenViews("vrm", true);
       }
 
+      let lastFrameTime = performance.now();
       const renderLoop = () => {
         frameId = window.requestAnimationFrame(renderLoop);
+        const now = performance.now();
+        const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.1);
+        lastFrameTime = now;
+
         controls.update();
+        pmxIdleManager!.updateRotation(deltaTime);
         try {
           renderer.render(scene, camera);
         } catch (error) {
@@ -1550,6 +1629,7 @@ export default function App() {
     } catch (error) {
       disposePreview();
       pmxPreviewCleanupRef.current = null;
+      pmxIdleManager?.stopRotation();
       throw error;
     }
   }
@@ -1821,6 +1901,11 @@ export default function App() {
     previewCleanupRef.current?.();
     previewCleanupRef.current = null;
     vrmViewRef.current = null;
+    idleAnimationRef.current.vrmState.isRotating = false;
+    if (idleAnimationRef.current.vrmState.inactivityTimeoutId) {
+      clearTimeout(idleAnimationRef.current.vrmState.inactivityTimeoutId);
+      idleAnimationRef.current.vrmState.inactivityTimeoutId = null;
+    }
     upperArmStateRef.current = {
       leftBone: null,
       rightBone: null,
@@ -2090,7 +2175,13 @@ export default function App() {
         baseDistance: camera.position.distanceTo(controls.target),
         anchorTarget: controls.target.clone(),
       };
+      const vrmIdleManager = createIdleRotationManager(vrmViewRef, "vrmState");
       controls.addEventListener("change", onVrmOrbitChanged);
+      controls.addEventListener("change", () => vrmIdleManager.resetInactivityTimer());
+      canvas.addEventListener("click", () => {
+        vrmIdleManager.resetInactivityTimer();
+      });
+      vrmIdleManager.resetInactivityTimer();
 
       const renderLoop = () => {
         frameId = window.requestAnimationFrame(renderLoop);
@@ -2098,6 +2189,7 @@ export default function App() {
         const delta = Math.min(timer.getDelta(), 1 / 30);
         vrm?.update(delta);
         controls.update();
+        vrmIdleManager.updateRotation(delta * 1000);
         renderer.render(scene, camera);
       };
 
