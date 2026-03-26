@@ -114,6 +114,8 @@ type AppI18n = {
   fallbackReportSubmittedMessage: string;
   qualityReportButton: string;
   qualityReportConfirm: string;
+  qualityReportDialogSend: string;
+  qualityReportDialogCancel: string;
   qualityReportSubmittedMessage: string;
   qualityReportEnableHint: string;
   qualityAutoReportConfirm: (signals: string) => string;
@@ -147,6 +149,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     qualityReportButton: "品質崩れを報告",
     qualityReportConfirm:
       "変換は完了しましたが見た目が崩れているケースとして、匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。",
+    qualityReportDialogSend: "送信",
+    qualityReportDialogCancel: "キャンセル",
     qualityReportSubmittedMessage:
       "匿名レポートを送信しました。将来の変換品質改善につながる可能性があります。",
     qualityReportEnableHint:
@@ -183,6 +187,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     qualityReportButton: "Report quality issue",
     qualityReportConfirm:
       "Conversion completed, but visual quality looks wrong. Send an anonymous report for this case?\nIf sent, this case may be improved in a future release.",
+    qualityReportDialogSend: "Send",
+    qualityReportDialogCancel: "Cancel",
     qualityReportSubmittedMessage:
       "Anonymous report submitted. This case may be improved in a future release.",
     qualityReportEnableHint:
@@ -1647,7 +1653,7 @@ export default function App() {
     setMessage(`Downloaded: ${baseName}.${extension}`);
   }
 
-  function onReportQualityIssue() {
+  async function onReportQualityIssue() {
     if (status !== "done" || !convertedOutput) {
       return;
     }
@@ -1657,8 +1663,16 @@ export default function App() {
       return;
     }
 
-    const shouldSend = window.confirm(i18n.qualityReportConfirm);
-    if (!shouldSend) {
+    const result = await Swal.fire({
+      title: i18n.qualityReportButton,
+      html: i18n.qualityReportConfirm.replace(/\n/g, "<br>"),
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: i18n.qualityReportDialogSend,
+      cancelButtonText: i18n.qualityReportDialogCancel,
+      reverseButtons: true,
+    });
+    if (!result.isConfirmed) {
       return;
     }
 
