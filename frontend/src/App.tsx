@@ -1,8 +1,10 @@
 import * as Sentry from "@sentry/react";
-import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
+import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FaCircleInfo } from "react-icons/fa6";
 import { IoCopyOutline } from "react-icons/io5";
+import Swal from "sweetalert2";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -60,6 +62,22 @@ type PmxPreviewDiagnostics = {
   textureCoverage: number;
 };
 
+type InfoRow = {
+  label: string;
+  value: string;
+  isLink: boolean;
+};
+
+type VrmInfoData = {
+  summaryRows: InfoRow[];
+  licenseRows: InfoRow[];
+};
+
+type PmxInfoData = {
+  summaryRows: InfoRow[];
+  licenseRows: InfoRow[];
+};
+
 const DEBUG_PMX = false;
 const NON_QUALITY_RUNTIME_SIGNALS = new Set<string>([
   "three-clock-deprecated",
@@ -105,6 +123,9 @@ type AppI18n = {
   installUnsupportedHint: string;
   installDialogTitle: string;
   installDialogDescription: string;
+  restrictedRedistributionModificationConfirm: string;
+  restrictedRedistributionModificationCancel: string;
+  restrictedRedistributionModificationProceed: string;
 };
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
@@ -135,6 +156,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
     installDialogTitle: "アプリをインストール",
     installDialogDescription: "デスクトップやホーム画面からすぐ起動できます。",
+    restrictedRedistributionModificationConfirm:
+      "このモデルは、改変または、再配布が禁止されています。変換する場合は、個人の責任において実行してください",
+    restrictedRedistributionModificationCancel: "キャンセル",
+    restrictedRedistributionModificationProceed: "続行",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -163,6 +188,10 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     installUnsupportedHint: "Use your browser menu and choose \"Add to Home Screen\".",
     installDialogTitle: "Install App",
     installDialogDescription: "Launch quickly from your home screen.",
+    restrictedRedistributionModificationConfirm:
+      "This model prohibits modification or redistribution. If you proceed with conversion, please do so at your own responsibility.",
+    restrictedRedistributionModificationCancel: "Cancel",
+    restrictedRedistributionModificationProceed: "Proceed",
   },
 };
 
@@ -172,6 +201,105 @@ function detectAppLocale(language: string | undefined): AppLocale {
     return "ja";
   }
   return "en";
+}
+
+function localizeAllowDisallow(value: string, locale: AppLocale): { text: string; isNg: boolean } {
+  const normalized = value.trim().toLowerCase();
+  if (locale !== "ja") {
+    return {
+      text: value,
+      isNg:
+        normalized === "disallow" ||
+        normalized === "prohibited" ||
+        normalized.endsWith("_prohibited"),
+    };
+  }
+
+  const jaValueMap: Record<string, { text: string; isNg: boolean }> = {
+    allow: { text: "OK", isNg: false },
+    disallow: { text: "NG", isNg: true },
+    prohibited: { text: "NG", isNg: true },
+    true: { text: "OK", isNg: false },
+    false: { text: "NG", isNg: true },
+    allow_modification: { text: "OK", isNg: false },
+    allow_modification_redistribution: { text: "OK", isNg: false },
+    allowmodification: { text: "OK", isNg: false },
+    allowmodificationredistribution: { text: "OK", isNg: false },
+    redistribution_prohibited: { text: "再配布禁止", isNg: true },
+    modification_prohibited: { text: "改変禁止", isNg: true },
+    onlyauthor: { text: "アバター作者のみ", isNg: false },
+    explicitlylicensedperson: { text: "明示的に許可された人のみ", isNg: false },
+    everyone: { text: "誰でも", isNg: false },
+    personalnonprofit: { text: "個人・非営利", isNg: false },
+    personalprofit: { text: "個人・営利", isNg: false },
+    corporation: { text: "法人", isNg: false },
+    required: { text: "必要", isNg: false },
+    unnecessary: { text: "不要", isNg: false },
+  };
+
+  const mapped = jaValueMap[normalized];
+  if (mapped) {
+    return mapped;
+  }
+
+  if (normalized.endsWith("_prohibited")) {
+    return { text: "NG", isNg: true };
+  }
+
+  return { text: value, isNg: false };
+}
+
+function localizeMetadataLabel(label: string, locale: AppLocale): string {
+  if (locale !== "ja") {
+    return label;
+  }
+
+  if (label.startsWith("Reference URL ")) {
+    return label.replace("Reference URL ", "参照URL ");
+  }
+  if (label.startsWith("Reference ")) {
+    return label.replace("Reference ", "参照 ");
+  }
+
+  const jaLabelMap: Record<string, string> = {
+    Title: "タイトル",
+    Author: "作者",
+    Contact: "連絡先",
+    Reference: "参照",
+    Version: "バージョン",
+    Copyright: "コピーライト",
+    "Avatar Permission": "アバターに人格を与えることの許諾範囲",
+    "Commercial Usage": "商用利用の許可",
+    "Credit Notation": "クレジット表記",
+    Modification: "改変の許可",
+    "Allow Redistribution": "再配布の許可",
+    "Allow Violent Usage": "このアバターを用いて暴力表現を演じることの許可",
+    "Allow Sexual Usage": "このアバターを用いて性的表現を演じることの許可",
+    "Allow Political/Religious": "政治・宗教利用の許可",
+    "Allow Antisocial/Hate": "反社会・ヘイト利用の許可",
+    "License URL": "ライセンスURL",
+    "Other License URL": "その他ライセンスURL",
+    "Third Party Licenses": "第三者ライセンス",
+    "Allowed User": "アバターに人格を与えることの許諾範囲",
+    "Violent Usage": "このアバターを用いて暴力表現を演じることの許可",
+    "Sexual Usage": "このアバターを用いて性的表現を演じることの許可",
+    "License Name": "ライセンスタイプ",
+    "Other Permission URL": "その他許諾条件URL",
+    "Model Name": "モデル名",
+    "Model Name EN": "モデル名(英語)",
+    Comment: "コメント",
+    "Comment EN": "コメント(英語)",
+    Vertices: "頂点数",
+    Faces: "面数",
+    Materials: "マテリアル数",
+    Bones: "ボーン数",
+    Morphs: "モーフ数",
+    "Rigid Bodies": "剛体数",
+    Constraints: "ジョイント数",
+    License: "ライセンス",
+  };
+
+  return jaLabelMap[label] ?? label;
 }
 
 function getStageProgressPercent(stage: WorkerProgressStage): number {
@@ -224,6 +352,260 @@ function normalizeAssetPath(path: string): string {
     .replace(/\\/g, "/")
     .replace(/^\.\//, "")
     .replace(/^\/+/, "");
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function isLikelyUrl(value: string): boolean {
+  return /^https?:\/\//iu.test(value.trim());
+}
+
+function createInfoRow(label: string, value: string): InfoRow {
+  return {
+    label,
+    value,
+    isLink: isLikelyUrl(value),
+  };
+}
+
+function extractUrls(value: string): string[] {
+  const matches = value.match(/https?:\/\/[^\s)"'<>]+/giu);
+  if (!matches) {
+    return [];
+  }
+  return [...new Set(matches)];
+}
+
+function getUrlParamLikeValue(url: string, key: string): string {
+  if (!url || !key) {
+    return "";
+  }
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(?:^|[?&#\/&])${escapedKey}=([^&#]+)`, "i");
+  const match = url.match(pattern);
+  if (!match || !match[1]) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(match[1]).trim();
+  } catch {
+    return match[1].trim();
+  }
+}
+
+function pushInfoRow(rows: InfoRow[], label: string, value: unknown) {
+  const text = asString(value);
+  if (!text) {
+    return;
+  }
+  rows.push(createInfoRow(label, text));
+}
+
+function extractVrmInfoData(gltf: unknown): VrmInfoData {
+  const parserJson = asRecord((gltf as { parser?: { json?: unknown } })?.parser?.json);
+  const extensions = asRecord(parserJson.extensions);
+  const asset = asRecord(parserJson.asset);
+  const vrm1 = asRecord(extensions.VRMC_vrm);
+  const vrm0Meta = asRecord(asRecord(extensions.VRM).meta);
+  const vrm1Meta = asRecord(vrm1.meta);
+
+  const summaryRows: InfoRow[] = [];
+  const licenseRows: InfoRow[] = [];
+
+  if (Object.keys(vrm1Meta).length > 0) {
+    pushInfoRow(summaryRows, "Title", vrm1Meta.name);
+
+    const authors = asStringArray(vrm1Meta.authors);
+    if (authors.length > 0) {
+      summaryRows.push(createInfoRow("Author", authors.join(", ")));
+    }
+
+    pushInfoRow(summaryRows, "Version", vrm1Meta.version || vrm1.specVersion || asset.version);
+
+    pushInfoRow(summaryRows, "Contact", vrm1Meta.contactInformation);
+    pushInfoRow(summaryRows, "Copyright", vrm1Meta.copyrightInformation);
+
+    const references = asStringArray(vrm1Meta.references);
+    references.forEach((reference, index) => {
+      summaryRows.push(createInfoRow(`Reference ${index + 1}`, reference));
+    });
+
+    pushInfoRow(licenseRows, "Avatar Permission", vrm1Meta.avatarPermission);
+    pushInfoRow(licenseRows, "Commercial Usage", vrm1Meta.commercialUsage);
+    pushInfoRow(licenseRows, "Credit Notation", vrm1Meta.creditNotation);
+    pushInfoRow(licenseRows, "Modification", vrm1Meta.modification);
+    pushInfoRow(licenseRows, "Allow Redistribution", vrm1Meta.allowRedistribution);
+    pushInfoRow(licenseRows, "Allow Violent Usage", vrm1Meta.allowExcessivelyViolentUsage);
+    pushInfoRow(licenseRows, "Allow Sexual Usage", vrm1Meta.allowExcessivelySexualUsage);
+    pushInfoRow(licenseRows, "Allow Political/Religious", vrm1Meta.allowPoliticalOrReligiousUsage);
+    pushInfoRow(licenseRows, "Allow Antisocial/Hate", vrm1Meta.allowAntisocialOrHateUsage);
+    pushInfoRow(licenseRows, "License URL", vrm1Meta.licenseUrl);
+    pushInfoRow(licenseRows, "Other License URL", vrm1Meta.otherLicenseUrl);
+    pushInfoRow(licenseRows, "Third Party Licenses", vrm1Meta.thirdPartyLicenses);
+
+    return { summaryRows, licenseRows };
+  }
+
+  pushInfoRow(summaryRows, "Title", vrm0Meta.title);
+  pushInfoRow(summaryRows, "Author", vrm0Meta.author);
+  pushInfoRow(summaryRows, "Contact", vrm0Meta.contactInformation);
+  pushInfoRow(summaryRows, "Reference", vrm0Meta.reference);
+  pushInfoRow(summaryRows, "Version", vrm0Meta.version);
+
+  pushInfoRow(licenseRows, "Allowed User", vrm0Meta.allowedUserName);
+  pushInfoRow(licenseRows, "Violent Usage", vrm0Meta.violentUssageName);
+  pushInfoRow(licenseRows, "Sexual Usage", vrm0Meta.sexualUssageName);
+  pushInfoRow(licenseRows, "Commercial Usage", vrm0Meta.commercialUssageName);
+
+  const otherPermissionUrl = asString(vrm0Meta.otherPermissionUrl);
+  const otherLicenseUrl = asString(vrm0Meta.otherLicenseUrl);
+  const permissionSourceUrl = otherPermissionUrl || otherLicenseUrl;
+  const redistributionFromUrl =
+    getUrlParamLikeValue(permissionSourceUrl, "redistribution") ||
+    getUrlParamLikeValue(permissionSourceUrl, "allowRedistribution");
+  const modificationFromUrl =
+    getUrlParamLikeValue(permissionSourceUrl, "modification") ||
+    getUrlParamLikeValue(permissionSourceUrl, "allowModification");
+
+  pushInfoRow(licenseRows, "Allow Redistribution", redistributionFromUrl);
+  pushInfoRow(licenseRows, "Modification", modificationFromUrl);
+
+  const licenseNameText = asString(vrm0Meta.licenseName);
+  const licenseNameNormalized = licenseNameText.toLowerCase();
+  if (!redistributionFromUrl && licenseNameNormalized.includes("redistribution_prohibited")) {
+    pushInfoRow(licenseRows, "Allow Redistribution", "redistribution_prohibited");
+  }
+  if (!modificationFromUrl && licenseNameNormalized.includes("modification_prohibited")) {
+    pushInfoRow(licenseRows, "Modification", "modification_prohibited");
+  }
+
+  pushInfoRow(licenseRows, "License Name", vrm0Meta.licenseName);
+  pushInfoRow(licenseRows, "Other Permission URL", vrm0Meta.otherPermissionUrl);
+  pushInfoRow(licenseRows, "Other License URL", vrm0Meta.otherLicenseUrl);
+
+  return { summaryRows, licenseRows };
+}
+
+function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
+  const lines: string[] = [];
+
+  if (infoData.summaryRows.length > 0) {
+    lines.push(locale === "ja" ? "=== 基本情報 ===" : "=== Basic Information ===");
+    infoData.summaryRows.forEach((row) => {
+      const localizedLabel = localizeMetadataLabel(row.label, locale);
+      lines.push(`${localizedLabel}: ${row.value}`);
+    });
+    lines.push("");
+  }
+
+  if (infoData.licenseRows.length > 0) {
+    lines.push(locale === "ja" ? "=== ライセンス情報 ===" : "=== License Information ===");
+    infoData.licenseRows.forEach((row) => {
+      const localizedLabel = localizeMetadataLabel(row.label, locale);
+      const localizedValue = localizeAllowDisallow(row.value, locale).text;
+      lines.push(`${localizedLabel}: ${localizedValue}`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+async function addLicenseToZip(
+  zipBlob: Blob,
+  licenseText: string,
+): Promise<Blob> {
+  const zipReader = new ZipReader(new BlobReader(zipBlob));
+  const entries = await zipReader.getEntries();
+
+  const zipWriter = new BlobWriter("application/zip");
+  const writer = new ZipWriter(zipWriter);
+
+  for (const entry of entries) {
+    if (entry.filename !== "license.txt") {
+      if (entry.getData) {
+        const data = await entry.getData(new BlobWriter());
+        await writer.add(entry.filename, new BlobReader(data), {
+          lastModDate: entry.lastModDate,
+          comment: entry.comment,
+        });
+      }
+    }
+  }
+
+  await writer.add("license.txt", new BlobReader(new Blob([licenseText], { type: "text/plain" })));
+  await zipReader.close();
+  const newZipBlob = await writer.close();
+  return newZipBlob;
+}
+
+function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
+  const geometry = mesh.geometry as THREE.BufferGeometry & { userData?: unknown };
+  const mmd = asRecord(asRecord(geometry.userData).MMD);
+  const metadata = asRecord(mmd.metadata);
+
+  const summaryRows: InfoRow[] = [];
+  const licenseRows: InfoRow[] = [];
+
+  pushInfoRow(summaryRows, "Model Name", metadata.modelName || metadata.name || mesh.name);
+  pushInfoRow(summaryRows, "Model Name EN", metadata.englishModelName);
+  pushInfoRow(summaryRows, "Comment", metadata.comment);
+  pushInfoRow(summaryRows, "Comment EN", metadata.englishComment);
+  pushInfoRow(summaryRows, "Vertices", metadata.vertexCount);
+  pushInfoRow(summaryRows, "Faces", metadata.faceCount);
+  pushInfoRow(summaryRows, "Materials", metadata.materialCount);
+  pushInfoRow(summaryRows, "Bones", metadata.boneCount);
+  pushInfoRow(summaryRows, "Morphs", metadata.morphCount);
+  pushInfoRow(summaryRows, "Rigid Bodies", metadata.rigidBodyCount);
+  pushInfoRow(summaryRows, "Constraints", metadata.constraintCount);
+
+  pushInfoRow(licenseRows, "License", metadata.licenseName);
+  pushInfoRow(licenseRows, "Copyright", metadata.copyright);
+
+  const commentUrls = [asString(metadata.comment), asString(metadata.englishComment)]
+    .flatMap((comment) => extractUrls(comment));
+  commentUrls.forEach((url, index) => {
+    licenseRows.push(createInfoRow(`Reference URL ${index + 1}`, url));
+  });
+
+  return { summaryRows, licenseRows };
+}
+
+function isRedistributionOrModificationNG(infoData: VrmInfoData): boolean {
+  for (const row of infoData.licenseRows) {
+    const label = row.label.toLowerCase();
+    const value = row.value.toLowerCase();
+    if (
+      (label.includes("redistribution") || label.includes("allow redistribution")) &&
+      (value === "ng" || value === "disallow" || value === "prohibited" || value === "=再配布禁止=" || value.includes("prohibited"))
+    ) {
+      return true;
+    }
+    if (
+      (label.includes("modification") || label === "改変の許可") &&
+      (value === "ng" || value === "disallow" || value === "prohibited" || value === "改変禁止" || value.includes("prohibited"))
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean {
@@ -318,6 +700,11 @@ export default function App() {
   const logLinesRef = useRef<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
+  const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
+  const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
+  const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({ summaryRows: [], licenseRows: [] });
+  const [isVrmRedistributionOrModificationNG, setIsVrmRedistributionOrModificationNG] = useState(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -383,6 +770,22 @@ export default function App() {
   const canDownload = useMemo(
     () => !!convertedOutput && status !== "uploading",
     [convertedOutput, status],
+  );
+  const canOpenVrmMetadata = useMemo(
+    () => isVrmReady && !isPreviewing,
+    [isPreviewing, isVrmReady],
+  );
+  const canOpenPmxMetadata = useMemo(
+    () => !!convertedOutput && status !== "uploading",
+    [convertedOutput, status],
+  );
+  const pmxSummaryRowsForDisplay = useMemo(
+    () => (pmxInfoData.summaryRows.length > 0 ? pmxInfoData.summaryRows : vrmInfoData.summaryRows),
+    [pmxInfoData.summaryRows, vrmInfoData.summaryRows],
+  );
+  const pmxLicenseRowsForDisplay = useMemo(
+    () => (pmxInfoData.licenseRows.length > 0 ? pmxInfoData.licenseRows : vrmInfoData.licenseRows),
+    [pmxInfoData.licenseRows, vrmInfoData.licenseRows],
   );
   const logText = useMemo(() => logLines.join("\n"), [logLines]);
 
@@ -501,6 +904,11 @@ export default function App() {
     setConvertProgressStage(null);
     setFile(null);
     setIsVrmReady(false);
+    setVrmInfoData({ summaryRows: [], licenseRows: [] });
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsVrmRedistributionOrModificationNG(false);
+    setIsVrmMetadataOpen(false);
+    setIsPmxMetadataOpen(false);
     setMessage("VRM file is not selected yet.");
     setIsVrmDropActive(false);
 
@@ -621,6 +1029,7 @@ export default function App() {
     }
 
     cleanupPmxPreview();
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
 
     const canvas = pmxCanvasRef.current;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -772,6 +1181,7 @@ export default function App() {
         console.warn = originalConsoleWarn;
       }
       loadedMesh = mesh;
+      setPmxInfoData(extractPmxInfoData(mesh));
 
       // MMDLoader does not tag color textures as sRGB, causing double-gamma and
       // washed-out colors in Three.js r152+ (SRGBColorSpace output default).
@@ -1008,6 +1418,24 @@ export default function App() {
       }
     }
 
+    if (isVrmRedistributionOrModificationNG) {
+      const result = await Swal.fire({
+        title: "Confirm",
+        html: i18n.restrictedRedistributionModificationConfirm,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: i18n.restrictedRedistributionModificationProceed,
+        cancelButtonText: i18n.restrictedRedistributionModificationCancel,
+        reverseButtons: true,
+      });
+
+      if (!result.isConfirmed) {
+        setErrorDetail("");
+        setMessage("Conversion cancelled due to redistribution/modification restrictions.");
+        return;
+      }
+    }
+
     setStatus("uploading");
     setErrorDetail("");
     setConvertedOutput(null);
@@ -1044,8 +1472,14 @@ export default function App() {
         signal: abortControllerRef.current.signal,
       });
 
+      let outputBlob = result.blob;
+      if (result.fileExtension === "zip") {
+        const licenseText = generateLicenseText(vrmInfoData, appLocale);
+        outputBlob = await addLicenseToZip(result.blob, licenseText);
+      }
+
       const nextOutput: ConvertedOutput = {
-        blob: result.blob,
+        blob: outputBlob,
         fileExtension: result.fileExtension,
       };
       const conversionReportId = createConversionReportId();
@@ -1055,7 +1489,7 @@ export default function App() {
       setLastConversionReportId(conversionReportId);
 
       if (result.fileExtension === "zip") {
-        await previewPmxFromZip(result.blob, orbitSyncEnabled);
+        await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
         throw new Error("Current preview supports ZIP output with PMX resources.");
       }
@@ -1212,6 +1646,15 @@ export default function App() {
     setDetectedQualityRiskSignals([]);
   }
 
+  function onOpenMetadata(target: "vrm" | "pmx") {
+    if (target === "vrm") {
+      setIsVrmMetadataOpen((prev) => !prev);
+      return;
+    }
+
+    setIsPmxMetadataOpen((prev) => !prev);
+  }
+
   function onCancel() {
     abortControllerRef.current?.abort();
   }
@@ -1305,6 +1748,31 @@ export default function App() {
   }, [copyStatus]);
 
   useEffect(() => {
+    if (!isVrmMetadataOpen && !isPmxMetadataOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+
+      if (target.closest(".preview-metadata-popup") || target.closest(".metadata-info-button")) {
+        return;
+      }
+
+      setIsVrmMetadataOpen(false);
+      setIsPmxMetadataOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [isPmxMetadataOpen, isVrmMetadataOpen]);
+
+  useEffect(() => {
     return () => {
       cleanupPreview();
       cleanupPmxPreview();
@@ -1320,6 +1788,8 @@ export default function App() {
 
     setIsPreviewing(true);
     setIsVrmReady(false);
+    setVrmInfoData({ summaryRows: [], licenseRows: [] });
+    setIsVrmRedistributionOrModificationNG(false);
     setErrorDetail("");
     setMessage("Loading VRM preview...");
     cleanupPreview();
@@ -1391,6 +1861,9 @@ export default function App() {
       loader.register((parser: GLTFParser) => new VRMLoaderPlugin(parser));
       const arrayBuffer = await targetFile.arrayBuffer();
       const gltf = await loader.parseAsync(arrayBuffer, "");
+      const infoData = extractVrmInfoData(gltf);
+      setVrmInfoData(infoData);
+      setIsVrmRedistributionOrModificationNG(isRedistributionOrModificationNG(infoData));
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
 
       if (!vrm) {
@@ -1488,6 +1961,8 @@ export default function App() {
     if (!file) return;
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsPmxMetadataOpen(false);
     setLogLines([]);
     setCopyStatus("idle");
     setErrorDetail("");
@@ -1515,6 +1990,8 @@ export default function App() {
   function applySelectedVrmFile(selected: File | null) {
     cleanupPmxPreview();
     setConvertedOutput(null);
+    setPmxInfoData({ summaryRows: [], licenseRows: [] });
+    setIsPmxMetadataOpen(false);
     setDetectedProfileResult(null);
     setLogLines([]);
     setCopyStatus("idle");
@@ -1608,11 +2085,93 @@ export default function App() {
                 className="preview-canvas"
                 aria-label="VRM preview canvas"
               />
+              {isVrmMetadataOpen && (
+                <section className="preview-metadata-popup" aria-label="VRM metadata popup">
+                  <header className="preview-metadata-popup-header">
+                    <strong>VRM Info</strong>
+                    <button
+                      type="button"
+                      className="preview-metadata-close"
+                      aria-label="Close VRM metadata popup"
+                      onClick={() => setIsVrmMetadataOpen(false)}
+                    >
+                      x
+                    </button>
+                  </header>
+                  <div className="preview-metadata-popup-body">
+                    <div className="preview-info-section-title">Basic</div>
+                    {vrmInfoData.summaryRows.length > 0 ? (
+                      <div className="preview-info-list">
+                        {vrmInfoData.summaryRows.map((row) => (
+                          <div key={`basic-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>Info is not available.</p>
+                    )}
+                    <div className="preview-info-section-title">License</div>
+                    {vrmInfoData.licenseRows.length > 0 ? (
+                      <div className="preview-info-list">
+                        {vrmInfoData.licenseRows.map((row) => (
+                          <div key={`license-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>License info is not available.</p>
+                    )}
+                  </div>
+                </section>
+              )}
               {!isVrmReady && !isPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
                   <div>Drop VRM file here</div>
                 </div>
               )}
+              <button
+                type="button"
+                className={`metadata-info-button${isVrmRedistributionOrModificationNG ? " metadata-info-button-alert" : ""}`}
+                aria-label="Show VRM metadata"
+                onClick={() => onOpenMetadata("vrm")}
+                disabled={!canOpenVrmMetadata}
+              >
+                <FaCircleInfo />
+              </button>
             </div>
           </figure>
           <figure className="preview-panel">
@@ -1622,11 +2181,95 @@ export default function App() {
                 MikuMikuDance
               </a>
             </figcaption>
-            <canvas
-              ref={pmxCanvasRef}
-              className="preview-canvas"
-              aria-label="PMX preview canvas"
-            />
+            <div className="preview-canvas-wrap">
+              <canvas
+                ref={pmxCanvasRef}
+                className="preview-canvas"
+                aria-label="PMX preview canvas"
+              />
+              {isPmxMetadataOpen && (
+                <section className="preview-metadata-popup" aria-label="PMX metadata popup">
+                  <header className="preview-metadata-popup-header">
+                    <strong>PMX Info</strong>
+                    <button
+                      type="button"
+                      className="preview-metadata-close"
+                      aria-label="Close PMX metadata popup"
+                      onClick={() => setIsPmxMetadataOpen(false)}
+                    >
+                      x
+                    </button>
+                  </header>
+                  <div className="preview-metadata-popup-body">
+                    <div className="preview-info-section-title">Basic</div>
+                    {pmxSummaryRowsForDisplay.length > 0 ? (
+                      <div className="preview-info-list">
+                        {pmxSummaryRowsForDisplay.map((row) => (
+                          <div key={`pmx-basic-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>Info is not available.</p>
+                    )}
+                    <div className="preview-info-section-title">License</div>
+                    {pmxLicenseRowsForDisplay.length > 0 ? (
+                      <div className="preview-info-list">
+                        {pmxLicenseRowsForDisplay.map((row) => (
+                          <div key={`pmx-license-${row.label}-${row.value}`} className="preview-info-row">
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                            {row.isLink ? (
+                              <a
+                                href={row.value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="preview-info-link"
+                              >
+                                {row.value}
+                              </a>
+                            ) : (
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>License info is not available.</p>
+                    )}
+                  </div>
+                </section>
+              )}
+              <button
+                type="button"
+                className="metadata-info-button"
+                aria-label="Show PMX metadata"
+                onClick={() => onOpenMetadata("pmx")}
+                disabled={!canOpenPmxMetadata}
+              >
+                <FaCircleInfo />
+              </button>
+            </div>
             {/* 明るさデバッグ用（必要時にコメント解除）
             <div className="pmx-preview-adjustments" aria-label="PMX preview tuning">
               <div className="pmx-preview-adjustment-row">

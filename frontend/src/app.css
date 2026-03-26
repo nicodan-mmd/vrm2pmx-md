@@ -149,6 +149,137 @@ h2 {
   position: relative;
 }
 
+.metadata-info-button {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: #5d7188;
+  z-index: 2;
+}
+
+.metadata-info-button svg {
+  font-size: 1.16rem;
+}
+
+.metadata-info-button-alert {
+  color: #cc6666;
+}
+
+.metadata-info-button:disabled {
+  background: transparent;
+  color: #a5afba;
+  opacity: 1;
+}
+
+.preview-metadata-popup {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  transform: none;
+  width: min(90%, 340px);
+  max-height: calc(100% - 24px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #c3d3e7;
+  background: #f8fbffea;
+  box-shadow: 0 8px 20px #1f2a3728;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-metadata-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #2f3f56;
+  font-size: 0.86rem;
+}
+
+.preview-metadata-popup p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5a708a;
+}
+
+.preview-metadata-popup-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.preview-info-section-title {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #48637f;
+  letter-spacing: 0.02em;
+}
+
+.preview-info-list {
+  display: grid;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-info-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border-top: 1px solid #e6edf6;
+}
+
+.preview-info-row:first-child {
+  border-top: none;
+}
+
+.preview-info-label {
+  font-size: 0.74rem;
+  color: #647d96;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.preview-info-value,
+.preview-info-link {
+  font-size: 0.75rem;
+  color: #2f3f56;
+  word-break: break-all;
+}
+
+.preview-info-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.preview-info-value-negative {
+  color: #cc2f2f;
+  font-weight: 700;
+}
+
+.preview-metadata-close {
+  border: none;
+  background: transparent;
+  color: #6f8094;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+}
+
 .pmx-preview-adjustments {
   display: grid;
   gap: 6px;
