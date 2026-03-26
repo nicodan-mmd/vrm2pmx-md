@@ -539,15 +539,22 @@ async function addLicenseToZip(
   const writer = new ZipWriter(zipWriter);
 
   for (const entry of entries) {
-    if (entry.filename !== "license.txt") {
-      if (entry.getData) {
-        const data = await entry.getData(new BlobWriter());
-        await writer.add(entry.filename, new BlobReader(data), {
-          lastModDate: entry.lastModDate,
-          comment: entry.comment,
-        });
-      }
+    const current = entry as unknown as {
+      filename?: string;
+      directory?: boolean;
+      getData?: (writer: BlobWriter) => Promise<Blob>;
+      lastModDate?: Date;
+      comment?: string;
+    };
+    if (current.directory || !current.filename || current.filename === "license.txt" || !current.getData) {
+      continue;
     }
+
+    const data = await current.getData(new BlobWriter());
+    await writer.add(current.filename, new BlobReader(data), {
+      lastModDate: current.lastModDate,
+      comment: current.comment,
+    });
   }
 
   await writer.add("license.txt", new BlobReader(new Blob([licenseText], { type: "text/plain" })));
