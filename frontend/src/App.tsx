@@ -32,7 +32,6 @@ import {
   type ProfileDetectionResult,
 } from "./features/convert/services/profileDetection";
 import { useUiSettings, PMX_LIGHT_DEFAULT_INTENSITY_SCALE, PMX_LIGHT_DEFAULT_CONTRAST_FACTOR } from "./features/settings/hooks/useUiSettings";
-import { useErrorReportingConsent } from "./features/settings/hooks/useErrorReportingConsent";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -823,13 +822,6 @@ export default function App() {
     isUiSettingsHydrated,
     resetToDefaults,
   } = useUiSettings();
-  const {
-    isErrorReportingEnabled,
-    isErrorReportingPromptOpen,
-    setIsErrorReportingPromptOpen,
-    persistErrorReportingConsent,
-    resetConsent,
-  } = useErrorReportingConsent();
   const vrmGridRef = useRef<THREE.GridHelper | null>(null);
   const pmxGridRef = useRef<THREE.GridHelper | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
@@ -1077,7 +1069,6 @@ export default function App() {
     setIsVrmDropActive(false);
 
     resetToDefaults();
-    resetConsent();
 
     if (vrmInputRef.current) {
       vrmInputRef.current.value = "";
@@ -1921,19 +1912,17 @@ export default function App() {
           detail: rawDetail,
           error,
         });
-        if (isErrorReportingEnabled) {
-          Sentry.withScope((scope) => {
-            scope.setTag("mode", mode);
-            scope.setTag("event_type", "error");
-            scope.setContext("convert", {
-              status: "failed",
-              backendEnabled,
-            });
-            Sentry.captureException(
-              error instanceof Error ? error : new Error(rawDetail),
-            );
+        Sentry.withScope((scope) => {
+          scope.setTag("mode", mode);
+          scope.setTag("event_type", "error");
+          scope.setContext("convert", {
+            status: "failed",
+            backendEnabled,
           });
-        }
+          Sentry.captureException(
+            error instanceof Error ? error : new Error(rawDetail),
+          );
+        });
 
         setStatus("error");
         idleAnimationRef.current.isConverting = false;
@@ -1980,11 +1969,6 @@ export default function App() {
 
   async function onReportQualityIssue() {
     if (status !== "done" || !convertedOutput) {
-      return;
-    }
-
-    if (!isErrorReportingEnabled) {
-      setMessage(i18n.qualityReportEnableHint);
       return;
     }
 
@@ -2938,15 +2922,6 @@ export default function App() {
             <PwaInstallControl i18n={i18n} />
           </div>
           <div className="app-footer-actions">
-            <label className="footer-consent-checkbox" title="Anonymous error reporting">
-              <input
-                type="checkbox"
-                name="error-reporting"
-                checked={isErrorReportingEnabled}
-                onChange={(event) => persistErrorReportingConsent(event.target.checked)}
-              />
-              <span>Error Reporting</span>
-            </label>
             <button
               type="button"
               className="footer-action-button"
@@ -2970,47 +2945,6 @@ export default function App() {
         version={APP_VERSION}
         onClose={() => setIsAboutOpen(false)}
       />
-
-      {isErrorReportingPromptOpen && (
-        <div className="about-modal-backdrop" role="presentation">
-          <section
-            className="about-modal error-reporting-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="error-reporting-title"
-          >
-            <header className="about-modal-header">
-              <h2 id="error-reporting-title">{i18n.errorReportingModalTitle}</h2>
-            </header>
-            <div className="about-modal-body">
-              <p>{i18n.errorReportingModalDescription1}</p>
-              <p>{i18n.errorReportingModalDescription2}</p>
-              <div className="error-reporting-actions">
-                <button
-                  type="button"
-                  className="footer-action-button"
-                  onClick={() => {
-                    persistErrorReportingConsent(true);
-                    setIsErrorReportingPromptOpen(false);
-                  }}
-                >
-                  {i18n.errorReportingEnable}
-                </button>
-                <button
-                  type="button"
-                  className="footer-action-button footer-action-button-reset"
-                  onClick={() => {
-                    persistErrorReportingConsent(false);
-                    setIsErrorReportingPromptOpen(false);
-                  }}
-                >
-                  {i18n.errorReportingNotNow}
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
