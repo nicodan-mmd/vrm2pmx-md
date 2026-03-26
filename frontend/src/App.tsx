@@ -784,9 +784,11 @@ export default function App() {
       rotationDirection: 1 | -1;
       inactivityTimeoutId: ReturnType<typeof setTimeout> | null;
     };
+    isConverting: boolean;
   }>({
     vrmState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
     pmxState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
+    isConverting: false,
   });
   const upperArmStateRef = useRef<UpperArmState>({
     leftBone: null,
@@ -1079,10 +1081,13 @@ export default function App() {
     return {
       resetInactivityTimer: () => {
         const state = idleAnimationRef.current[stateKey];
+        // Ignore timer reset if already rotating (to avoid interruption from updateRotation's change events)
+        if (state.isRotating) {
+          return;
+        }
         if (state.inactivityTimeoutId) {
           clearTimeout(state.inactivityTimeoutId);
         }
-        state.isRotating = false;
         state.inactivityTimeoutId = setTimeout(() => {
           if (viewRef.current) {
             state.isRotating = true;
@@ -1100,11 +1105,16 @@ export default function App() {
       },
       updateRotation: (deltaTime: number) => {
         const state = idleAnimationRef.current[stateKey];
+        // Don't rotate if system is busy (status is not idle)
         if (!state.isRotating || !viewRef.current) {
           return;
         }
+        // Check status at time of update to prevent rotation during conversion
+        if (idleAnimationRef.current.isConverting) {
+          return;
+        }
         const view = viewRef.current;
-        const rotationSpeed = 0.3 * (state.rotationDirection === 1 ? 1 : -1);
+        const rotationSpeed = 0.0375 * (state.rotationDirection === 1 ? 1 : -1);
         const angle = THREE.MathUtils.degToRad(rotationSpeed * deltaTime);
         const targetToCamera = view.camera.position.clone().sub(view.controls.target);
         targetToCamera.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
@@ -1597,7 +1607,7 @@ export default function App() {
       controls.addEventListener("change", onPmxOrbitChanged);
       controls.addEventListener("change", () => pmxIdleManager!.resetInactivityTimer());
       canvas.addEventListener("click", () => {
-        pmxIdleManager!.resetInactivityTimer();
+        pmxIdleManager!.stopRotation();
       });
       pmxIdleManager.resetInactivityTimer();
 
@@ -1613,7 +1623,7 @@ export default function App() {
         lastFrameTime = now;
 
         controls.update();
-        pmxIdleManager!.updateRotation(deltaTime);
+        pmxIdleManager!.updateRotation(deltaTime * 1000);
         try {
           renderer.render(scene, camera);
         } catch (error) {
@@ -1667,6 +1677,7 @@ export default function App() {
     }
 
     setStatus("uploading");
+    idleAnimationRef.current.isConverting = true;
     setErrorDetail("");
     setConvertedOutput(null);
     setDetectedQualityRiskSignals([]);
@@ -1727,6 +1738,7 @@ export default function App() {
       setConvertProgressPercent(100);
       setConvertProgressStage("done");
       setStatus("done");
+      idleAnimationRef.current.isConverting = false;
       const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
       const qualityRiskSignals = [
         ...new Set([
@@ -1752,6 +1764,7 @@ export default function App() {
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         setStatus("canceled");
+        idleAnimationRef.current.isConverting = false;
         setConvertProgressPercent(0);
         setConvertProgressStage(null);
         setMessage("Conversion canceled.");
@@ -1779,6 +1792,7 @@ export default function App() {
         }
 
         setStatus("error");
+        idleAnimationRef.current.isConverting = false;
         setConvertProgressPercent(0);
         setConvertProgressStage(null);
         setErrorDetail(rawDetail);
@@ -2179,7 +2193,7 @@ export default function App() {
       controls.addEventListener("change", onVrmOrbitChanged);
       controls.addEventListener("change", () => vrmIdleManager.resetInactivityTimer());
       canvas.addEventListener("click", () => {
-        vrmIdleManager.resetInactivityTimer();
+        vrmIdleManager.stopRotation();
       });
       vrmIdleManager.resetInactivityTimer();
 
