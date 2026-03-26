@@ -3,6 +3,7 @@ import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
+import { FaSkullCrossbones } from "react-icons/fa";
 import { IoCopyOutline } from "react-icons/io5";
 import Swal from "sweetalert2";
 import * as THREE from "three";
@@ -837,6 +838,8 @@ export default function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
+  const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
+  const [hasPmxSkeleton, setHasPmxSkeleton] = useState(false);
   const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
   const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({ summaryRows: [], licenseRows: [] });
   const [isVrmRedistributionOrModificationNG, setIsVrmRedistributionOrModificationNG] = useState(false);
@@ -861,6 +864,7 @@ export default function App() {
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pmxSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
   const previewCleanupRef = useRef<(() => void) | null>(null);
   const pmxPreviewCleanupRef = useRef<(() => void) | null>(null);
   const vrmViewRef = useRef<{
@@ -989,6 +993,12 @@ export default function App() {
     runtime.keyLight.intensity = tuned.directionalIntensity;
   }, [pmxBrightnessScale, pmxContrastFactor]);
 
+  useEffect(() => {
+    for (const helper of pmxSkeletonHelpersRef.current) {
+      helper.visible = pmxBonesVisible;
+    }
+  }, [pmxBonesVisible]);
+
 
   useEffect(() => {
     const originalWarn = console.warn;
@@ -1091,6 +1101,8 @@ export default function App() {
   function cleanupPmxPreview() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
+    pmxSkeletonHelpersRef.current = [];
+    setHasPmxSkeleton(false);
     pmxViewRef.current = null;
     pmxLightRuntimeRef.current = null;
     idleAnimationRef.current.pmxState.isRotating = false;
@@ -1251,6 +1263,7 @@ export default function App() {
     let loadedMesh: THREE.Object3D | null = null;
     let hasShownShaderErrorDialog = false;
     let hasAppliedMaterialFallback = false;
+    const skeletonHelpers: THREE.SkeletonHelper[] = [];
     const objectUrls: string[] = [];
     const assetMap = new Map<string, string>();
 
@@ -1368,6 +1381,13 @@ export default function App() {
         controls.removeEventListener("change", onPmxOrbitChanged);
       }
       controls.dispose();
+      for (const helper of skeletonHelpers) {
+        scene.remove(helper);
+        helper.dispose();
+      }
+      skeletonHelpers.length = 0;
+      pmxSkeletonHelpersRef.current = [];
+      setHasPmxSkeleton(false);
       if (loadedMesh) {
         scene.remove(loadedMesh);
       }
@@ -1619,6 +1639,22 @@ export default function App() {
       if (materialSlotCount >= 6 && colorTextureCount === 0) {
         runtimeQualitySignalsRef.current.add("pmx-missing-color-textures");
       }
+
+      for (const skinned of skinnedMeshes) {
+        if (!skinned.skeleton || skinned.skeleton.bones.length <= 0) {
+          continue;
+        }
+        const helper = new THREE.SkeletonHelper(skinned);
+        helper.visible = pmxBonesVisible;
+        helper.setColors(new THREE.Color("#63f5ff"), new THREE.Color("#ff9f4a"));
+        (helper.material as THREE.LineBasicMaterial).depthTest = false;
+        (helper.material as THREE.LineBasicMaterial).transparent = true;
+        (helper.material as THREE.LineBasicMaterial).opacity = 0.95;
+        scene.add(helper);
+        skeletonHelpers.push(helper);
+      }
+      pmxSkeletonHelpersRef.current = skeletonHelpers;
+      setHasPmxSkeleton(skeletonHelpers.length > 0);
 
       pmxPreviewDiagnosticsRef.current = {
         zipEntryCount: entries.length,
@@ -2635,6 +2671,16 @@ export default function App() {
                   </div>
                 </section>
               )}
+              <button
+                type="button"
+                className={`metadata-info-button pmx-bones-button${pmxBonesVisible ? " pmx-bones-button-active" : ""}`}
+                aria-label="Toggle PMX bones"
+                title={pmxBonesVisible ? "Hide Bones" : "Show Bones"}
+                onClick={() => setPmxBonesVisible((prev) => !prev)}
+                disabled={!hasPmxSkeleton}
+              >
+                <FaSkullCrossbones />
+              </button>
               <button
                 type="button"
                 className="metadata-info-button"

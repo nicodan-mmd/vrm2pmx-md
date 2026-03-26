@@ -179,6 +179,16 @@ h2 {
   opacity: 1;
 }
 
+.pmx-bones-button {
+  left: 14px;
+  right: auto;
+  color: #7a6a75;
+}
+
+.pmx-bones-button-active {
+  color: #d14f70;
+}
+
 .preview-metadata-popup {
   position: absolute;
   top: 12px;
