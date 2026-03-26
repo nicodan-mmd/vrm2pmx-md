@@ -102,7 +102,7 @@ function getProfileFlags(result: ProfileDetectionResult): string[] {
   return flags;
 }
 
-type AppLocale = "ja" | "en";
+type AppLocale = "ja" | "en" | "zh";
 
 type AppI18n = {
   errorReportingModalTitle: string;
@@ -210,6 +210,44 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "Conversion succeeded, and ZIP download is available, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
     previewShaderErrorOk: "OK",
   },
+  zh: {
+    errorReportingModalTitle: "错误报告发送",
+    errorReportingModalDescription1:
+      "为改善转换质量，可启用匿名错误报告发送功能。",
+    errorReportingModalDescription2:
+      "不会上传文件内容本身。您可以随时从页脚更改设置。",
+    errorReportingEnable: "启用",
+    errorReportingNotNow: "暂不启用",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `已使用备用方式转换。\n\n请求模式: ${requestedMode}\n使用模式: ${usedMode}\n原因: ${reason}\n\n是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。`,
+    fallbackReportSubmittedMessage:
+      "已发送匿名报告。这有助于未来改善转换质量。",
+    qualityReportButton: "报告质量问题",
+    qualityReportConfirm:
+      "转换完成，但外观存在问题。是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。",
+    qualityReportDialogSend: "发送",
+    qualityReportDialogCancel: "取消",
+    qualityReportSubmittedMessage:
+      "已发送匿名报告。这有助于未来改善转换质量。",
+    qualityReportEnableHint:
+      "启用错误报告功能，可匿名报告转换成功但质量有问题的情况。",
+    qualityAutoReportConfirm: (signals) =>
+      `转换成功，但在日志中检测到可能存在质量问题的信号。\n\n检测信号: ${signals}\n\n是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。`,
+    taPoseZeroConfirm: "T/A Pose 已设置为 0 度。确定继续转换吗？",
+    taPoseZeroCanceled: "因 0 度姿势设置，已取消转换。",
+    installButtonLabel: "Install",
+    installUnsupportedHint: "请从浏览器菜单中选择「添加到主屏幕」。",
+    installDialogTitle: "安装应用",
+    installDialogDescription: "可从桌面或主屏幕快速启动。",
+    restrictedRedistributionModificationConfirm:
+      "此模型禁止改变或再分发。如需转换，请自行承担责任。",
+    restrictedRedistributionModificationCancel: "取消",
+    restrictedRedistributionModificationProceed: "继续",
+    previewShaderErrorTitle: "PMX预览错误",
+    previewShaderErrorMessage:
+      "转换成功，ZIP可以下载，但PMX预览渲染失败。\n点击「报告质量问题」提交报告有助于未来改善。",
+    previewShaderErrorOk: "OK",
+  },
 };
 
 function detectAppLocale(language: string | undefined): AppLocale {
@@ -217,12 +255,15 @@ function detectAppLocale(language: string | undefined): AppLocale {
   if (normalized.startsWith("ja")) {
     return "ja";
   }
+  if (normalized.startsWith("zh")) {
+    return "zh";
+  }
   return "en";
 }
 
 function localizeAllowDisallow(value: string, locale: AppLocale): { text: string; isNg: boolean } {
   const normalized = value.trim().toLowerCase();
-  if (locale !== "ja") {
+  if (locale === "en") {
     return {
       text: value,
       isNg:
@@ -254,7 +295,30 @@ function localizeAllowDisallow(value: string, locale: AppLocale): { text: string
     unnecessary: { text: "不要", isNg: false },
   };
 
-  const mapped = jaValueMap[normalized];
+  const zhValueMap: Record<string, { text: string; isNg: boolean }> = {
+    allow: { text: "OK", isNg: false },
+    disallow: { text: "NG", isNg: true },
+    prohibited: { text: "NG", isNg: true },
+    true: { text: "OK", isNg: false },
+    false: { text: "NG", isNg: true },
+    allow_modification: { text: "OK", isNg: false },
+    allow_modification_redistribution: { text: "OK", isNg: false },
+    allowmodification: { text: "OK", isNg: false },
+    allowmodificationredistribution: { text: "OK", isNg: false },
+    redistribution_prohibited: { text: "禁止再分发", isNg: true },
+    modification_prohibited: { text: "禁止改变", isNg: true },
+    onlyauthor: { text: "仅限模型作者", isNg: false },
+    explicitlylicensedperson: { text: "仅限明确授权的人", isNg: false },
+    everyone: { text: "任何人", isNg: false },
+    personalnonprofit: { text: "个人・非营利", isNg: false },
+    personalprofit: { text: "个人・营利", isNg: false },
+    corporation: { text: "法人", isNg: false },
+    required: { text: "必要", isNg: false },
+    unnecessary: { text: "不需要", isNg: false },
+  };
+
+  const valueMap = locale === "zh" ? zhValueMap : jaValueMap;
+  const mapped = valueMap[normalized];
   if (mapped) {
     return mapped;
   }
@@ -267,8 +331,55 @@ function localizeAllowDisallow(value: string, locale: AppLocale): { text: string
 }
 
 function localizeMetadataLabel(label: string, locale: AppLocale): string {
-  if (locale !== "ja") {
+  if (locale === "en") {
     return label;
+  }
+
+  if (locale === "zh") {
+    if (label.startsWith("Reference URL ")) {
+      return label.replace("Reference URL ", "参考URL ");
+    }
+    if (label.startsWith("Reference ")) {
+      return label.replace("Reference ", "参考 ");
+    }
+    const zhLabelMap: Record<string, string> = {
+      Title: "标题",
+      Author: "作者",
+      Contact: "联系方式",
+      Reference: "参考",
+      Version: "版本",
+      Copyright: "版权",
+      "Avatar Permission": "赋予模型人格的许可范围",
+      "Commercial Usage": "商业用途许可",
+      "Credit Notation": "署名要求",
+      Modification: "改变许可",
+      "Allow Redistribution": "再分发许可",
+      "Allow Violent Usage": "暴力表现许可",
+      "Allow Sexual Usage": "性表现许可",
+      "Allow Political/Religious": "政治・宗教利用许可",
+      "Allow Antisocial/Hate": "反社会・仇恨利用许可",
+      "License URL": "许可证URL",
+      "Other License URL": "其他许可证URL",
+      "Third Party Licenses": "第三方许可证",
+      "Allowed User": "允许使用者",
+      "Violent Usage": "暴力表现许可",
+      "Sexual Usage": "性表现许可",
+      "License Name": "许可证类型",
+      "Other Permission URL": "其他许可条件URL",
+      "Model Name": "模型名称",
+      "Model Name EN": "模型名称（英文）",
+      Comment: "备注",
+      "Comment EN": "备注（英文）",
+      Vertices: "顶点数",
+      Faces: "面数",
+      Materials: "材质数",
+      Bones: "骨骼数",
+      Morphs: "变形数",
+      "Rigid Bodies": "刚体数",
+      Constraints: "关节数",
+      License: "许可证",
+    };
+    return zhLabelMap[label] ?? label;
   }
 
   if (label.startsWith("Reference URL ")) {
@@ -525,7 +636,7 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
   const lines: string[] = [];
 
   if (infoData.summaryRows.length > 0) {
-    lines.push(locale === "ja" ? "=== 基本情報 ===" : "=== Basic Information ===");
+    lines.push(locale === "ja" ? "=== 基本情報 ===" : locale === "zh" ? "=== 基本信息 ===" : "=== Basic Information ===");
     infoData.summaryRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
       lines.push(`${localizedLabel}: ${row.value}`);
@@ -534,7 +645,7 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
   }
 
   if (infoData.licenseRows.length > 0) {
-    lines.push(locale === "ja" ? "=== ライセンス情報 ===" : "=== License Information ===");
+    lines.push(locale === "ja" ? "=== ライセンス情報 ===" : locale === "zh" ? "=== 许可证信息 ===" : "=== License Information ===");
     infoData.licenseRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
       const localizedValue = localizeAllowDisallow(row.value, locale).text;
