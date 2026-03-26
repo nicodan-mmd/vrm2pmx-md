@@ -262,6 +262,11 @@ h2 {
   text-underline-offset: 2px;
 }
 
+.preview-info-value-negative {
+  color: #cc2f2f;
+  font-weight: 700;
+}
+
 .preview-metadata-close {
   border: none;
   background: transparent;

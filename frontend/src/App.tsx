@@ -191,6 +191,105 @@ function detectAppLocale(language: string | undefined): AppLocale {
   return "en";
 }
 
+function localizeAllowDisallow(value: string, locale: AppLocale): { text: string; isNg: boolean } {
+  const normalized = value.trim().toLowerCase();
+  if (locale !== "ja") {
+    return {
+      text: value,
+      isNg:
+        normalized === "disallow" ||
+        normalized === "prohibited" ||
+        normalized.endsWith("_prohibited"),
+    };
+  }
+
+  const jaValueMap: Record<string, { text: string; isNg: boolean }> = {
+    allow: { text: "OK", isNg: false },
+    disallow: { text: "NG", isNg: true },
+    prohibited: { text: "NG", isNg: true },
+    true: { text: "OK", isNg: false },
+    false: { text: "NG", isNg: true },
+    allow_modification: { text: "OK", isNg: false },
+    allow_modification_redistribution: { text: "OK", isNg: false },
+    allowmodification: { text: "OK", isNg: false },
+    allowmodificationredistribution: { text: "OK", isNg: false },
+    redistribution_prohibited: { text: "再配布禁止", isNg: true },
+    modification_prohibited: { text: "改変禁止", isNg: true },
+    onlyauthor: { text: "アバター作者のみ", isNg: false },
+    explicitlylicensedperson: { text: "明示的に許可された人のみ", isNg: false },
+    everyone: { text: "誰でも", isNg: false },
+    personalnonprofit: { text: "個人・非営利", isNg: false },
+    personalprofit: { text: "個人・営利", isNg: false },
+    corporation: { text: "法人", isNg: false },
+    required: { text: "必要", isNg: false },
+    unnecessary: { text: "不要", isNg: false },
+  };
+
+  const mapped = jaValueMap[normalized];
+  if (mapped) {
+    return mapped;
+  }
+
+  if (normalized.endsWith("_prohibited")) {
+    return { text: "NG", isNg: true };
+  }
+
+  return { text: value, isNg: false };
+}
+
+function localizeMetadataLabel(label: string, locale: AppLocale): string {
+  if (locale !== "ja") {
+    return label;
+  }
+
+  if (label.startsWith("Reference URL ")) {
+    return label.replace("Reference URL ", "参照URL ");
+  }
+  if (label.startsWith("Reference ")) {
+    return label.replace("Reference ", "参照 ");
+  }
+
+  const jaLabelMap: Record<string, string> = {
+    Title: "タイトル",
+    Author: "作者",
+    Contact: "連絡先",
+    Reference: "参照",
+    Version: "バージョン",
+    Copyright: "コピーライト",
+    "Avatar Permission": "アバターに人格を与えることの許諾範囲",
+    "Commercial Usage": "商用利用の許可",
+    "Credit Notation": "クレジット表記",
+    Modification: "改変の許可",
+    "Allow Redistribution": "再配布の許可",
+    "Allow Violent Usage": "このアバターを用いて暴力表現を演じることの許可",
+    "Allow Sexual Usage": "このアバターを用いて性的表現を演じることの許可",
+    "Allow Political/Religious": "政治・宗教利用の許可",
+    "Allow Antisocial/Hate": "反社会・ヘイト利用の許可",
+    "License URL": "ライセンスURL",
+    "Other License URL": "その他ライセンスURL",
+    "Third Party Licenses": "第三者ライセンス",
+    "Allowed User": "アバターに人格を与えることの許諾範囲",
+    "Violent Usage": "このアバターを用いて暴力表現を演じることの許可",
+    "Sexual Usage": "このアバターを用いて性的表現を演じることの許可",
+    "License Name": "ライセンスタイプ",
+    "Other Permission URL": "その他許諾条件URL",
+    "Model Name": "モデル名",
+    "Model Name EN": "モデル名(英語)",
+    Comment: "コメント",
+    "Comment EN": "コメント(英語)",
+    Vertices: "頂点数",
+    Faces: "面数",
+    Materials: "マテリアル数",
+    Bones: "ボーン数",
+    Morphs: "モーフ数",
+    "Rigid Bodies": "剛体数",
+    Constraints: "ジョイント数",
+    License: "ライセンス",
+  };
+
+  return jaLabelMap[label] ?? label;
+}
+
 function getStageProgressPercent(stage: WorkerProgressStage): number {
   switch (stage) {
     case "init":
@@ -283,6 +382,23 @@ function extractUrls(value: string): string[] {
   return [...new Set(matches)];
 }
 
+function getUrlParamLikeValue(url: string, key: string): string {
+  if (!url || !key) {
+    return "";
+  }
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(?:^|[?&#\/&])${escapedKey}=([^&#]+)`, "i");
+  const match = url.match(pattern);
+  if (!match || !match[1]) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(match[1]).trim();
+  } catch {
+    return match[1].trim();
+  }
+}
+
 function pushInfoRow(rows: InfoRow[], label: string, value: unknown) {
   const text = asString(value);
   if (!text) {
@@ -346,6 +462,29 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
   pushInfoRow(licenseRows, "Violent Usage", vrm0Meta.violentUssageName);
   pushInfoRow(licenseRows, "Sexual Usage", vrm0Meta.sexualUssageName);
   pushInfoRow(licenseRows, "Commercial Usage", vrm0Meta.commercialUssageName);
+
+  const otherPermissionUrl = asString(vrm0Meta.otherPermissionUrl);
+  const otherLicenseUrl = asString(vrm0Meta.otherLicenseUrl);
+  const permissionSourceUrl = otherPermissionUrl || otherLicenseUrl;
+  const redistributionFromUrl =
+    getUrlParamLikeValue(permissionSourceUrl, "redistribution") ||
+    getUrlParamLikeValue(permissionSourceUrl, "allowRedistribution");
+  const modificationFromUrl =
+    getUrlParamLikeValue(permissionSourceUrl, "modification") ||
+    getUrlParamLikeValue(permissionSourceUrl, "allowModification");
+
+  pushInfoRow(licenseRows, "Allow Redistribution", redistributionFromUrl);
+  pushInfoRow(licenseRows, "Modification", modificationFromUrl);
+
+  const licenseNameText = asString(vrm0Meta.licenseName);
+  const licenseNameNormalized = licenseNameText.toLowerCase();
+  if (!redistributionFromUrl && licenseNameNormalized.includes("redistribution_prohibited")) {
+    pushInfoRow(licenseRows, "Allow Redistribution", "redistribution_prohibited");
+  }
+  if (!modificationFromUrl && licenseNameNormalized.includes("modification_prohibited")) {
+    pushInfoRow(licenseRows, "Modification", "modification_prohibited");
+  }
+
   pushInfoRow(licenseRows, "License Name", vrm0Meta.licenseName);
   pushInfoRow(licenseRows, "Other Permission URL", vrm0Meta.otherPermissionUrl);
   pushInfoRow(licenseRows, "Other License URL", vrm0Meta.otherLicenseUrl);
@@ -1852,7 +1991,7 @@ export default function App() {
                       <div className="preview-info-list">
                         {vrmInfoData.summaryRows.map((row) => (
                           <div key={`basic-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{row.label}</span>
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -1863,7 +2002,11 @@ export default function App() {
                                 {row.value}
                               </a>
                             ) : (
-                              <span className="preview-info-value">{row.value}</span>
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
                             )}
                           </div>
                         ))}
@@ -1876,7 +2019,7 @@ export default function App() {
                       <div className="preview-info-list">
                         {vrmInfoData.licenseRows.map((row) => (
                           <div key={`license-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{row.label}</span>
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -1887,7 +2030,11 @@ export default function App() {
                                 {row.value}
                               </a>
                             ) : (
-                              <span className="preview-info-value">{row.value}</span>
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
                             )}
                           </div>
                         ))}
@@ -1946,7 +2093,7 @@ export default function App() {
                       <div className="preview-info-list">
                         {pmxSummaryRowsForDisplay.map((row) => (
                           <div key={`pmx-basic-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{row.label}</span>
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -1957,7 +2104,11 @@ export default function App() {
                                 {row.value}
                               </a>
                             ) : (
-                              <span className="preview-info-value">{row.value}</span>
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
                             )}
                           </div>
                         ))}
@@ -1970,7 +2121,7 @@ export default function App() {
                       <div className="preview-info-list">
                         {pmxLicenseRowsForDisplay.map((row) => (
                           <div key={`pmx-license-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{row.label}</span>
+                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -1981,7 +2132,11 @@ export default function App() {
                                 {row.value}
                               </a>
                             ) : (
-                              <span className="preview-info-value">{row.value}</span>
+                              <span
+                                className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
+                              >
+                                {localizeAllowDisallow(row.value, appLocale).text}
+                              </span>
                             )}
                           </div>
                         ))}
