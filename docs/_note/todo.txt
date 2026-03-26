@@ -2,14 +2,12 @@
 未
 ----
 
-
-・Installボタン Firefoxだと文言になってる
-・メタデータボタン
-・ライセンス確認
+・放置でゆっくり回転
 
 ・中国語対応
 ・コーヒー奢ってください
 
+・Installボタン Firefoxだと文言になってる
 ・ニコニコ動画 動画作成
 
 -- 
@@ -97,9 +95,6 @@ Ver1.2 2026/03/25 Release
     ・PWAインストールボタン
 
 Ver1.3 2026/03/26 Release
-
-
-
     ・VRM1.0対応
     ・品質崩れ検知難しい → 常に
     ・0 only Convert 消す
@@ -117,3 +112,14 @@ Ver1.3 2026/03/26 Release
         A web-based modernization of vrm2pmx and vroid2pmx mix
 
     ・品質崩れを報告は、パステルオレンジで小さめに
+
+Ver1.3 2026/03/26 Release
+・メタデータボタン
+・ライセンス確認
+    license.txt 同梱
+
+Ver1.4 2026/03/26 Release
+・エラーでない
+    \VRoid Hub\メロン猫覚醒 エラーダイアログでない
+        514340979744949531.vrm
+        →出るようにした、ZIPはできるので放置
