@@ -1,6 +1,6 @@
 {
   "date": "2026-03-28",
-  "commit": "pending-local",
+  "commit": "c222b67",
   "branch": "feature/rust-conversion-poc",
   "stage": "rust-wasm-stub",
   "change_type": "frontend-runtime-asset",

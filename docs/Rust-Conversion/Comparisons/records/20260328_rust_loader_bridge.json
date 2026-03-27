@@ -1,6 +1,6 @@
 {
   "date": "2026-03-28",
-  "commit": "832d2e9",
+  "commit": "04b7cdf",
   "branch": "feature/rust-conversion-poc",
   "stage": "rust-loader-bridge",
   "change_type": "frontend-runtime-loading",
