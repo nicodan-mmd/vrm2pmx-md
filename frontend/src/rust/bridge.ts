@@ -1,12 +1,26 @@
 import { getRustRuntimeAvailability, resolveRustAssetUrl, type RustRuntimeManifest } from "./runtime";
 
+export type RustBridgeOptions = {
+  wasmUrl: string;
+};
+
+export type RustConvertRequest = {
+  fileName: string;
+  input: Uint8Array;
+};
+
+export type RustConvertResult = {
+  output: Uint8Array;
+  fileExtension: "pmx" | "zip";
+};
+
 type RustBridgeModule = {
-  createRuntimeBridge?: (options: { wasmUrl: string }) => Promise<RustRuntimeBridge> | RustRuntimeBridge;
+  createRuntimeBridge?: (options: RustBridgeOptions) => Promise<RustRuntimeBridge> | RustRuntimeBridge;
 };
 
 export type RustRuntimeBridge = {
   initialize: () => Promise<void>;
-  convert: (input: Uint8Array) => Promise<Uint8Array>;
+  convert: (request: RustConvertRequest) => Promise<RustConvertResult>;
 };
 
 export async function loadRustRuntimeBridge(): Promise<{

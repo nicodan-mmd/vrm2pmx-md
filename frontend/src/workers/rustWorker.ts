@@ -55,17 +55,22 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     postLog("info", [`Rust loader entryWasm: ${manifest.entryWasm || "<empty>"}`]);
 
     await bridge.initialize();
+    postLog("info", ["Rust bridge initialized; invoking convert()..."]);
 
-    const detail = "RUST_CONVERT_NOT_IMPLEMENTED: Rust bridge initialized unexpectedly without conversion implementation.";
-    postLog("warn", [detail]);
+    const result = await bridge.convert({
+      fileName: request.fileName,
+      input: new Uint8Array(request.fileBuffer),
+    });
+    const outputBuffer = result.output.slice().buffer;
 
-    const errorResponse: WorkerResponse = {
+    const successResponse: WorkerResponse = {
       id: request.id,
-      status: "error",
-      code: "RUST_CONVERT_NOT_IMPLEMENTED",
-      message: detail,
+      status: "ok",
+      usedMode: "rust",
+      fileExtension: result.fileExtension,
+      outputBuffer,
     };
-    workerSelf.postMessage(errorResponse);
+    workerSelf.postMessage(successResponse);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown Rust worker error";
     postLog("warn", [detail]);

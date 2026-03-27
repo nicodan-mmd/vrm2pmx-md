@@ -1,0 +1,26 @@
+{
+  "date": "2026-03-28",
+  "commit": "pending-local",
+  "branch": "feature/rust-conversion-poc",
+  "stage": "rust-wasm-stub",
+  "change_type": "frontend-runtime-asset",
+  "validation": {
+    "rust_stub_build": "pass",
+    "frontend_build": "pass",
+    "pwa_precache_entries": 15
+  },
+  "mode": {
+    "requested": "rust",
+    "manifest_lookup": "found",
+    "loader_bridge_import": "found",
+    "wasm_instantiate": "pass",
+    "first_rust_result": "RUST_CONVERT_NOT_IMPLEMENTED",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "not-requested"
+  },
+  "status": "pass",
+  "next_action": "Replace the stub export surface with the first real conversion-oriented API."
+}
