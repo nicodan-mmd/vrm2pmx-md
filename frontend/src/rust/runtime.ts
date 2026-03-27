@@ -21,6 +21,10 @@ export type RustRuntimeManifest = {
 
 let rustAvailabilityPromise: Promise<RustRuntimeAvailability> | null = null;
 
+export function resolveRustAssetUrl(relativePath: string): string {
+  return new URL(relativePath, APP_BASE_URL).toString();
+}
+
 function isRustRuntimeManifest(value: unknown): value is RustRuntimeManifest {
   if (!value || typeof value !== "object") {
     return false;

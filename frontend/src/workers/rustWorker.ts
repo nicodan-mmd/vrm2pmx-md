@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { getRustRuntimeAvailability } from "../rust/runtime";
+import { loadRustRuntimeBridge } from "../rust/bridge";
 import type {
   WorkerLogResponse,
   WorkerRequest,
@@ -33,8 +33,6 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   activeRequestId = request.id;
 
   try {
-    const availability = await getRustRuntimeAvailability();
-
     const initResponse: WorkerResponse = {
       id: request.id,
       status: "progress",
@@ -47,22 +45,43 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       id: request.id,
       status: "progress",
       stage: "converting",
-      message: availability.available
-        ? "Rust runtime manifest found, but execution bridge is not implemented yet."
-        : "Rust runtime assets are not available yet. Falling back is required.",
+      message: "Loading Rust runtime bridge...",
     };
     workerSelf.postMessage(convertResponse);
 
-    const detail = availability.available
-      ? "RUST_CONVERT_NOT_IMPLEMENTED: Rust runtime manifest is present, but execution bridge is not implemented yet."
-      : `RUST_RUNTIME_UNAVAILABLE: ${availability.reason ?? "Rust runtime manifest is unavailable."}`;
+    const { manifest, bridge } = await loadRustRuntimeBridge();
+    postLog("info", [`Rust loader status: ${manifest.status}`]);
+    postLog("info", [`Rust loader entryJs: ${manifest.entryJs}`]);
+    postLog("info", [`Rust loader entryWasm: ${manifest.entryWasm || "<empty>"}`]);
+
+    await bridge.initialize();
+
+    const detail = "RUST_CONVERT_NOT_IMPLEMENTED: Rust bridge initialized unexpectedly without conversion implementation.";
     postLog("warn", [detail]);
-    postLog("info", [`Rust manifest URL: ${availability.manifestUrl}`]);
 
     const errorResponse: WorkerResponse = {
       id: request.id,
       status: "error",
-      code: availability.available ? "RUST_CONVERT_NOT_IMPLEMENTED" : "RUST_RUNTIME_UNAVAILABLE",
+      code: "RUST_CONVERT_NOT_IMPLEMENTED",
+      message: detail,
+    };
+    workerSelf.postMessage(errorResponse);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown Rust worker error";
+    postLog("warn", [detail]);
+
+    const errorCode = detail.startsWith("RUST_RUNTIME_UNAVAILABLE")
+      ? "RUST_RUNTIME_UNAVAILABLE"
+      : detail.startsWith("RUST_BRIDGE_UNAVAILABLE") || detail.startsWith("RUST_BRIDGE_INVALID")
+        ? "RUST_BRIDGE_UNAVAILABLE"
+        : detail.startsWith("RUST_WASM_UNAVAILABLE") || detail.startsWith("RUST_WASM_NOT_IMPLEMENTED")
+          ? "RUST_WASM_UNAVAILABLE"
+          : "RUST_CONVERT_NOT_IMPLEMENTED";
+
+    const errorResponse: WorkerResponse = {
+      id: request.id,
+      status: "error",
+      code: errorCode,
       message: detail,
     };
     workerSelf.postMessage(errorResponse);

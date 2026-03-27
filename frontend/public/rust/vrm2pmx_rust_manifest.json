@@ -1,12 +1,12 @@
 {
   "name": "vrm2pmx-rust-runtime",
   "version": "0.0.0-placeholder",
-  "status": "placeholder",
-  "entryJs": "",
+  "status": "placeholder-bridge",
+  "entryJs": "rust/vrm2pmx_rust_loader.js",
   "entryWasm": "",
   "capabilities": [],
   "notes": [
     "Placeholder manifest for Rust/Wasm runtime integration.",
-    "Real Rust assets are not bundled yet."
+    "Loader bridge exists, but real Rust Wasm assets are not bundled yet."
   ]
 }

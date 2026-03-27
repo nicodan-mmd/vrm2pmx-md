@@ -1,0 +1,25 @@
+{
+  "date": "2026-03-28",
+  "commit": "832d2e9",
+  "branch": "feature/rust-conversion-poc",
+  "stage": "rust-loader-bridge",
+  "change_type": "frontend-runtime-loading",
+  "validation": {
+    "type_errors": false,
+    "frontend_build": "pass",
+    "worker_asset_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "manifest_lookup": "found",
+    "loader_bridge_import": "found",
+    "bridge_initialize_result": "RUST_WASM_UNAVAILABLE",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "not-requested"
+  },
+  "status": "pass",
+  "next_action": "Add a real Wasm asset and implement the first callable Rust bridge surface."
+}
