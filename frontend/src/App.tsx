@@ -818,6 +818,7 @@ export default function App() {
     taPoseAngle, setTaPoseAngle,
     orbitSyncEnabled, setOrbitSyncEnabled, orbitSyncEnabledRef,
     logEnabled, setLogEnabled, logEnabledRef,
+    rustEnabled, setRustEnabled,
     gridEnabled, setGridEnabled, gridEnabledRef,
     pmxBrightnessScale, setPmxBrightnessScale,
     pmxContrastFactor, setPmxContrastFactor,
@@ -850,7 +851,8 @@ export default function App() {
   const [detectedQualityRiskSignals, setDetectedQualityRiskSignals] = useState<string[]>([]);
   const runtimeQualitySignalsRef = useRef<Set<string>>(new Set());
   const profileDetectionRequestIdRef = useRef(0);
-  const [lastUsedMode, setLastUsedMode] = useState<"backend" | "wasm" | null>(null);
+  const [lastRequestedMode, setLastRequestedMode] = useState<ConvertMode | null>(null);
+  const [lastUsedMode, setLastUsedMode] = useState<ConvertMode | null>(null);
   const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
   const [lastConversionReportId, setLastConversionReportId] = useState<string | null>(null);
   const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
@@ -1058,6 +1060,7 @@ export default function App() {
     setConvertedOutput(null);
     setDetectedProfileResult(null);
     setDetectedQualityRiskSignals([]);
+    setLastRequestedMode(null);
     setLastUsedMode(null);
     setLastFallbackReason(null);
     setLastConversionReportId(null);
@@ -1793,6 +1796,7 @@ export default function App() {
     if (!file) {
       return;
     }
+    const requestedMode: ConvertMode = rustEnabled ? "rust" : mode;
 
     if (taPoseAngle === 0) {
       const shouldContinue = window.confirm(i18n.taPoseZeroConfirm);
@@ -1826,29 +1830,33 @@ export default function App() {
     setErrorDetail("");
     setConvertedOutput(null);
     setDetectedQualityRiskSignals([]);
+    setLastRequestedMode(requestedMode);
     runtimeQualitySignalsRef.current.clear();
     pmxPreviewDiagnosticsRef.current = null;
     setConvertProgressPercent(2);
     setConvertProgressStage("init");
     abortControllerRef.current = new AbortController();
     setMessage(
-      mode === "backend"
-        ? "Converting with backend... this can take a while for large files."
-        : backendEnabled
-          ? "Trying Wasm first. If it fails, backend fallback will run."
-          : "Converting with Wasm mode...",
+      requestedMode === "rust"
+        ? "Rust experimental mode requested. This build will fall back to Wasm while the Rust converter is under development."
+        : mode === "backend"
+          ? "Converting with backend... this can take a while for large files."
+          : backendEnabled
+            ? "Trying Wasm first. If it fails, backend fallback will run."
+            : "Converting with Wasm mode...",
     );
     appendConsoleLine([`[INFO] Convert requested: preparing input (${file.name})`], "info");
+    appendConsoleLine([`[INFO] Requested convert mode: ${requestedMode}`], "info");
 
     try {
       const convertLogStartIndex = logLinesRef.current.length;
       const convertInput = await buildConvertInputFile(file);
       poseDebug("convert start", {
-        requestedMode: mode,
+        requestedMode,
         fileName: file.name,
         convertInputBytes: convertInput.size,
       });
-      const result = await convertWithMode(convertInput, mode, {
+      const result = await convertWithMode(convertInput, requestedMode, {
         onProgress: (progress) => {
           setMessage(progress.message);
           const nextPercent = getStageProgressPercent(progress.stage);
@@ -1875,6 +1883,15 @@ export default function App() {
       setLastFallbackReason(result.fallbackReason ?? null);
       setLastConversionReportId(conversionReportId);
 
+      if (requestedMode === "rust") {
+        appendConsoleLine(
+          result.fallbackReason
+            ? [`[WARN] Rust experimental mode did not run yet. Using ${result.usedMode}. ${result.fallbackReason}`]
+            : [`[INFO] Rust experimental mode completed via ${result.usedMode}.`],
+          result.fallbackReason ? "warn" : "info",
+        );
+      }
+
       if (result.fileExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
@@ -1897,8 +1914,8 @@ export default function App() {
       if (result.fallbackReason) {
         setMessage(
           qualityRiskSignals.length > 0
-            ? `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`
-            : `Converted and previewed with fallback. Requested: ${mode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.`,
+            ? `Converted and previewed with fallback. Requested: ${requestedMode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file. If preview quality looks wrong, use ${i18n.qualityReportButton}.`
+            : `Converted and previewed with fallback. Requested: ${requestedMode}, used: ${result.usedMode}. Reason: ${result.fallbackReason} / Press Download ZIP to save file.`,
         );
       } else {
         setMessage(
@@ -1917,14 +1934,14 @@ export default function App() {
       } else {
         const rawDetail = error instanceof Error ? error.message : String(error);
         console.error("convert.failed", {
-          mode,
+          mode: requestedMode,
           backendEnabled,
           fileName: file?.name,
           detail: rawDetail,
           error,
         });
         Sentry.withScope((scope) => {
-          scope.setTag("mode", mode);
+          scope.setTag("mode", requestedMode);
           scope.setTag("event_type", "error");
           scope.setContext("convert", {
             status: "failed",
@@ -1942,11 +1959,10 @@ export default function App() {
         setErrorDetail(rawDetail);
         setMessage(
           toUserFriendlyConvertError(error, {
-            mode,
+            mode: requestedMode,
             backendEnabled,
           }),
         );
-        // エラー時はLog Viewを自動展開してトレースバックを表示
         setLogEnabled(true);
         appendConsoleLine(["[ERROR] Convert failed:"], "error");
         rawDetail.split("\n").forEach((line) => appendConsoleLine([line], "error"));
@@ -2016,7 +2032,7 @@ export default function App() {
           ? detectedQualityRiskSignals
           : [lastFallbackReason ?? "user-reported-visual-issue"],
       level: "info",
-      requestedMode: mode,
+      requestedMode: lastRequestedMode ?? mode,
       usedMode: lastUsedMode,
       backendEnabled,
       fileExtension: convertedOutput.fileExtension,
@@ -2809,6 +2825,16 @@ export default function App() {
                 <span>Grid</span>
               </label>
               */}
+              <label className="pmx-tool-checkbox">
+                <input
+                  type="checkbox"
+                  name="rust-mode"
+                  checked={rustEnabled}
+                  onChange={(event) => setRustEnabled(event.target.checked)}
+                  disabled={status === "uploading"}
+                />
+                <span>Rust</span>
+              </label>
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"

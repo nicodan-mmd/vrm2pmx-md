@@ -11,6 +11,7 @@ type UiSettingsSnapshot = {
   taPoseAngle: number;
   orbitSyncEnabled: boolean;
   logEnabled: boolean;
+  rustEnabled: boolean;
   pmxBrightnessScale: number;
   pmxContrastFactor: number;
 };
@@ -26,6 +27,7 @@ export function useUiSettings() {
   const orbitSyncEnabledRef = useRef(true);
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
+  const [rustEnabled, setRustEnabled] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(false);
   const gridEnabledRef = useRef(false);
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
@@ -71,6 +73,9 @@ export function useUiSettings() {
         if (typeof saved.logEnabled === "boolean") {
           setLogEnabled(saved.logEnabled);
         }
+        if (typeof saved.rustEnabled === "boolean") {
+          setRustEnabled(saved.rustEnabled);
+        }
         if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
           setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
         }
@@ -100,6 +105,7 @@ export function useUiSettings() {
       taPoseAngle,
       orbitSyncEnabled,
       logEnabled,
+      rustEnabled,
       pmxBrightnessScale,
       pmxContrastFactor,
     };
@@ -115,6 +121,7 @@ export function useUiSettings() {
     taPoseAngle,
     orbitSyncEnabled,
     logEnabled,
+    rustEnabled,
     pmxBrightnessScale,
     pmxContrastFactor,
   ]);
@@ -126,6 +133,7 @@ export function useUiSettings() {
     setTaPoseAngle(0);
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
+    setRustEnabled(false);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
     setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
   }
@@ -141,6 +149,8 @@ export function useUiSettings() {
     logEnabled,
     setLogEnabled,
     logEnabledRef,
+    rustEnabled,
+    setRustEnabled,
     gridEnabled,
     setGridEnabled,
     gridEnabledRef,

@@ -32,6 +32,22 @@ python scripts/sentry/collect_stats.py
 - 統計をコンソールに表示
 - JSON レポートを `docs/Sentry-Reports/` に保存（タイムスタンプ付きファイル名）
 
+### `rust_compare_backend.py`
+
+Rust移行の比較記録用に、backend基準の変換時間と出力ZIP情報を
+`docs/Rust-Conversion/Comparisons/` へ保存します。
+
+**用途：**
+- backend `/api/convert` を複数回実行し時間を記録
+- 1回分のZIPを artifacts に保存
+- SHA256 と ZIP エントリ情報を JSON/Markdown で records に保存
+
+**使用方法：**
+
+```bash
+python scripts/rust_compare_backend.py --input "D:/path/to/model.vrm" --sample linlin --warmup 1 --runs 3
+```
+
 **出力例：**
 ```
 Quality Signal Events: 8
