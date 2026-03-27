@@ -8,14 +8,48 @@ import type {
   WorkerResponse,
   WorkerSuccessResponse,
 } from "../types/convert";
+import { getRuntimeLogLevel, shouldCaptureLog } from "../utils/logging";
 
 const BASE_URL = import.meta.env.BASE_URL;
 const APP_BASE_URL = new URL(BASE_URL, self.location.origin);
 const PY_SRC_ROOT = new URL("py_src/", APP_BASE_URL);
 const PY_SRC_MANIFEST = new URL("py_src_manifest.json", APP_BASE_URL);
 const PY_RUNTIME_ROOT = "/workspace/src";
+const DEFAULT_PY_LOG_LEVEL = import.meta.env.DEV ? 20 : 40;
+
+function resolvePyLoggingLevel(): number {
+  const raw = import.meta.env.VITE_PY_LOG_LEVEL;
+  if (!raw) {
+    return DEFAULT_PY_LOG_LEVEL;
+  }
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === "debug") {
+    return 10;
+  }
+  if (normalized === "info") {
+    return 20;
+  }
+  if (normalized === "warn" || normalized === "warning") {
+    return 30;
+  }
+  if (normalized === "error") {
+    return 40;
+  }
+  if (normalized === "critical") {
+    return 50;
+  }
+
+  const asNumber = Number.parseInt(normalized, 10);
+  if (Number.isFinite(asNumber) && asNumber >= 0) {
+    return asNumber;
+  }
+
+  return DEFAULT_PY_LOG_LEVEL;
+}
 
 let pyReadyPromise: Promise<void> | null = null;
+const PY_LOGGING_LEVEL = resolvePyLoggingLevel();
 
 async function loadCorePackages(pyodide: Awaited<ReturnType<typeof getPyodide>>): Promise<void> {
   await pyodide.loadPackage(["numpy"]);
@@ -75,8 +109,18 @@ if "${PY_RUNTIME_ROOT}" not in sys.path:
   }
 }
 
+const ENABLE_WASM_RUNTIME_PRELOAD = (import.meta.env.VITE_WASM_PRELOAD ?? "true") !== "false";
+if (ENABLE_WASM_RUNTIME_PRELOAD) {
+  // Best-effort warmup to reduce first convert latency.
+  void ensurePyRuntime().catch(() => {
+    // If preload fails, conversion path retries on demand.
+  });
+}
+
 const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
 let activeRequestId: string | null = null;
+const WORKER_LOG_LEVEL = getRuntimeLogLevel();
+const ENABLE_WORKER_CONSOLE_OUTPUT = WORKER_LOG_LEVEL === "debug";
 
 function stringifyLogArg(value: unknown): string {
   if (typeof value === "string") {
@@ -94,6 +138,9 @@ function stringifyLogArg(value: unknown): string {
 
 function postWorkerLog(level: WorkerLogResponse["level"], args: unknown[]): void {
   if (!activeRequestId) {
+    return;
+  }
+  if (!shouldCaptureLog(level, WORKER_LOG_LEVEL)) {
     return;
   }
 
@@ -114,23 +161,33 @@ function postWorkerLog(level: WorkerLogResponse["level"], args: unknown[]): void
   const originalDebug = console.debug.bind(console);
 
   console.log = (...args: unknown[]) => {
-    originalLog(...args);
+    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("log", WORKER_LOG_LEVEL)) {
+      originalLog(...args);
+    }
     postWorkerLog("log", args);
   };
   console.info = (...args: unknown[]) => {
-    originalInfo(...args);
+    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("info", WORKER_LOG_LEVEL)) {
+      originalInfo(...args);
+    }
     postWorkerLog("info", args);
   };
   console.warn = (...args: unknown[]) => {
-    originalWarn(...args);
+    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("warn", WORKER_LOG_LEVEL)) {
+      originalWarn(...args);
+    }
     postWorkerLog("warn", args);
   };
   console.error = (...args: unknown[]) => {
-    originalError(...args);
+    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("error", WORKER_LOG_LEVEL)) {
+      originalError(...args);
+    }
     postWorkerLog("error", args);
   };
   console.debug = (...args: unknown[]) => {
-    originalDebug(...args);
+    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("debug", WORKER_LOG_LEVEL)) {
+      originalDebug(...args);
+    }
     postWorkerLog("debug", args);
   };
 }
@@ -171,11 +228,17 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     runtime.globals.set("__input_bytes", new Uint8Array(request.fileBuffer));
     runtime.globals.set("__input_suffix", inputSuffix);
+    runtime.globals.set("__logging_level", PY_LOGGING_LEVEL);
 
     postProgress(request.id, "converting", "Converting VRM to PMX...");
     await runtime.runPythonAsync(`
   from service.Vrm2PmxBytesService import convert_vrm_zip_bytes
-  __output_bytes = convert_vrm_zip_bytes(bytes(__input_bytes), file_suffix=__input_suffix, version_name="wasm-poc")
+  __output_bytes = convert_vrm_zip_bytes(
+      bytes(__input_bytes),
+      file_suffix=__input_suffix,
+      version_name="wasm-poc",
+      logging_level=int(__logging_level),
+  )
 `);
 
     const outputBytesProxy = runtime.globals.get("__output_bytes");
@@ -199,6 +262,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     runtime.globals.delete("__input_bytes");
     runtime.globals.delete("__input_suffix");
+    runtime.globals.delete("__logging_level");
     runtime.globals.delete("__output_bytes");
 
     console.info(

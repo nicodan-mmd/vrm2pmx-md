@@ -32,6 +32,7 @@ import {
   type ProfileDetectionResult,
 } from "./features/convert/services/profileDetection";
 import { useUiSettings, PMX_LIGHT_DEFAULT_INTENSITY_SCALE, PMX_LIGHT_DEFAULT_CONTRAST_FACTOR } from "./features/settings/hooks/useUiSettings";
+import { getRuntimeLogLevel, shouldCaptureLog, type ConsoleLogLevel } from "./utils/logging";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -79,6 +80,7 @@ type PmxInfoData = {
 };
 
 const DEBUG_PMX = false;
+const APP_LOG_LEVEL = getRuntimeLogLevel();
 const NON_QUALITY_RUNTIME_SIGNALS = new Set<string>([
   "three-clock-deprecated",
   "three-timer-migration-warning",
@@ -953,9 +955,17 @@ export default function App() {
     }
   }
 
-  function appendConsoleLine(args: unknown[]) {
+  function appendConsoleLine(args: unknown[], level: ConsoleLogLevel = "info") {
+    if (!shouldCaptureLog(level, APP_LOG_LEVEL)) {
+      return;
+    }
+
     const line = args.map((value) => formatLogArg(value)).join(" ");
     setLogLines((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1] === line) {
+        return prev;
+      }
+
       const next = [...prev, line];
       if (next.length > 1000) {
         next.splice(0, next.length - 1000);
@@ -966,7 +976,7 @@ export default function App() {
   }
 
   function appendWorkerLog(log: WorkerLogResponse) {
-    appendConsoleLine(log.args);
+    appendConsoleLine(log.args, log.level);
   }
 
   useEffect(() => {
@@ -1353,7 +1363,7 @@ export default function App() {
       runtimeQualitySignalsRef.current.add("pmx-preview-material-fallback");
       appendConsoleLine([
         `[WARN] PMX preview fallback material enabled (${reason}), replaced materials: ${replacedMaterialCount}`,
-      ]);
+      ], "warn");
       return true;
     };
 
@@ -1417,7 +1427,7 @@ export default function App() {
       if (rendererWithShaderDebug.debug) {
         rendererWithShaderDebug.debug.onShaderError = () => {
           runtimeQualitySignalsRef.current.add("pmx-shader-compile-failed");
-          appendConsoleLine(["[ERROR] PMX preview shader compile failed."]);
+          appendConsoleLine(["[ERROR] PMX preview shader compile failed."], "error");
           const recovered = applyPmxPreviewMaterialFallback("shader-compile");
           if (!recovered) {
             showPreviewShaderErrorDialog();
@@ -1762,7 +1772,7 @@ export default function App() {
         try {
           renderer.render(scene, camera);
         } catch (error) {
-          appendConsoleLine(["[ERROR] PMX preview render failed:", formatLogArg(error)]);
+          appendConsoleLine(["[ERROR] PMX preview render failed:", formatLogArg(error)], "error");
           const recovered = applyPmxPreviewMaterialFallback("render-error");
           if (!recovered) {
             window.cancelAnimationFrame(frameId);
@@ -1828,6 +1838,7 @@ export default function App() {
           ? "Trying Wasm first. If it fails, backend fallback will run."
           : "Converting with Wasm mode...",
     );
+    appendConsoleLine([`[INFO] Convert requested: preparing input (${file.name})`], "info");
 
     try {
       const convertLogStartIndex = logLinesRef.current.length;
@@ -1937,8 +1948,8 @@ export default function App() {
         );
         // エラー時はLog Viewを自動展開してトレースバックを表示
         setLogEnabled(true);
-        appendConsoleLine(["[ERROR] Convert failed:"]);
-        rawDetail.split("\n").forEach((line) => appendConsoleLine([line]));
+        appendConsoleLine(["[ERROR] Convert failed:"], "error");
+        rawDetail.split("\n").forEach((line) => appendConsoleLine([line], "error"));
         window.alert("Convert error. Please see Log View.");
       }
     } finally {
@@ -2081,24 +2092,34 @@ export default function App() {
     const originalDebug = console.debug;
 
     console.log = (...args: unknown[]) => {
-      originalLog(...args);
-      appendConsoleLine(args);
+      if (shouldCaptureLog("log", APP_LOG_LEVEL)) {
+        originalLog(...args);
+      }
+      appendConsoleLine(args, "log");
     };
     console.info = (...args: unknown[]) => {
-      originalInfo(...args);
-      appendConsoleLine(args);
+      if (shouldCaptureLog("info", APP_LOG_LEVEL)) {
+        originalInfo(...args);
+      }
+      appendConsoleLine(args, "info");
     };
     console.warn = (...args: unknown[]) => {
-      originalWarn(...args);
-      appendConsoleLine(args);
+      if (shouldCaptureLog("warn", APP_LOG_LEVEL)) {
+        originalWarn(...args);
+      }
+      appendConsoleLine(args, "warn");
     };
     console.error = (...args: unknown[]) => {
-      originalError(...args);
-      appendConsoleLine(args);
+      if (shouldCaptureLog("error", APP_LOG_LEVEL)) {
+        originalError(...args);
+      }
+      appendConsoleLine(args, "error");
     };
     console.debug = (...args: unknown[]) => {
-      originalDebug(...args);
-      appendConsoleLine(args);
+      if (shouldCaptureLog("debug", APP_LOG_LEVEL)) {
+        originalDebug(...args);
+      }
+      appendConsoleLine(args, "debug");
     };
 
     return () => {
