@@ -486,6 +486,8 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
     nameEn: "center",
     pos: [0, 0, 0],
     parent: -1,
+    flags: 0x0002 | 0x0004 | 0x0008 | 0x0010,
+    tailOffset: [0, 1, 0],
   };
 
   if (!Array.isArray(gltfJson.skins) || usedSkinIndices.size === 0) {
@@ -566,6 +568,75 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
   }
 
   return { bones, boneIndexByNodeIndex };
+}
+
+function extendBonesWithMmdControls(bones) {
+  const out = bones.slice();
+  const nameToIndex = new Map();
+  for (let i = 0; i < out.length; i++) {
+    nameToIndex.set(out[i].nameJp, i);
+  }
+
+  if (!nameToIndex.has("\u30b0\u30eb\u30fc\u30d6")) {
+    const centerIndex = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? 0;
+    out.push({
+      nameJp: "\u30b0\u30eb\u30fc\u30d6",
+      nameEn: "groove",
+      pos: out[centerIndex] ? out[centerIndex].pos.slice() : [0, 0, 0],
+      parent: centerIndex,
+      flags: 0x0002 | 0x0004 | 0x0008 | 0x0010,
+      tailOffset: [0, 1, 0],
+    });
+    nameToIndex.set("\u30b0\u30eb\u30fc\u30d6", out.length - 1);
+  }
+
+  const addFootIk = (side) => {
+    const leg = nameToIndex.get(`${side}\u8db3`);
+    const knee = nameToIndex.get(`${side}\u3072\u3056`);
+    const ankle = nameToIndex.get(`${side}\u8db3\u9996`);
+    if (leg == null || knee == null || ankle == null) {
+      return;
+    }
+
+    const ikName = `${side}\u8db3\uff29\uff2b`;
+    if (nameToIndex.has(ikName)) {
+      return;
+    }
+
+    const parent = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? 0;
+    const anklePos = out[ankle] ? out[ankle].pos.slice() : [0, 0, 0];
+    out.push({
+      nameJp: ikName,
+      nameEn: `${side === "\u5de6" ? "left" : "right"}_leg_ik`,
+      pos: anklePos,
+      parent,
+      flags: 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
+      tailBoneIndex: ankle,
+      ik: {
+        targetIndex: ankle,
+        loopCount: 40,
+        limitRadian: 2.0,
+        links: [
+          {
+            boneIndex: knee,
+            hasLimit: 1,
+            min: [-3.13, 0, 0],
+            max: [-0.01, 0, 0],
+          },
+          {
+            boneIndex: leg,
+            hasLimit: 0,
+          },
+        ],
+      },
+    });
+    nameToIndex.set(ikName, out.length - 1);
+  };
+
+  addFootIk("\u5de6");
+  addFootIk("\u53f3");
+
+  return out;
 }
 
 function buildSkinPoseData(gltfJson, binBuffer, skinIndex, worldMatrices) {
@@ -767,6 +838,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       .filter((v) => typeof v === "number" && v >= 0),
   );
   const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, "current");
+  const finalBones = extendBonesWithMmdControls(bones);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
@@ -857,7 +929,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const vIdxSz = idxSize(vertices.length); // vertex index size
   const tIdxSz = idxSize(texturePaths.length); // texture index size
   const mIdxSz = idxSize(materials.length); // material index size
-  const bIdxSz = idxSize(bones.length); // bone index size
+  const bIdxSz = idxSize(finalBones.length); // bone index size
   const phIdxSz = 1; // morph index size    (0 morphs)
   const rbIdxSz = 1; // rigid body idx size (0 rigid bodies)
 
@@ -983,8 +1055,8 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   }
 
   // ── Bones ─────────────────────────────────────────────────────────────────
-  w.i32(bones.length);
-  for (const bone of bones) {
+  w.i32(finalBones.length);
+  for (const bone of finalBones) {
     w.text(bone.nameJp);
     w.text(bone.nameEn);
     w.f32(bone.pos[0]);
@@ -992,12 +1064,41 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     w.f32(bone.pos[2]);
     w.idx(typeof bone.parent === "number" ? bone.parent : -1, bIdxSz);
     w.i32(0); // layer
-    // flags: rotatable, translatable, visible, operable
-    w.i16(0x0002 | 0x0004 | 0x0008 | 0x0010);
-    // tail position offset
-    w.f32(0.0);
-    w.f32(1.0);
-    w.f32(0.0);
+    const flags = typeof bone.flags === "number" ? bone.flags : 0x0002 | 0x0004 | 0x0008 | 0x0010;
+    w.i16(flags);
+
+    if (flags & 0x0001) {
+      w.idx(typeof bone.tailBoneIndex === "number" ? bone.tailBoneIndex : -1, bIdxSz);
+    } else {
+      const tail = Array.isArray(bone.tailOffset) ? bone.tailOffset : [0, 1, 0];
+      w.f32(Number(tail[0] ?? 0));
+      w.f32(Number(tail[1] ?? 1));
+      w.f32(Number(tail[2] ?? 0));
+    }
+
+    if (flags & 0x0020) {
+      const ik = bone.ik || {};
+      const links = Array.isArray(ik.links) ? ik.links : [];
+      w.idx(typeof ik.targetIndex === "number" ? ik.targetIndex : -1, bIdxSz);
+      w.i32(typeof ik.loopCount === "number" ? ik.loopCount : 40);
+      w.f32(typeof ik.limitRadian === "number" ? ik.limitRadian : 2.0);
+      w.i32(links.length);
+      for (const link of links) {
+        w.idx(typeof link.boneIndex === "number" ? link.boneIndex : -1, bIdxSz);
+        const hasLimit = link.hasLimit ? 1 : 0;
+        w.i8(hasLimit);
+        if (hasLimit) {
+          const min = Array.isArray(link.min) ? link.min : [0, 0, 0];
+          const max = Array.isArray(link.max) ? link.max : [0, 0, 0];
+          w.f32(Number(min[0] ?? 0));
+          w.f32(Number(min[1] ?? 0));
+          w.f32(Number(min[2] ?? 0));
+          w.f32(Number(max[0] ?? 0));
+          w.f32(Number(max[1] ?? 0));
+          w.f32(Number(max[2] ?? 0));
+        }
+      }
+    }
   }
 
   // ── Morphs (none) ─────────────────────────────────────────────────────────
@@ -1009,8 +1110,8 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   w.text("Root");
   w.text("Root");
   w.i8(1); // special flag
-  w.i32(bones.length);
-  for (let i = 0; i < bones.length; i++) {
+  w.i32(finalBones.length);
+  for (let i = 0; i < finalBones.length; i++) {
     w.i8(0); // element type: bone
     w.idx(i, bIdxSz);
   }
