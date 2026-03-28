@@ -233,6 +233,56 @@ function identityMat4() {
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 }
 
+function invertMat4(m) {
+  const out = new Array(16);
+  const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
+  const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+  const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
+  const a30 = m[12], a31 = m[13], a32 = m[14], a33 = m[15];
+
+  const b00 = a00 * a11 - a01 * a10;
+  const b01 = a00 * a12 - a02 * a10;
+  const b02 = a00 * a13 - a03 * a10;
+  const b03 = a01 * a12 - a02 * a11;
+  const b04 = a01 * a13 - a03 * a11;
+  const b05 = a02 * a13 - a03 * a12;
+  const b06 = a20 * a31 - a21 * a30;
+  const b07 = a20 * a32 - a22 * a30;
+  const b08 = a20 * a33 - a23 * a30;
+  const b09 = a21 * a32 - a22 * a31;
+  const b10 = a21 * a33 - a23 * a31;
+  const b11 = a22 * a33 - a23 * a32;
+
+  let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  if (!det || !Number.isFinite(det)) {
+    return null;
+  }
+  det = 1.0 / det;
+
+  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+
+  return out;
+}
+
+function finiteNumber(v, fallback = 0) {
+  return Number.isFinite(v) ? v : fallback;
+}
+
 function mulMat4(a, b) {
   const out = new Array(16).fill(0);
   for (let c = 0; c < 4; c++) {
@@ -321,13 +371,13 @@ function buildWorldMatrices(gltfJson, parentIndices) {
 
 function toPmxPosFromGlbWorld(worldMat) {
   return [
-    Number(worldMat[12] || 0) * MIKU_METER * -1,
-    Number(worldMat[13] || 0) * MIKU_METER,
-    Number(worldMat[14] || 0) * MIKU_METER,
+    finiteNumber(Number(worldMat[12] || 0) * MIKU_METER * -1),
+    finiteNumber(Number(worldMat[13] || 0) * MIKU_METER),
+    finiteNumber(Number(worldMat[14] || 0) * MIKU_METER),
   ];
 }
 
-function buildRigFromSkins(gltfJson, usedSkinIndices) {
+function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices) {
   const centerBone = {
     nameJp: "\u30bb\u30f3\u30bf\u30fc",
     nameEn: "center",
@@ -345,6 +395,30 @@ function buildRigFromSkins(gltfJson, usedSkinIndices) {
   const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
   const parentIndices = buildNodeParentIndices(gltfJson);
   const world = buildWorldMatrices(gltfJson, parentIndices);
+  const jointBindPosByNode = new Map();
+
+  for (const skinIndex of usedSkinIndices) {
+    const skin = Array.isArray(gltfJson.skins) ? gltfJson.skins[skinIndex] : null;
+    const joints = Array.isArray(skin && skin.joints) ? skin.joints : [];
+    const ibmAccessor = skin && typeof skin.inverseBindMatrices === "number"
+      ? skin.inverseBindMatrices
+      : null;
+    if (ibmAccessor == null) continue;
+
+    const ibm = readAcc(gltfJson, binBuffer, ibmAccessor);
+    if (!ibm) continue;
+
+    for (let i = 0; i < joints.length; i++) {
+      const nodeIdx = joints[i];
+      if (typeof nodeIdx !== "number" || nodeIdx < 0 || nodeIdx >= nodes.length) continue;
+      const start = i * 16;
+      if (start + 15 >= ibm.length) continue;
+      const invBind = ibm.slice(start, start + 16).map((v) => Number(v));
+      const bind = invertMat4(invBind);
+      if (!bind) continue;
+      jointBindPosByNode.set(nodeIdx, toPmxPosFromGlbWorld(bind));
+    }
+  }
 
   const jointSet = new Set();
   for (const skinIndex of usedSkinIndices) {
@@ -378,7 +452,9 @@ function buildRigFromSkins(gltfJson, usedSkinIndices) {
     bones.push({
       nameJp: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
       nameEn: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
-      pos: toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4()),
+      pos:
+        jointBindPosByNode.get(nodeIndex) ||
+        toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4()),
       parent: typeof parentBone === "number" ? parentBone : 0,
     });
   }
@@ -514,7 +590,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       .map((b) => b.skinIndex)
       .filter((v) => typeof v === "number" && v >= 0),
   );
-  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, usedSkinIndices);
+  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
