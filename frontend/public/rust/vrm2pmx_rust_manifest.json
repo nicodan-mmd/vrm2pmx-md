@@ -1,17 +1,19 @@
 {
   "name": "vrm2pmx-rust-runtime",
   "version": "0.1.0",
-  "status": "wasm-glb-parse",
+  "status": "wasm-json-extract",
   "entryJs": "rust/vrm2pmx_rust_loader.js",
   "entryWasm": "rust/vrm2pmx_rust_stub.wasm",
   "capabilities": [
     "loader-bridge",
     "memory-alloc",
-    "glb-parse-json-len"
+    "glb-parse-json-len",
+    "glb-extract-json-chunk",
+    "vrm-version-detect"
   ],
   "notes": [
-    "Rust Wasm module provides GLB header validation and JSON chunk size detection.",
-    "JS bridge uses alloc/free to pass VRM bytes through the Wasm memory boundary.",
+    "Rust Wasm module extracts the raw JSON chunk from GLB and returns it to JS.",
+    "JS bridge decodes the JSON bytes and detects VRM version (0=VRM0, 1=VRM1, -1=unknown).",
     "Full PMX conversion is not yet implemented; the Wasm path falls back to Pyodide."
   ]
 }

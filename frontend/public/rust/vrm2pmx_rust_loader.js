@@ -29,10 +29,12 @@ export async function createRuntimeBridge(options = {}) {
         typeof exports.vrm2pmx_version !== "function" ||
         typeof exports.vrm2pmx_alloc !== "function" ||
         typeof exports.vrm2pmx_free !== "function" ||
-        typeof exports.vrm2pmx_parse_glb_json_len !== "function" ||
+        typeof exports.vrm2pmx_get_json_chunk !== "function" ||
         !(exports.memory instanceof WebAssembly.Memory)
       ) {
-        throw new Error(`RUST_WASM_INVALID: Rust wasm asset at ${wasmUrl} does not expose the expected interface (version/alloc/free/parse_glb_json_len/memory).`);
+        throw new Error(
+          `RUST_WASM_INVALID: Rust wasm asset at ${wasmUrl} does not expose the expected interface (version/alloc/free/get_json_chunk/memory).`,
+        );
       }
 
       runtimeExports = exports;
@@ -51,23 +53,49 @@ export async function createRuntimeBridge(options = {}) {
         throw new Error(`RUST_CONVERT_INVALID_INPUT: Empty input for file=${fileName} (runtime v${version}).`);
       }
 
-      // Allocate Rust/Wasm heap for the input bytes
-      const ptr = runtimeExports.vrm2pmx_alloc(input.length);
+      // 1. Copy input to Wasm heap.
+      //    Re-read memory.buffer after every alloc — heap growth invalidates the ArrayBuffer ref.
+      const inPtr = runtimeExports.vrm2pmx_alloc(input.length);
+      new Uint8Array(runtimeExports.memory.buffer).set(input, inPtr);
 
-      // Always re-read memory.buffer after alloc in case the heap grew
-      new Uint8Array(runtimeExports.memory.buffer).set(input, ptr);
+      // 2. Allocate a 4-byte cell for vrm2pmx_get_json_chunk to write the output length into.
+      const outLenPtr = runtimeExports.vrm2pmx_alloc(4);
+      // Zero the cell before use (DataView, little-endian, handles unaligned access safely).
+      new DataView(runtimeExports.memory.buffer).setInt32(outLenPtr, 0, true);
 
-      const jsonLen = runtimeExports.vrm2pmx_parse_glb_json_len(ptr, input.length);
-      runtimeExports.vrm2pmx_free(ptr, input.length);
+      // 3. Call into Rust to extract the JSON chunk bytes.
+      const jsonPtr = runtimeExports.vrm2pmx_get_json_chunk(inPtr, input.length, outLenPtr);
+      runtimeExports.vrm2pmx_free(inPtr, input.length);
 
-      if (jsonLen < 0) {
-        const reason = PARSE_ERROR_REASONS[String(jsonLen)] || `error code ${jsonLen}`;
+      // Re-read outLen — memory.buffer may have changed during get_json_chunk if heap grew.
+      const outLen = new DataView(runtimeExports.memory.buffer).getInt32(outLenPtr, true);
+      runtimeExports.vrm2pmx_free(outLenPtr, 4);
+
+      if (!jsonPtr || outLen < 0) {
+        const reason = PARSE_ERROR_REASONS[String(outLen)] || `error code ${outLen}`;
         throw new Error(`RUST_CONVERT_INVALID_INPUT: GLB parse failed for file=${fileName}: ${reason}.`);
       }
 
-      // GLB parsed successfully — conversion logic not yet implemented
+      // 4. Copy JSON bytes into JS land, then free the Wasm-side buffer.
+      //    Use .slice() so the Uint8Array owns its storage independently of Wasm memory.
+      const jsonBytes = new Uint8Array(runtimeExports.memory.buffer, jsonPtr, outLen).slice();
+      runtimeExports.vrm2pmx_free(jsonPtr, outLen);
+
+      // 5. Decode and detect VRM version from the glTF extension keys.
+      let vrmVersion = -1;
+      try {
+        const gltfJson = JSON.parse(new TextDecoder().decode(jsonBytes));
+        const ext = (gltfJson && typeof gltfJson === "object" && gltfJson.extensions) || {};
+        vrmVersion = ext.VRMC_vrm != null ? 1 : ext.VRM != null ? 0 : -1;
+      } catch (_) {
+        // JSON parse failure — vrmVersion stays -1
+      }
+
+      // Conversion logic not yet implemented; surface what we know so far.
       throw new Error(
-        `RUST_CONVERT_NOT_IMPLEMENTED: Rust wasm parsed GLB header and JSON chunk successfully (jsonChunkSize=${jsonLen} bytes, runtime v${version}) but full PMX conversion is not yet implemented for file=${fileName}.`,
+        `RUST_CONVERT_NOT_IMPLEMENTED: Rust wasm extracted JSON chunk and detected VRM version ` +
+          `(vrmVersion=${vrmVersion}, jsonChunkSize=${outLen} bytes, runtime v${version}) ` +
+          `but PMX conversion is not yet implemented for file=${fileName}.`,
       );
     },
   };
