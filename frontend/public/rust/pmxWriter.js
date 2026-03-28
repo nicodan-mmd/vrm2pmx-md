@@ -229,6 +229,81 @@ function buildNodeParentIndices(gltfJson) {
   return parents;
 }
 
+const VRM_TO_MMD_BONE_NAME_JP = {
+  hips: "\u4e0b\u534a\u8eab",
+  spine: "\u4e0a\u534a\u8eab",
+  chest: "\u4e0a\u534a\u8eab2",
+  upperChest: "\u4e0a\u534a\u8eab3",
+  neck: "\u9996",
+  head: "\u982d",
+  leftShoulder: "\u5de6\u80a9",
+  leftUpperArm: "\u5de6\u8155",
+  leftLowerArm: "\u5de6\u3072\u3058",
+  leftHand: "\u5de6\u624b\u9996",
+  rightShoulder: "\u53f3\u80a9",
+  rightUpperArm: "\u53f3\u8155",
+  rightLowerArm: "\u53f3\u3072\u3058",
+  rightHand: "\u53f3\u624b\u9996",
+  leftUpperLeg: "\u5de6\u8db3",
+  leftLowerLeg: "\u5de6\u3072\u3056",
+  leftFoot: "\u5de6\u8db3\u9996",
+  leftToes: "\u5de6\u3064\u307e\u5148",
+  rightUpperLeg: "\u53f3\u8db3",
+  rightLowerLeg: "\u53f3\u3072\u3056",
+  rightFoot: "\u53f3\u8db3\u9996",
+  rightToes: "\u53f3\u3064\u307e\u5148",
+  leftEye: "\u5de6\u76ee",
+  rightEye: "\u53f3\u76ee",
+  jaw: "\u3042\u3054",
+};
+
+function buildHumanoidNameMaps(gltfJson) {
+  const nodeToJp = new Map();
+  const nodeToEn = new Map();
+
+  const extensions = gltfJson && typeof gltfJson === "object" ? gltfJson.extensions : null;
+  const vrm0 = extensions && typeof extensions === "object" ? extensions.VRM : null;
+  const vrm1 = extensions && typeof extensions === "object" ? extensions.VRMC_vrm : null;
+
+  const vrm0Bones =
+    vrm0 &&
+    typeof vrm0 === "object" &&
+    vrm0.humanoid &&
+    typeof vrm0.humanoid === "object" &&
+    Array.isArray(vrm0.humanoid.humanBones)
+      ? vrm0.humanoid.humanBones
+      : [];
+
+  for (const item of vrm0Bones) {
+    if (!item || typeof item !== "object") continue;
+    const key = typeof item.bone === "string" ? item.bone : "";
+    const node = typeof item.node === "number" ? item.node : -1;
+    if (!key || node < 0) continue;
+    nodeToJp.set(node, VRM_TO_MMD_BONE_NAME_JP[key] || key);
+    nodeToEn.set(node, key);
+  }
+
+  const vrm1HumanBones =
+    vrm1 &&
+    typeof vrm1 === "object" &&
+    vrm1.humanoid &&
+    typeof vrm1.humanoid === "object" &&
+    vrm1.humanoid.humanBones &&
+    typeof vrm1.humanoid.humanBones === "object"
+      ? vrm1.humanoid.humanBones
+      : {};
+
+  for (const key of Object.keys(vrm1HumanBones)) {
+    const item = vrm1HumanBones[key];
+    const node = item && typeof item === "object" && typeof item.node === "number" ? item.node : -1;
+    if (node < 0) continue;
+    nodeToJp.set(node, VRM_TO_MMD_BONE_NAME_JP[key] || key);
+    nodeToEn.set(node, key);
+  }
+
+  return { nodeToJp, nodeToEn };
+}
+
 function identityMat4() {
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 }
@@ -423,6 +498,7 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
   const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
   const parentIndices = buildNodeParentIndices(gltfJson);
   const world = buildWorldMatrices(gltfJson, parentIndices);
+  const { nodeToJp, nodeToEn } = buildHumanoidNameMaps(gltfJson);
   const jointBindPosByNode = new Map();
 
   for (const skinIndex of usedSkinIndices) {
@@ -480,9 +556,10 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
     const bindPos = jointBindPosByNode.get(nodeIndex) || null;
     const currentPos = toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4());
 
+    const fallbackName = typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`;
     bones.push({
-      nameJp: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
-      nameEn: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
+      nameJp: nodeToJp.get(nodeIndex) || fallbackName,
+      nameEn: nodeToEn.get(nodeIndex) || fallbackName,
       pos: poseMode === "bind" && bindPos ? bindPos : currentPos,
       parent: typeof parentBone === "number" ? parentBone : 0,
     });
