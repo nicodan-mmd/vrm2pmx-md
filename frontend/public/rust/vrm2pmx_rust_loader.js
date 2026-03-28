@@ -1,3 +1,5 @@
+import { buildPmxFromGltf } from "./pmxWriter.js";
+
 const PARSE_ERROR_REASONS = {
   "-1": "input bytes too short for GLB header",
   "-2": "invalid GLB magic (not a VRM/GLB file)",
@@ -164,24 +166,9 @@ export async function createRuntimeBridge(options = {}) {
         runtimeExports.vrm2pmx_free(binPtr, binLen);
       }
 
-      // 7. Read a sample accessor (first mesh primitive positions) to prove the pipeline.
-      let positionCount = 0;
-      if (binBuffer && gltfJson.meshes && gltfJson.meshes.length > 0) {
-        const prim = gltfJson.meshes[0].primitives && gltfJson.meshes[0].primitives[0];
-        const posAccIdx = prim && prim.attributes && prim.attributes.POSITION;
-        if (posAccIdx != null) {
-          const positions = readAccessor(gltfJson, binBuffer, posAccIdx);
-          positionCount = positions ? positions.length / 3 : 0;
-        }
-      }
-
-      // Conversion logic not yet implemented; surface what we know so far.
-      throw new Error(
-        `RUST_CONVERT_NOT_IMPLEMENTED: Rust wasm parsed GLB (vrmVersion=${vrmVersion}, ` +
-          `jsonChunkSize=${outLen}, binChunkSize=${binLen > 0 ? binLen : "none"}, ` +
-          `vertexCount=${positionCount}, runtime v${version}) ` +
-          `PMX conversion not yet implemented for file=${fileName}.`,
-      );
+      // 7. Build PMX 2.0 binary from the parsed glTF data.
+      const pmxBytes = buildPmxFromGltf(gltfJson, binBuffer, { modelName: fileName });
+      return { output: pmxBytes, fileExtension: "pmx", usedMode: "rust" };
     },
   };
 }

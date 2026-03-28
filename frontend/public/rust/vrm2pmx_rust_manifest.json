@@ -1,7 +1,7 @@
 {
   "name": "vrm2pmx-rust-runtime",
   "version": "0.1.0",
-  "status": "wasm-bin-extract",
+  "status": "wasm-pmx-output",
   "entryJs": "rust/vrm2pmx_rust_loader.js",
   "entryWasm": "rust/vrm2pmx_rust_stub.wasm",
   "capabilities": [
@@ -11,11 +11,12 @@
     "glb-extract-json-chunk",
     "vrm-version-detect",
     "glb-extract-bin-chunk",
-    "gltf-accessor-read"
+    "gltf-accessor-read",
+    "pmx-writer"
   ],
   "notes": [
-    "Rust Wasm module extracts the raw JSON chunk from GLB and returns it to JS.",
-    "JS bridge decodes the JSON bytes and detects VRM version (0=VRM0, 1=VRM1, -1=unknown).",
-    "Full PMX conversion is not yet implemented; the Wasm path falls back to Pyodide."
+    "Rust Wasm module extracts JSON + BIN chunks from GLB and passes them to the JS bridge.",
+    "JS bridge (pmxWriter.js) builds a minimal PMX 2.0 binary: correct vertices/faces/materials, 1 bone (センター), no morphs/physics.",
+    "First end-to-end PMX output milestone (動くところまで). Bones/morphs/physics to be added incrementally."
   ]
 }
