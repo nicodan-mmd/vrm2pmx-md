@@ -573,12 +573,53 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
 function extendBonesWithMmdControls(bones) {
   const out = bones.slice();
   const nameToIndex = new Map();
+  const deformRedirectMap = new Map();
   for (let i = 0; i < out.length; i++) {
     nameToIndex.set(out[i].nameJp, i);
   }
 
-  if (!nameToIndex.has("\u30b0\u30eb\u30fc\u30d6")) {
+  if (!nameToIndex.has("\u5168\u3066\u306e\u89aa")) {
     const centerIndex = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? 0;
+    out.splice(0, 0, {
+      nameJp: "\u5168\u3066\u306e\u89aa",
+      nameEn: "root",
+      pos: out[centerIndex] ? out[centerIndex].pos.slice() : [0, 0, 0],
+      parent: -1,
+      flags: 0x0002 | 0x0004 | 0x0008 | 0x0010,
+      tailOffset: [0, 1, 0],
+    });
+    nameToIndex.clear();
+    for (let i = 0; i < out.length; i++) {
+      nameToIndex.set(out[i].nameJp, i);
+    }
+    for (const [srcIdx, dstIdx] of deformRedirectMap.entries()) {
+      deformRedirectMap.set(srcIdx + 1, dstIdx + 1);
+      deformRedirectMap.delete(srcIdx);
+    }
+    for (let i = 1; i < out.length; i++) {
+      if (typeof out[i].parent === "number" && out[i].parent >= 0) {
+        out[i].parent += 1;
+      }
+      if (typeof out[i].tailBoneIndex === "number" && out[i].tailBoneIndex >= 0) {
+        out[i].tailBoneIndex += 1;
+      }
+      if (out[i].ik && typeof out[i].ik.targetIndex === "number" && out[i].ik.targetIndex >= 0) {
+        out[i].ik.targetIndex += 1;
+      }
+      if (out[i].ik && Array.isArray(out[i].ik.links)) {
+        for (const link of out[i].ik.links) {
+          if (typeof link.boneIndex === "number" && link.boneIndex >= 0) {
+            link.boneIndex += 1;
+          }
+        }
+      }
+    }
+  }
+
+  const rootIndex = nameToIndex.get("\u5168\u3066\u306e\u89aa") ?? 0;
+  const centerIndex = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? rootIndex;
+
+  if (!nameToIndex.has("\u30b0\u30eb\u30fc\u30d6")) {
     out.push({
       nameJp: "\u30b0\u30eb\u30fc\u30d6",
       nameEn: "groove",
@@ -588,6 +629,61 @@ function extendBonesWithMmdControls(bones) {
       tailOffset: [0, 1, 0],
     });
     nameToIndex.set("\u30b0\u30eb\u30fc\u30d6", out.length - 1);
+  }
+
+  if (!nameToIndex.has("\u8170")) {
+    const grooveIndex = nameToIndex.get("\u30b0\u30eb\u30fc\u30d6") ?? centerIndex;
+    const lowerBodyIndex = nameToIndex.get("\u4e0b\u534a\u8eab");
+    const waistPos = lowerBodyIndex != null && out[lowerBodyIndex]
+      ? out[lowerBodyIndex].pos.slice()
+      : (out[grooveIndex] ? out[grooveIndex].pos.slice() : [0, 0, 0]);
+    out.push({
+      nameJp: "\u8170",
+      nameEn: "waist",
+      pos: waistPos,
+      parent: grooveIndex,
+      flags: 0x0002 | 0x0004 | 0x0008 | 0x0010,
+      tailOffset: [0, 1, 0],
+    });
+    nameToIndex.set("\u8170", out.length - 1);
+  }
+
+  const lowerBodyIndex = nameToIndex.get("\u4e0b\u534a\u8eab");
+  const waistIndex = nameToIndex.get("\u8170") ?? centerIndex;
+  if (lowerBodyIndex != null && out[lowerBodyIndex]) {
+    out[lowerBodyIndex].parent = waistIndex;
+  }
+
+  const ensureWaistCancel = (side) => {
+    const cancelName = `\u8170\u30ad\u30e3\u30f3\u30bb\u30eb${side}`;
+    if (nameToIndex.has(cancelName)) {
+      return nameToIndex.get(cancelName);
+    }
+    const legName = `${side}\u8db3`;
+    const legIndex = nameToIndex.get(legName);
+    const pos = legIndex != null && out[legIndex] ? out[legIndex].pos.slice() : (out[waistIndex] ? out[waistIndex].pos.slice() : [0, 0, 0]);
+    out.push({
+      nameJp: cancelName,
+      nameEn: `${side === "\u5de6" ? "left" : "right"}_waist_cancel`,
+      pos,
+      parent: lowerBodyIndex != null ? lowerBodyIndex : waistIndex,
+      flags: 0x0002 | 0x0004,
+      tailOffset: [0, 0, 0],
+    });
+    nameToIndex.set(cancelName, out.length - 1);
+    return out.length - 1;
+  };
+
+  const leftWaistCancelIndex = ensureWaistCancel("\u5de6");
+  const rightWaistCancelIndex = ensureWaistCancel("\u53f3");
+
+  const leftLegIndex = nameToIndex.get("\u5de6\u8db3");
+  if (leftLegIndex != null && out[leftLegIndex]) {
+    out[leftLegIndex].parent = leftWaistCancelIndex;
+  }
+  const rightLegIndex = nameToIndex.get("\u53f3\u8db3");
+  if (rightLegIndex != null && out[rightLegIndex]) {
+    out[rightLegIndex].parent = rightWaistCancelIndex;
   }
 
   const addFootIk = (side) => {
@@ -605,7 +701,7 @@ function extendBonesWithMmdControls(bones) {
       return;
     }
 
-    const parent = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? 0;
+    const parent = rootIndex;
     const anklePos = out[ankle] ? out[ankle].pos.slice() : [0, 0, 0];
     
     // \u8db3IK (Python\u7248\u3068\u4e00\u81f4\u3055\u305b\u3066\u3044\u3046\u901f\u5ea6\u3092\u5408\u308f\u305b)
@@ -616,8 +712,8 @@ function extendBonesWithMmdControls(bones) {
       nameEn: `${side === "\u5de6" ? "left" : "right"}_leg_ik`,
       pos: anklePos,
       parent,
-      flags: 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
-      tailBoneIndex: ankle,
+      flags: 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
+      tailOffset: [0, 0, 1],
       ik: {
         targetIndex: ankle,
         loopCount: 40,
@@ -627,7 +723,7 @@ function extendBonesWithMmdControls(bones) {
             boneIndex: knee,
             hasLimit: 1,
             min: [-Math.PI, 0, 0],
-            max: [-0.00873, 0, 0],
+            max: [-0.008726646, 0, 0],
           },
           {
             boneIndex: leg,
@@ -641,14 +737,13 @@ function extendBonesWithMmdControls(bones) {
 
     // \u3064\u307e\u5148IK (Python\u7248: \u3064\u307e\u5148\u306eIK\u3002\u7236\u306f\u8db3IK)
     if (toe != null && !nameToIndex.has(toeIkName)) {
-      const toePos = out[toe] ? out[toe].pos.slice() : [0, 0, 0];
       out.push({
         nameJp: toeIkName,
         nameEn: `${side === "\u5de6" ? "left" : "right"}_toe_ik`,
-        pos: toePos,
+        pos: [0, 0, 0],
         parent: legIkIndex,
-        flags: 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
-        tailBoneIndex: toe,
+        flags: 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
+        tailOffset: [0, -1, 0],
         ik: {
           targetIndex: toe,
           loopCount: 40,
@@ -668,7 +763,84 @@ function extendBonesWithMmdControls(bones) {
   addFootIk("\u5de6");
   addFootIk("\u53f3");
 
-  return out;
+  // D系骨の自動作成（Python版と同じロジック）
+  const addDeformBones = (side) => {
+    const definitions = [
+      {
+        srcName: `${side}足`,
+        dName: `${side}足D`,
+        parentName: `腰キャンセル${side}`,
+      },
+      {
+        srcName: `${side}ひざ`,
+        dName: `${side}ひざD`,
+        parentName: `${side}足D`,
+      },
+      {
+        srcName: `${side}足首`,
+        dName: `${side}足首D`,
+        parentName: `${side}ひざD`,
+      },
+    ];
+
+    for (const def of definitions) {
+      const srcIdx = nameToIndex.get(def.srcName);
+      if (srcIdx == null || nameToIndex.has(def.dName)) {
+        continue;
+      }
+
+      const srcBone = out[srcIdx];
+      const parentIdx = nameToIndex.get(def.parentName) ?? -1;
+      if (parentIdx < 0) {
+        continue;
+      }
+
+      out.push({
+        nameJp: def.dName,
+        nameEn: def.dName,
+        pos: srcBone.pos.slice(),
+        parent: parentIdx,
+        // Python版に合わせる: 回転可 + 表示 + 操作可 + 回転付与
+        // 282(0x011A) = 0x0002 | 0x0008 | 0x0010 | 0x0100
+        flags: 0x0002 | 0x0008 | 0x0010 | 0x0100,
+        tailOffset: [0, 0, 0],
+        effectIndex: srcIdx,
+        effectFactor: 1.0,
+      });
+
+      const dBoneIdx = out.length - 1;
+      nameToIndex.set(def.dName, dBoneIdx);
+      deformRedirectMap.set(srcIdx, dBoneIdx);
+    }
+  };
+
+  addDeformBones("左");
+  addDeformBones("右");
+
+  const addFootTipEx = (side) => {
+    const ankleDName = `${side}足首D`;
+    const footTipExName = `${side}足先EX`;
+    const ankleDIndex = nameToIndex.get(ankleDName);
+
+    if (ankleDIndex == null || nameToIndex.has(footTipExName)) {
+      return;
+    }
+
+    out.push({
+      nameJp: footTipExName,
+      nameEn: `${side === "左" ? "left" : "right"}_foot_tip_ex`,
+      pos: out[ankleDIndex] ? out[ankleDIndex].pos.slice() : [0, 0, 0],
+      parent: ankleDIndex,
+      flags: 0x0002 | 0x0004,
+      tailOffset: [0, -1, 0],
+    });
+    nameToIndex.set(footTipExName, out.length - 1);
+  };
+
+  addFootTipEx("左");
+  addFootTipEx("右");
+
+  return { bones: out, deformRedirectMap };
 }
 
 function buildSkinPoseData(gltfJson, binBuffer, skinIndex, worldMatrices) {
@@ -759,8 +931,8 @@ function resolveVertexDeform(
     const nodeIdx = skinJoints[jointLocal];
     const rawBoneIdx = boneIndexByNodeIndex.get(nodeIdx);
     if (typeof rawBoneIdx !== "number") continue;
-    // D系ボーンにリダイレクト（足・ひざ・足首はスキニング専用D系ボーンへ）
-    const boneIdx = deformRedirectMap ? (deformRedirectMap.get(rawBoneIdx) ?? rawBoneIdx) : rawBoneIdx;
+    // Python版と同じ方式：D系骨へリダイレクト（deformRedirectMap の場合）
+    const boneIdx = deformRedirectMap.has(rawBoneIdx) ? deformRedirectMap.get(rawBoneIdx) : rawBoneIdx;
     inf.push({ boneIdx, weight });
   }
 
@@ -768,8 +940,16 @@ function resolveVertexDeform(
     return { type: 0, bone0: 0 };
   }
 
-  inf.sort((a, b) => b.weight - a.weight);
-  const top = inf.slice(0, 4);
+  // Python版と同様、リダイレクト後に同一ボーンへ重複した影響を合算する
+  // （未合算だと同じD-boneが複数スロットを占有し、分布が崩れる）
+  const merged = new Map();
+  for (const item of inf) {
+    merged.set(item.boneIdx, (merged.get(item.boneIdx) ?? 0) + item.weight);
+  }
+  const mergedInf = Array.from(merged.entries()).map(([boneIdx, weight]) => ({ boneIdx, weight }));
+
+  mergedInf.sort((a, b) => b.weight - a.weight);
+  const top = mergedInf.slice(0, 4);
   const sum = top.reduce((acc, v) => acc + v.weight, 0);
   for (const item of top) {
     item.weight = sum > 0 ? item.weight / sum : 0;
@@ -1109,6 +1289,37 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       w.f32(Number(tail[0] ?? 0));
       w.f32(Number(tail[1] ?? 1));
       w.f32(Number(tail[2] ?? 0));
+    }
+
+    // 付与親設定（回転付与/移動付与）
+    if (flags & 0x0100 || flags & 0x0200) {
+      w.idx(typeof bone.effectIndex === "number" ? bone.effectIndex : -1, bIdxSz);
+      w.f32(typeof bone.effectFactor === "number" ? bone.effectFactor : 0);
+    }
+
+    // 軸制限
+    if (flags & 0x0400) {
+      const axis = Array.isArray(bone.fixedAxis) ? bone.fixedAxis : [1, 0, 0];
+      w.f32(Number(axis[0] ?? 1));
+      w.f32(Number(axis[1] ?? 0));
+      w.f32(Number(axis[2] ?? 0));
+    }
+
+    // ローカル座標
+    if (flags & 0x0800) {
+      const localX = Array.isArray(bone.localAxisX) ? bone.localAxisX : [1, 0, 0];
+      const localZ = Array.isArray(bone.localAxisZ) ? bone.localAxisZ : [0, 0, 1];
+      w.f32(Number(localX[0] ?? 1));
+      w.f32(Number(localX[1] ?? 0));
+      w.f32(Number(localX[2] ?? 0));
+      w.f32(Number(localZ[0] ?? 0));
+      w.f32(Number(localZ[1] ?? 0));
+      w.f32(Number(localZ[2] ?? 1));
+    }
+
+    // 外部親
+    if (flags & 0x2000) {
+      w.i32(typeof bone.externalKey === "number" ? bone.externalKey : 0);
     }
 
     if (flags & 0x0020) {
