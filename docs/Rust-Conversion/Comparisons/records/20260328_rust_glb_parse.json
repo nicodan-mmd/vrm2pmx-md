@@ -1,6 +1,6 @@
 {
   "date": "2026-03-28",
-  "commit": "pending-local",
+  "commit": "0e6876f",
   "branch": "feature/rust-conversion-poc",
   "stage": "rust-glb-parse",
   "change_type": "first-real-rust-logic",

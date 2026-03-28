@@ -3,7 +3,7 @@
 ## Meta
 
 - Date: 2026-03-28
-- Commit: pending-local
+- Commit: 0e6876f
 - Branch: feature/rust-conversion-poc
 - Stage: Rust GLB header + JSON chunk parse
 - Change type: first real Rust logic
