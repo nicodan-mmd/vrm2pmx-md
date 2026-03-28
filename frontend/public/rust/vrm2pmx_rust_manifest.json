@@ -1,7 +1,7 @@
 {
   "name": "vrm2pmx-rust-runtime",
   "version": "0.1.0",
-  "status": "wasm-json-extract",
+  "status": "wasm-bin-extract",
   "entryJs": "rust/vrm2pmx_rust_loader.js",
   "entryWasm": "rust/vrm2pmx_rust_stub.wasm",
   "capabilities": [
@@ -9,7 +9,9 @@
     "memory-alloc",
     "glb-parse-json-len",
     "glb-extract-json-chunk",
-    "vrm-version-detect"
+    "vrm-version-detect",
+    "glb-extract-bin-chunk",
+    "gltf-accessor-read"
   ],
   "notes": [
     "Rust Wasm module extracts the raw JSON chunk from GLB and returns it to JS.",

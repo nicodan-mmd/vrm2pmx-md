@@ -5,6 +5,52 @@ const PARSE_ERROR_REASONS = {
   "-4": "JSON chunk type not found at expected offset",
   "-5": "JSON chunk extends beyond the buffer",
 };
+const PARSE_ERROR_REASONS_BIN = {
+  "-6": "no BIN chunk present in GLB",
+  "-7": "BIN chunk extends beyond the buffer",
+};
+
+// ---------------------------------------------------------------------------
+// glTF accessor helpers (pure JS, operate on the bin ArrayBuffer)
+// ---------------------------------------------------------------------------
+
+const GLTF_COMPONENT = {
+  5120: { bytes: 1, read: (dv, o) => dv.getInt8(o) },
+  5121: { bytes: 1, read: (dv, o) => dv.getUint8(o) },
+  5122: { bytes: 2, read: (dv, o) => dv.getInt16(o, true) },
+  5123: { bytes: 2, read: (dv, o) => dv.getUint16(o, true) },
+  5125: { bytes: 4, read: (dv, o) => dv.getUint32(o, true) },
+  5126: { bytes: 4, read: (dv, o) => dv.getFloat32(o, true) },
+};
+const GLTF_TYPE_COUNT = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
+
+/**
+ * Read all elements from a glTF accessor into a flat array.
+ * Returns null if the accessor / bufferView / bufferView data is absent.
+ */
+function readAccessor(gltfJson, binBuffer, accessorIndex) {
+  const accessor = gltfJson.accessors && gltfJson.accessors[accessorIndex];
+  if (!accessor) return null;
+  const bv = gltfJson.bufferViews && gltfJson.bufferViews[accessor.bufferViewIndex ?? accessor.bufferView];
+  if (!bv) return null;
+  const comp = GLTF_COMPONENT[accessor.componentType];
+  if (!comp) return null;
+  const numComponents = GLTF_TYPE_COUNT[accessor.type];
+  if (!numComponents) return null;
+
+  const byteOffset = (bv.byteOffset || 0) + (accessor.byteOffset || 0);
+  const byteStride = bv.byteStride || comp.bytes * numComponents;
+  const dv = new DataView(binBuffer);
+  const result = [];
+
+  for (let i = 0; i < accessor.count; i++) {
+    const base = byteOffset + i * byteStride;
+    for (let c = 0; c < numComponents; c++) {
+      result.push(comp.read(dv, base + c * comp.bytes));
+    }
+  }
+  return result;
+}
 
 export async function createRuntimeBridge(options = {}) {
   const wasmUrl = options.wasmUrl || "";
@@ -30,10 +76,11 @@ export async function createRuntimeBridge(options = {}) {
         typeof exports.vrm2pmx_alloc !== "function" ||
         typeof exports.vrm2pmx_free !== "function" ||
         typeof exports.vrm2pmx_get_json_chunk !== "function" ||
+        typeof exports.vrm2pmx_get_bin_chunk !== "function" ||
         !(exports.memory instanceof WebAssembly.Memory)
       ) {
         throw new Error(
-          `RUST_WASM_INVALID: Rust wasm asset at ${wasmUrl} does not expose the expected interface (version/alloc/free/get_json_chunk/memory).`,
+          `RUST_WASM_INVALID: Rust wasm asset at ${wasmUrl} does not expose the expected interface (version/alloc/free/get_json_chunk/get_bin_chunk/memory).`,
         );
       }
 
@@ -91,11 +138,49 @@ export async function createRuntimeBridge(options = {}) {
         // JSON parse failure — vrmVersion stays -1
       }
 
+      // 6. Extract the BIN chunk via Rust.
+      let gltfJson = null;
+      try {
+        gltfJson = JSON.parse(new TextDecoder().decode(jsonBytes));
+      } catch (_) {
+        throw new Error(`RUST_CONVERT_INVALID_INPUT: GLB JSON chunk is not valid JSON for file=${fileName}.`);
+      }
+
+      const binOutLenPtr = runtimeExports.vrm2pmx_alloc(4);
+      new DataView(runtimeExports.memory.buffer).setInt32(binOutLenPtr, 0, true);
+
+      const inPtr2 = runtimeExports.vrm2pmx_alloc(input.length);
+      new Uint8Array(runtimeExports.memory.buffer).set(input, inPtr2);
+
+      const binPtr = runtimeExports.vrm2pmx_get_bin_chunk(inPtr2, input.length, binOutLenPtr);
+      runtimeExports.vrm2pmx_free(inPtr2, input.length);
+
+      const binLen = new DataView(runtimeExports.memory.buffer).getInt32(binOutLenPtr, true);
+      runtimeExports.vrm2pmx_free(binOutLenPtr, 4);
+
+      let binBuffer = null;
+      if (binPtr && binLen > 0) {
+        binBuffer = new Uint8Array(runtimeExports.memory.buffer, binPtr, binLen).slice().buffer;
+        runtimeExports.vrm2pmx_free(binPtr, binLen);
+      }
+
+      // 7. Read a sample accessor (first mesh primitive positions) to prove the pipeline.
+      let positionCount = 0;
+      if (binBuffer && gltfJson.meshes && gltfJson.meshes.length > 0) {
+        const prim = gltfJson.meshes[0].primitives && gltfJson.meshes[0].primitives[0];
+        const posAccIdx = prim && prim.attributes && prim.attributes.POSITION;
+        if (posAccIdx != null) {
+          const positions = readAccessor(gltfJson, binBuffer, posAccIdx);
+          positionCount = positions ? positions.length / 3 : 0;
+        }
+      }
+
       // Conversion logic not yet implemented; surface what we know so far.
       throw new Error(
-        `RUST_CONVERT_NOT_IMPLEMENTED: Rust wasm extracted JSON chunk and detected VRM version ` +
-          `(vrmVersion=${vrmVersion}, jsonChunkSize=${outLen} bytes, runtime v${version}) ` +
-          `but PMX conversion is not yet implemented for file=${fileName}.`,
+        `RUST_CONVERT_NOT_IMPLEMENTED: Rust wasm parsed GLB (vrmVersion=${vrmVersion}, ` +
+          `jsonChunkSize=${outLen}, binChunkSize=${binLen > 0 ? binLen : "none"}, ` +
+          `vertexCount=${positionCount}, runtime v${version}) ` +
+          `PMX conversion not yet implemented for file=${fileName}.`,
       );
     },
   };

@@ -1,0 +1,37 @@
+{
+  "date": "2026-03-28",
+  "branch": "feature/rust-conversion-poc",
+  "stage": "rust-bin-extract",
+  "change_type": "wasm-implementation",
+  "wasm_size_bytes": {
+    "before": 12039,
+    "after": 13053
+  },
+  "rust_exports": {
+    "added": ["vrm2pmx_get_bin_chunk"],
+    "refactored": ["moved all exports to exports.rs"],
+    "new_internals": ["glb_locate_bin_chunk"]
+  },
+  "js_bridge": {
+    "added": ["readAccessor()", "GLTF_COMPONENT map", "GLTF_TYPE_COUNT map"],
+    "convert_outputs": ["vrmVersion", "jsonChunkSize", "binChunkSize", "vertexCount"]
+  },
+  "validation": {
+    "type_errors": false,
+    "rust_compile": "pass",
+    "frontend_build": "pass",
+    "build_artifact_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "first_attempt": "rust",
+    "first_result": "RUST_CONVERT_NOT_IMPLEMENTED (vrmVersion + vertexCount reported)",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "pending"
+  },
+  "status": "pass",
+  "next_action": "Implement vertex/bone/morph assembly and write PMX output bytes in JS or Rust."
+}
