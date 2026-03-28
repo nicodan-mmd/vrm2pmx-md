@@ -1,0 +1,35 @@
+{
+  "date": "2026-03-28",
+  "commit": "pending-local",
+  "branch": "feature/rust-conversion-poc",
+  "stage": "rust-glb-parse",
+  "change_type": "first-real-rust-logic",
+  "api_surface": [
+    "vrm2pmx_version",
+    "vrm2pmx_alloc",
+    "vrm2pmx_free",
+    "vrm2pmx_parse_glb_json_len"
+  ],
+  "wasm_size_bytes": 9621,
+  "validation": {
+    "rust_wasm_build": "pass",
+    "frontend_build": "pass",
+    "pwa_precache_kib": 1602
+  },
+  "mode": {
+    "requested": "rust",
+    "manifest_lookup": "found",
+    "loader_bridge_import": "found",
+    "wasm_instantiate": "pass",
+    "memory_boundary": "established",
+    "glb_parse_result": "json_chunk_size_reported",
+    "first_rust_result": "RUST_CONVERT_NOT_IMPLEMENTED",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "not-requested"
+  },
+  "status": "pass",
+  "next_action": "Expose JSON chunk bytes to JS or implement first PMX structure extraction step in Rust."
+}

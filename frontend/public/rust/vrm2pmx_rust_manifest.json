@@ -1,16 +1,17 @@
 {
   "name": "vrm2pmx-rust-runtime",
-  "version": "0.0.0-placeholder",
-  "status": "wasm-stub",
+  "version": "0.1.0",
+  "status": "wasm-glb-parse",
   "entryJs": "rust/vrm2pmx_rust_loader.js",
   "entryWasm": "rust/vrm2pmx_rust_stub.wasm",
   "capabilities": [
     "loader-bridge",
-    "wasm-stub"
+    "memory-alloc",
+    "glb-parse-json-len"
   ],
   "notes": [
-    "Placeholder manifest for Rust/Wasm runtime integration.",
-    "Loader bridge exists and now points to a minimal Rust Wasm stub asset.",
-    "The current Wasm module proves asset loading only; conversion is still not implemented."
+    "Rust Wasm module provides GLB header validation and JSON chunk size detection.",
+    "JS bridge uses alloc/free to pass VRM bytes through the Wasm memory boundary.",
+    "Full PMX conversion is not yet implemented; the Wasm path falls back to Pyodide."
   ]
 }
