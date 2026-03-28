@@ -745,6 +745,7 @@ function resolveVertexDeform(
   vertIndex,
   skinJoints,
   boneIndexByNodeIndex,
+  deformRedirectMap,
 ) {
   if (!jointsRaw || !weightsRaw || !skinJoints) {
     return { type: 0, bone0: 0 };
@@ -756,8 +757,10 @@ function resolveVertexDeform(
     const weight = Number(weightsRaw[vertIndex * 4 + k] ?? 0);
     if (jointLocal < 0 || jointLocal >= skinJoints.length || weight <= 0) continue;
     const nodeIdx = skinJoints[jointLocal];
-    const boneIdx = boneIndexByNodeIndex.get(nodeIdx);
-    if (typeof boneIdx !== "number") continue;
+    const rawBoneIdx = boneIndexByNodeIndex.get(nodeIdx);
+    if (typeof rawBoneIdx !== "number") continue;
+    // D系ボーンにリダイレクト（足・ひざ・足首はスキニング専用D系ボーンへ）
+    const boneIdx = deformRedirectMap ? (deformRedirectMap.get(rawBoneIdx) ?? rawBoneIdx) : rawBoneIdx;
     inf.push({ boneIdx, weight });
   }
 
@@ -870,7 +873,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       .filter((v) => typeof v === "number" && v >= 0),
   );
   const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, "current");
-  const finalBones = extendBonesWithMmdControls(bones);
+  const { bones: finalBones, deformRedirectMap } = extendBonesWithMmdControls(bones);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
@@ -931,7 +934,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
           pos: [px, py, pz],
           nrm: [nx, ny, nz],
           uv: [u, v],
-          deform: resolveVertexDeform(joints, weights, i, skinJoints, boneIndexByNodeIndex),
+          deform: resolveVertexDeform(joints, weights, i, skinJoints, boneIndexByNodeIndex, deformRedirectMap),
         });
       }
 
