@@ -116,6 +116,72 @@ function idxSize(count) {
   return 1;
 }
 
+function inferTextureExtension(mimeType) {
+  if (!mimeType) return "png";
+  const normalized = String(mimeType).toLowerCase();
+  if (normalized.includes("png")) return "png";
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
+  if (normalized.includes("bmp")) return "bmp";
+  if (normalized.includes("webp")) return "webp";
+  return "bin";
+}
+
+function normalizeTextureBaseName(raw, fallback) {
+  const base = String(raw || "")
+    .replace(/^.*[\\/]/, "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, "_")
+    .trim();
+  return base || fallback;
+}
+
+function buildTexturePathMap(gltfJson) {
+  const paths = [];
+  const imageIndexToTextureIndex = new Map();
+  const used = new Set();
+  const images = Array.isArray(gltfJson.images) ? gltfJson.images : [];
+
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i] || {};
+    const extension = inferTextureExtension(image.mimeType);
+    const baseName = normalizeTextureBaseName(
+      typeof image.name === "string" ? image.name : typeof image.uri === "string" ? image.uri : "",
+      `texture_${i}`,
+    );
+
+    let candidate = `textures/${baseName}.${extension}`;
+    let serial = 1;
+    while (used.has(candidate.toLowerCase())) {
+      candidate = `textures/${baseName}_${serial}.${extension}`;
+      serial += 1;
+    }
+    used.add(candidate.toLowerCase());
+
+    imageIndexToTextureIndex.set(i, paths.length);
+    paths.push(candidate);
+  }
+
+  return { paths, imageIndexToTextureIndex };
+}
+
+function resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex) {
+  const matIdx = prim && typeof prim.material === "number" ? prim.material : -1;
+  if (matIdx < 0) return -1;
+  const mat = Array.isArray(gltfJson.materials) ? gltfJson.materials[matIdx] : null;
+  if (!mat || typeof mat !== "object") return -1;
+
+  const pbr = mat.pbrMetallicRoughness;
+  const baseColor = pbr && typeof pbr === "object" ? pbr.baseColorTexture : null;
+  const texIndex = baseColor && typeof baseColor === "object" ? baseColor.index : null;
+  if (typeof texIndex !== "number") return -1;
+
+  const tex = Array.isArray(gltfJson.textures) ? gltfJson.textures[texIndex] : null;
+  if (!tex || typeof tex !== "object" || typeof tex.source !== "number") return -1;
+
+  return imageIndexToTextureIndex.get(tex.source) ?? -1;
+}
+
 /**
  * Read all elements from a glTF accessor into a flat JS number array.
  * Returns null if the accessor or bufferView is absent.
@@ -161,6 +227,8 @@ function readAcc(gltfJson, binBuffer, accessorIndex) {
  */
 export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const modelName = opts.modelName || "VRM Model";
+
+  const { paths: texturePaths, imageIndexToTextureIndex } = buildTexturePathMap(gltfJson);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
@@ -214,6 +282,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       materials.push({
         nameJp: mesh.name || `Material_${materials.length}`,
         faceVertCount: primFaceCount,
+        textureIndex: resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex),
       });
     }
   }
@@ -221,7 +290,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   // ── 2. Determine index sizes ────────────────────────────────────────────
 
   const vIdxSz = idxSize(vertices.length); // vertex index size
-  const tIdxSz = 1; // texture index size  (no textures → 1 byte, -1 = "none")
+  const tIdxSz = idxSize(texturePaths.length); // texture index size
   const mIdxSz = idxSize(materials.length); // material index size
   const bIdxSz = 1; // bone index size      (1 bone)
   const phIdxSz = 1; // morph index size    (0 morphs)
@@ -280,8 +349,11 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     w.idx(vi, vIdxSz);
   }
 
-  // ── Textures (none) ───────────────────────────────────────────────────────
-  w.i32(0);
+  // ── Textures ──────────────────────────────────────────────────────────────
+  w.i32(texturePaths.length);
+  for (const path of texturePaths) {
+    w.text(path);
+  }
 
   // ── Materials ─────────────────────────────────────────────────────────────
   w.i32(materials.length);
@@ -310,8 +382,8 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     w.f32(0.0);
     w.f32(1.0);
     w.f32(1.0);
-    // texture index (-1 = none), sphere texture index (-1 = none)
-    w.idx(-1, tIdxSz);
+    // texture index, sphere texture index (-1 = none)
+    w.idx(typeof mat.textureIndex === "number" ? mat.textureIndex : -1, tIdxSz);
     w.idx(-1, tIdxSz);
     // sphere mode: 0 = off
     w.i8(0);
