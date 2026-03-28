@@ -405,7 +405,7 @@ function toPmxPosFromGlbWorld(worldMat) {
   ];
 }
 
-function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices) {
+function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "current") {
   const centerBone = {
     nameJp: "\u30bb\u30f3\u30bf\u30fc",
     nameEn: "center",
@@ -477,12 +477,13 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices) {
     const parentBone = boneIndexByNodeIndex.has(parentNode)
       ? boneIndexByNodeIndex.get(parentNode)
       : 0;
+    const bindPos = jointBindPosByNode.get(nodeIndex) || null;
+    const currentPos = toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4());
+
     bones.push({
       nameJp: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
       nameEn: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
-      pos:
-        jointBindPosByNode.get(nodeIndex) ||
-        toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4()),
+      pos: poseMode === "bind" && bindPos ? bindPos : currentPos,
       parent: typeof parentBone === "number" ? parentBone : 0,
     });
   }
@@ -688,7 +689,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       .map((b) => b.skinIndex)
       .filter((v) => typeof v === "number" && v >= 0),
   );
-  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices);
+  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, "current");
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
