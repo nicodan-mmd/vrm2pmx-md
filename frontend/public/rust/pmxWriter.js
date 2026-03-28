@@ -215,6 +215,233 @@ function resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex) 
   };
 }
 
+function buildNodeParentIndices(gltfJson) {
+  const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
+  const parents = new Array(nodes.length).fill(-1);
+  for (let i = 0; i < nodes.length; i++) {
+    const children = Array.isArray(nodes[i] && nodes[i].children) ? nodes[i].children : [];
+    for (const child of children) {
+      if (typeof child === "number" && child >= 0 && child < nodes.length) {
+        parents[child] = i;
+      }
+    }
+  }
+  return parents;
+}
+
+function identityMat4() {
+  return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+}
+
+function mulMat4(a, b) {
+  const out = new Array(16).fill(0);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      out[c * 4 + r] =
+        a[0 * 4 + r] * b[c * 4 + 0] +
+        a[1 * 4 + r] * b[c * 4 + 1] +
+        a[2 * 4 + r] * b[c * 4 + 2] +
+        a[3 * 4 + r] * b[c * 4 + 3];
+    }
+  }
+  return out;
+}
+
+function nodeLocalMatrix(node) {
+  if (Array.isArray(node.matrix) && node.matrix.length === 16) {
+    return node.matrix.map((v) => Number(v));
+  }
+
+  const t = Array.isArray(node.translation) ? node.translation : [0, 0, 0];
+  const r = Array.isArray(node.rotation) ? node.rotation : [0, 0, 0, 1];
+  const s = Array.isArray(node.scale) ? node.scale : [1, 1, 1];
+
+  const tx = Number(t[0] ?? 0);
+  const ty = Number(t[1] ?? 0);
+  const tz = Number(t[2] ?? 0);
+  const x = Number(r[0] ?? 0);
+  const y = Number(r[1] ?? 0);
+  const z = Number(r[2] ?? 0);
+  const w = Number(r[3] ?? 1);
+  const sx = Number(s[0] ?? 1);
+  const sy = Number(s[1] ?? 1);
+  const sz = Number(s[2] ?? 1);
+
+  const x2 = x + x;
+  const y2 = y + y;
+  const z2 = z + z;
+  const xx = x * x2;
+  const xy = x * y2;
+  const xz = x * z2;
+  const yy = y * y2;
+  const yz = y * z2;
+  const zz = z * z2;
+  const wx = w * x2;
+  const wy = w * y2;
+  const wz = w * z2;
+
+  return [
+    (1 - (yy + zz)) * sx,
+    (xy + wz) * sx,
+    (xz - wy) * sx,
+    0,
+    (xy - wz) * sy,
+    (1 - (xx + zz)) * sy,
+    (yz + wx) * sy,
+    0,
+    (xz + wy) * sz,
+    (yz - wx) * sz,
+    (1 - (xx + yy)) * sz,
+    0,
+    tx,
+    ty,
+    tz,
+    1,
+  ];
+}
+
+function buildWorldMatrices(gltfJson, parentIndices) {
+  const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
+  const world = new Array(nodes.length);
+
+  function compute(nodeIndex) {
+    if (nodeIndex < 0 || nodeIndex >= nodes.length) return identityMat4();
+    if (world[nodeIndex]) return world[nodeIndex];
+    const local = nodeLocalMatrix(nodes[nodeIndex] || {});
+    const p = parentIndices[nodeIndex];
+    world[nodeIndex] = p >= 0 ? mulMat4(compute(p), local) : local;
+    return world[nodeIndex];
+  }
+
+  for (let i = 0; i < nodes.length; i++) {
+    compute(i);
+  }
+  return world;
+}
+
+function toPmxPosFromGlbWorld(worldMat) {
+  return [
+    Number(worldMat[12] || 0) * MIKU_METER * -1,
+    Number(worldMat[13] || 0) * MIKU_METER,
+    Number(worldMat[14] || 0) * MIKU_METER,
+  ];
+}
+
+function buildRigFromSkins(gltfJson, usedSkinIndices) {
+  const centerBone = {
+    nameJp: "\u30bb\u30f3\u30bf\u30fc",
+    nameEn: "center",
+    pos: [0, 0, 0],
+    parent: -1,
+  };
+
+  if (!Array.isArray(gltfJson.skins) || usedSkinIndices.size === 0) {
+    return {
+      bones: [centerBone],
+      boneIndexByNodeIndex: new Map(),
+    };
+  }
+
+  const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
+  const parentIndices = buildNodeParentIndices(gltfJson);
+  const world = buildWorldMatrices(gltfJson, parentIndices);
+
+  const jointSet = new Set();
+  for (const skinIndex of usedSkinIndices) {
+    const skin = gltfJson.skins[skinIndex];
+    const joints = Array.isArray(skin && skin.joints) ? skin.joints : [];
+    for (const joint of joints) {
+      if (typeof joint === "number" && joint >= 0 && joint < nodes.length) {
+        jointSet.add(joint);
+        let p = parentIndices[joint];
+        while (p >= 0) {
+          jointSet.add(p);
+          p = parentIndices[p];
+        }
+      }
+    }
+  }
+
+  const orderedNodeIndices = Array.from(jointSet).sort((a, b) => a - b);
+  const boneIndexByNodeIndex = new Map();
+  for (let i = 0; i < orderedNodeIndices.length; i++) {
+    boneIndexByNodeIndex.set(orderedNodeIndices[i], i + 1); // 0 is center
+  }
+
+  const bones = [centerBone];
+  for (const nodeIndex of orderedNodeIndices) {
+    const node = nodes[nodeIndex] || {};
+    const parentNode = parentIndices[nodeIndex];
+    const parentBone = boneIndexByNodeIndex.has(parentNode)
+      ? boneIndexByNodeIndex.get(parentNode)
+      : 0;
+    bones.push({
+      nameJp: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
+      nameEn: typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`,
+      pos: toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4()),
+      parent: typeof parentBone === "number" ? parentBone : 0,
+    });
+  }
+
+  return { bones, boneIndexByNodeIndex };
+}
+
+function resolveVertexDeform(
+  jointsRaw,
+  weightsRaw,
+  vertIndex,
+  skinJoints,
+  boneIndexByNodeIndex,
+) {
+  if (!jointsRaw || !weightsRaw || !skinJoints) {
+    return { type: 0, bone0: 0 };
+  }
+
+  const inf = [];
+  for (let k = 0; k < 4; k++) {
+    const jointLocal = Number(jointsRaw[vertIndex * 4 + k] ?? -1);
+    const weight = Number(weightsRaw[vertIndex * 4 + k] ?? 0);
+    if (jointLocal < 0 || jointLocal >= skinJoints.length || weight <= 0) continue;
+    const nodeIdx = skinJoints[jointLocal];
+    const boneIdx = boneIndexByNodeIndex.get(nodeIdx);
+    if (typeof boneIdx !== "number") continue;
+    inf.push({ boneIdx, weight });
+  }
+
+  if (inf.length === 0) {
+    return { type: 0, bone0: 0 };
+  }
+
+  inf.sort((a, b) => b.weight - a.weight);
+  const top = inf.slice(0, 4);
+  const sum = top.reduce((acc, v) => acc + v.weight, 0);
+  for (const item of top) {
+    item.weight = sum > 0 ? item.weight / sum : 0;
+  }
+
+  if (top.length === 1) {
+    return { type: 0, bone0: top[0].boneIdx };
+  }
+  if (top.length === 2) {
+    return { type: 1, bone0: top[0].boneIdx, bone1: top[1].boneIdx, weight0: top[0].weight };
+  }
+
+  while (top.length < 4) {
+    top.push({ boneIdx: 0, weight: 0 });
+  }
+  return {
+    type: 2,
+    bone0: top[0].boneIdx,
+    bone1: top[1].boneIdx,
+    bone2: top[2].boneIdx,
+    bone3: top[3].boneIdx,
+    weight0: top[0].weight,
+    weight1: top[1].weight,
+    weight2: top[2].weight,
+    weight3: top[3].weight,
+  };
+}
+
 /**
  * Read all elements from a glTF accessor into a flat JS number array.
  * Returns null if the accessor or bufferView is absent.
@@ -262,14 +489,45 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const modelName = opts.modelName || "VRM Model";
 
   const { paths: texturePaths, imageIndexToTextureIndex } = buildTexturePathMap(gltfJson);
+  const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
+  const meshes = Array.isArray(gltfJson.meshes) ? gltfJson.meshes : [];
+
+  const meshBindings = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i] || {};
+    if (typeof node.mesh === "number" && node.mesh >= 0 && node.mesh < meshes.length) {
+      meshBindings.push({
+        nodeIndex: i,
+        meshIndex: node.mesh,
+        skinIndex: typeof node.skin === "number" ? node.skin : -1,
+      });
+    }
+  }
+  if (meshBindings.length === 0) {
+    for (let i = 0; i < meshes.length; i++) {
+      meshBindings.push({ nodeIndex: -1, meshIndex: i, skinIndex: -1 });
+    }
+  }
+
+  const usedSkinIndices = new Set(
+    meshBindings
+      .map((b) => b.skinIndex)
+      .filter((v) => typeof v === "number" && v >= 0),
+  );
+  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, usedSkinIndices);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
-  const vertices = []; // { pos:[x,y,z], nrm:[x,y,z], uv:[u,v] }
+  const vertices = []; // { pos:[x,y,z], nrm:[x,y,z], uv:[u,v], deform }
   const faceVerts = []; // flat list of vertex indices (3 per triangle)
   const materials = []; // { nameJp, faceVertCount }
 
-  for (const mesh of gltfJson.meshes || []) {
+  for (const binding of meshBindings) {
+    const mesh = meshes[binding.meshIndex];
+    const skin =
+      binding.skinIndex >= 0 && Array.isArray(gltfJson.skins) ? gltfJson.skins[binding.skinIndex] : null;
+    const skinJoints = Array.isArray(skin && skin.joints) ? skin.joints : null;
+
     for (const prim of mesh.primitives || []) {
       const baseVertex = vertices.length;
       const attrs = prim.attributes || {};
@@ -277,6 +535,8 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       const positions = readAcc(gltfJson, binBuffer, attrs.POSITION);
       const normals = readAcc(gltfJson, binBuffer, attrs.NORMAL);
       const uvs = readAcc(gltfJson, binBuffer, attrs.TEXCOORD_0);
+      const joints = readAcc(gltfJson, binBuffer, attrs.JOINTS_0);
+      const weights = readAcc(gltfJson, binBuffer, attrs.WEIGHTS_0);
       const rawIndices = readAcc(gltfJson, binBuffer, prim.indices);
 
       const vertCount = positions ? Math.floor(positions.length / 3) : 0;
@@ -296,7 +556,12 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
         const u = uvs ? (uvs[i * 2] ?? 0) : 0;
         const v = uvs ? (uvs[i * 2 + 1] ?? 0) : 0;
 
-        vertices.push({ pos: [px, py, pz], nrm: [nx, ny, nz], uv: [u, v] });
+        vertices.push({
+          pos: [px, py, pz],
+          nrm: [nx, ny, nz],
+          uv: [u, v],
+          deform: resolveVertexDeform(joints, weights, i, skinJoints, boneIndexByNodeIndex),
+        });
       }
 
       // Faces: reverse winding order (glTF CCW → PMX CW)
@@ -325,7 +590,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const vIdxSz = idxSize(vertices.length); // vertex index size
   const tIdxSz = idxSize(texturePaths.length); // texture index size
   const mIdxSz = idxSize(materials.length); // material index size
-  const bIdxSz = 1; // bone index size      (1 bone)
+  const bIdxSz = idxSize(bones.length); // bone index size
   const phIdxSz = 1; // morph index size    (0 morphs)
   const rbIdxSz = 1; // rigid body idx size (0 rigid bodies)
 
@@ -368,10 +633,29 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     // UV (2 floats)
     w.f32(vert.uv[0]);
     w.f32(vert.uv[1]);
-    // deform type: 0 = Bdef1
-    w.i8(0);
-    // bone index 0 (センター)
-    w.idx(0, bIdxSz);
+    const d = vert.deform || { type: 0, bone0: 0 };
+    if (d.type === 2) {
+      // Bdef4
+      w.i8(2);
+      w.idx(d.bone0 ?? 0, bIdxSz);
+      w.idx(d.bone1 ?? 0, bIdxSz);
+      w.idx(d.bone2 ?? 0, bIdxSz);
+      w.idx(d.bone3 ?? 0, bIdxSz);
+      w.f32(d.weight0 ?? 1);
+      w.f32(d.weight1 ?? 0);
+      w.f32(d.weight2 ?? 0);
+      w.f32(d.weight3 ?? 0);
+    } else if (d.type === 1) {
+      // Bdef2
+      w.i8(1);
+      w.idx(d.bone0 ?? 0, bIdxSz);
+      w.idx(d.bone1 ?? 0, bIdxSz);
+      w.f32(d.weight0 ?? 1);
+    } else {
+      // Bdef1
+      w.i8(0);
+      w.idx(d.bone0 ?? 0, bIdxSz);
+    }
     // edge factor
     w.f32(1.0);
   }
@@ -432,22 +716,22 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   }
 
   // ── Bones ─────────────────────────────────────────────────────────────────
-  // 1 bone: センター at origin
-  w.i32(1);
-  w.text("\u30bb\u30f3\u30bf\u30fc"); // "センター"
-  w.text("center");
-  w.f32(0.0);
-  w.f32(0.0);
-  w.f32(0.0); // position
-  w.idx(-1, bIdxSz); // parent bone index: none
-  w.i32(0); // layer
-  // flags: 0x0002=rotatable, 0x0004=translatable, 0x0008=visible, 0x0010=operable
-  // bit 0x0001 NOT set → connection destination is tail position (float3)
-  w.i16(0x0002 | 0x0004 | 0x0008 | 0x0010);
-  // tail position (bone display direction)
-  w.f32(0.0);
-  w.f32(1.0);
-  w.f32(0.0);
+  w.i32(bones.length);
+  for (const bone of bones) {
+    w.text(bone.nameJp);
+    w.text(bone.nameEn);
+    w.f32(bone.pos[0]);
+    w.f32(bone.pos[1]);
+    w.f32(bone.pos[2]);
+    w.idx(typeof bone.parent === "number" ? bone.parent : -1, bIdxSz);
+    w.i32(0); // layer
+    // flags: rotatable, translatable, visible, operable
+    w.i16(0x0002 | 0x0004 | 0x0008 | 0x0010);
+    // tail position offset
+    w.f32(0.0);
+    w.f32(1.0);
+    w.f32(0.0);
+  }
 
   // ── Morphs (none) ─────────────────────────────────────────────────────────
   w.i32(0);
@@ -458,9 +742,11 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   w.text("Root");
   w.text("Root");
   w.i8(1); // special flag
-  w.i32(1); // 1 element
-  w.i8(0); // element type: bone
-  w.idx(0, bIdxSz); // センター
+  w.i32(bones.length);
+  for (let i = 0; i < bones.length; i++) {
+    w.i8(0); // element type: bone
+    w.idx(i, bIdxSz);
+  }
 
   // 表情 frame (special, empty)
   w.text("\u8868\u60c5"); // "表情"
