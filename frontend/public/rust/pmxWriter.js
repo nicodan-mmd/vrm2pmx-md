@@ -182,6 +182,39 @@ function resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex) 
   return imageIndexToTextureIndex.get(tex.source) ?? -1;
 }
 
+function resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex) {
+  const defaults = {
+    textureIndex: -1,
+    diffuse: [1.0, 1.0, 1.0, 1.0],
+    ambient: [0.5, 0.5, 0.5],
+    doubleSided: true,
+  };
+
+  const matIdx = prim && typeof prim.material === "number" ? prim.material : -1;
+  if (matIdx < 0) return defaults;
+
+  const mat = Array.isArray(gltfJson.materials) ? gltfJson.materials[matIdx] : null;
+  if (!mat || typeof mat !== "object") return defaults;
+
+  const pbr = mat.pbrMetallicRoughness && typeof mat.pbrMetallicRoughness === "object"
+    ? mat.pbrMetallicRoughness
+    : {};
+  const factor = Array.isArray(pbr.baseColorFactor) ? pbr.baseColorFactor : [1, 1, 1, 1];
+  const alphaMode = typeof mat.alphaMode === "string" ? mat.alphaMode.toUpperCase() : "OPAQUE";
+  const alpha = alphaMode === "OPAQUE" ? 1.0 : Number(factor[3] ?? 1.0);
+
+  const r = Number(factor[0] ?? 1.0);
+  const g = Number(factor[1] ?? 1.0);
+  const b = Number(factor[2] ?? 1.0);
+
+  return {
+    textureIndex: resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex),
+    diffuse: [r, g, b, alpha],
+    ambient: [r * 0.6, g * 0.6, b * 0.6],
+    doubleSided: Boolean(mat.doubleSided),
+  };
+}
+
 /**
  * Read all elements from a glTF accessor into a flat JS number array.
  * Returns null if the accessor or bufferView is absent.
@@ -282,7 +315,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       materials.push({
         nameJp: mesh.name || `Material_${materials.length}`,
         faceVertCount: primFaceCount,
-        textureIndex: resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex),
+        ...resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex),
       });
     }
   }
@@ -360,22 +393,22 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   for (const mat of materials) {
     w.text(mat.nameJp); // JP name
     w.text(mat.nameJp); // EN name
-    // diffuse RGBA (white)
-    w.f32(1.0);
-    w.f32(1.0);
-    w.f32(1.0);
-    w.f32(1.0);
+    // diffuse RGBA
+    w.f32(mat.diffuse[0]);
+    w.f32(mat.diffuse[1]);
+    w.f32(mat.diffuse[2]);
+    w.f32(mat.diffuse[3]);
     // specular RGB + shininess factor
     w.f32(0.0);
     w.f32(0.0);
     w.f32(0.0);
     w.f32(0.0);
     // ambient RGB
-    w.f32(0.5);
-    w.f32(0.5);
-    w.f32(0.5);
-    // flag: 0x01 = double-sided
-    w.i8(0x01);
+    w.f32(mat.ambient[0]);
+    w.f32(mat.ambient[1]);
+    w.f32(mat.ambient[2]);
+    // flag: 0x01 = disable culling (double-sided)
+    w.i8(mat.doubleSided ? 0x01 : 0x00);
     // edge color RGBA + size
     w.f32(0.0);
     w.f32(0.0);
@@ -387,10 +420,11 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     w.idx(-1, tIdxSz);
     // sphere mode: 0 = off
     w.i8(0);
-    // toon sharing flag: 1 = shared toon
-    w.i8(1);
-    // shared toon index (0 = toon01.bmp)
+    // toon sharing flag: 0 = individual toon texture
+    // Avoid forcing shared toon01.bmp because it introduces gray blotches on some faces.
     w.i8(0);
+    // individual toon texture index (-1 = none)
+    w.idx(-1, tIdxSz);
     // comment
     w.text("");
     // face vertex count for this material
