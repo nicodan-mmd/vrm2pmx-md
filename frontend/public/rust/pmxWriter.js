@@ -594,17 +594,23 @@ function extendBonesWithMmdControls(bones) {
     const leg = nameToIndex.get(`${side}\u8db3`);
     const knee = nameToIndex.get(`${side}\u3072\u3056`);
     const ankle = nameToIndex.get(`${side}\u8db3\u9996`);
+    const toe = nameToIndex.get(`${side}\u3064\u307e\u5148`);
     if (leg == null || knee == null || ankle == null) {
       return;
     }
 
     const ikName = `${side}\u8db3\uff29\uff2b`;
+    const toeIkName = `${side}\u3064\u307e\u5148\uff29\uff2b`;
     if (nameToIndex.has(ikName)) {
       return;
     }
 
     const parent = nameToIndex.get("\u30bb\u30f3\u30bf\u30fc") ?? 0;
     const anklePos = out[ankle] ? out[ankle].pos.slice() : [0, 0, 0];
+    
+    // \u8db3IK (Python\u7248\u3068\u4e00\u81f4\u3055\u305b\u3066\u3044\u3046\u901f\u5ea6\u3092\u5408\u308f\u305b)
+    // - IK\u30ea\u30f3\u30af: \u819d (\u6570\u5f0f: -180\u00b0~-0.5\u00b0\u307e\u305f\u306f\u30e9\u30b8\u30a2\u30f3-\u03c0~-0.0087)
+    // - loop=40, limitRadian=1.0 (Python\u7248\u3002Rust\u7248\u304c\u5927\u304d\u3059\u304e\u305f)
     out.push({
       nameJp: ikName,
       nameEn: `${side === "\u5de6" ? "left" : "right"}_leg_ik`,
@@ -615,13 +621,13 @@ function extendBonesWithMmdControls(bones) {
       ik: {
         targetIndex: ankle,
         loopCount: 40,
-        limitRadian: 2.0,
+        limitRadian: 1.0,
         links: [
           {
             boneIndex: knee,
             hasLimit: 1,
-            min: [-3.13, 0, 0],
-            max: [-0.01, 0, 0],
+            min: [-Math.PI, 0, 0],
+            max: [-0.00873, 0, 0],
           },
           {
             boneIndex: leg,
@@ -630,7 +636,33 @@ function extendBonesWithMmdControls(bones) {
         ],
       },
     });
-    nameToIndex.set(ikName, out.length - 1);
+    const legIkIndex = out.length - 1;
+    nameToIndex.set(ikName, legIkIndex);
+
+    // \u3064\u307e\u5148IK (Python\u7248: \u3064\u307e\u5148\u306eIK\u3002\u7236\u306f\u8db3IK)
+    if (toe != null && !nameToIndex.has(toeIkName)) {
+      const toePos = out[toe] ? out[toe].pos.slice() : [0, 0, 0];
+      out.push({
+        nameJp: toeIkName,
+        nameEn: `${side === "\u5de6" ? "left" : "right"}_toe_ik`,
+        pos: toePos,
+        parent: legIkIndex,
+        flags: 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020,
+        tailBoneIndex: toe,
+        ik: {
+          targetIndex: toe,
+          loopCount: 40,
+          limitRadian: 1.0,
+          links: [
+            {
+              boneIndex: ankle,
+              hasLimit: 0,
+            },
+          ],
+        },
+      });
+      nameToIndex.set(toeIkName, out.length - 1);
+    }
   };
 
   addFootIk("\u5de6");
