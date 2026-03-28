@@ -693,6 +693,179 @@ async function addLicenseToZip(
   return newZipBlob;
 }
 
+type ExtractedTextureAsset = {
+  fileName: string;
+  blob: Blob;
+};
+
+function inferTextureExtension(mimeType: string | null | undefined): string {
+  if (!mimeType) {
+    return "png";
+  }
+  const normalized = mimeType.toLowerCase();
+  if (normalized.includes("png")) return "png";
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
+  if (normalized.includes("bmp")) return "bmp";
+  if (normalized.includes("webp")) return "webp";
+  return "bin";
+}
+
+function decodeDataUri(
+  uri: string,
+): { bytes: Uint8Array; mimeType: string | null } | null {
+  const m = uri.match(/^data:([^;,]*)(;base64)?,(.*)$/i);
+  if (!m) {
+    return null;
+  }
+
+  const mimeType = m[1] || null;
+  const isBase64 = Boolean(m[2]);
+  const dataPart = m[3] ?? "";
+
+  if (isBase64) {
+    const binary = atob(dataPart);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      out[i] = binary.charCodeAt(i);
+    }
+    return { bytes: out, mimeType };
+  }
+
+  const decoded = decodeURIComponent(dataPart);
+  const out = new Uint8Array(decoded.length);
+  for (let i = 0; i < decoded.length; i++) {
+    out[i] = decoded.charCodeAt(i);
+  }
+  return { bytes: out, mimeType };
+}
+
+function normalizeTextureBaseName(raw: string, fallback: string): string {
+  const base = raw
+    .replace(/^.*[\\/]/, "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, "_")
+    .trim();
+  return base || fallback;
+}
+
+async function buildRustPmxZipFromVrm(
+  sourceVrmFile: File,
+  pmxBlob: Blob,
+): Promise<{ zipBlob: Blob; textureCount: number }> {
+  const GLB_MAGIC = 0x46546c67;
+  const GLB_JSON_CHUNK = 0x4e4f534a;
+  const GLB_BIN_CHUNK = 0x004e4942;
+
+  const sourceBuffer = await sourceVrmFile.arrayBuffer();
+  const view = new DataView(sourceBuffer);
+  if (sourceBuffer.byteLength < 12 || view.getUint32(0, true) !== GLB_MAGIC) {
+    throw new Error("RUST_PMX_ZIP_FAILED: Input file is not a valid GLB container.");
+  }
+
+  let jsonChunkBytes: Uint8Array | null = null;
+  let binChunkBytes: Uint8Array | null = null;
+  let offset = 12;
+  while (offset + 8 <= sourceBuffer.byteLength) {
+    const chunkLength = view.getUint32(offset, true);
+    const chunkType = view.getUint32(offset + 4, true);
+    const chunkStart = offset + 8;
+    const chunkEnd = chunkStart + chunkLength;
+    if (chunkEnd > sourceBuffer.byteLength) {
+      break;
+    }
+
+    if (chunkType === GLB_JSON_CHUNK && !jsonChunkBytes) {
+      jsonChunkBytes = new Uint8Array(sourceBuffer.slice(chunkStart, chunkEnd));
+    } else if (chunkType === GLB_BIN_CHUNK && !binChunkBytes) {
+      binChunkBytes = new Uint8Array(sourceBuffer.slice(chunkStart, chunkEnd));
+    }
+    offset = chunkEnd;
+  }
+
+  const extractedTextures: ExtractedTextureAsset[] = [];
+  if (jsonChunkBytes) {
+    const jsonText = new TextDecoder().decode(jsonChunkBytes).replace(/\u0000+$/g, "").trimEnd();
+    const gltfJson = JSON.parse(jsonText) as {
+      images?: Array<{ name?: string; mimeType?: string; bufferView?: number; uri?: string }>;
+      bufferViews?: Array<{ byteOffset?: number; byteLength?: number }>;
+    };
+
+    const images = Array.isArray(gltfJson.images) ? gltfJson.images : [];
+    const bufferViews = Array.isArray(gltfJson.bufferViews) ? gltfJson.bufferViews : [];
+    const usedNames = new Set<string>();
+
+    for (let i = 0; i < images.length; i++) {
+      const image = images[i] || {};
+      let bytes: Uint8Array | null = null;
+      let mimeType: string | null = typeof image.mimeType === "string" ? image.mimeType : null;
+
+      if (
+        typeof image.bufferView === "number" &&
+        image.bufferView >= 0 &&
+        image.bufferView < bufferViews.length &&
+        binChunkBytes
+      ) {
+        const bv = bufferViews[image.bufferView] || {};
+        const start = bv.byteOffset || 0;
+        const length = bv.byteLength || 0;
+        const end = start + length;
+        if (length > 0 && end <= binChunkBytes.byteLength) {
+          bytes = binChunkBytes.slice(start, end);
+        }
+      } else if (typeof image.uri === "string" && image.uri.startsWith("data:")) {
+        const decoded = decodeDataUri(image.uri);
+        if (decoded) {
+          bytes = decoded.bytes;
+          if (!mimeType) {
+            mimeType = decoded.mimeType;
+          }
+        }
+      }
+
+      if (!bytes || bytes.byteLength === 0) {
+        continue;
+      }
+
+      const extension = inferTextureExtension(mimeType);
+      const baseName = normalizeTextureBaseName(
+        typeof image.name === "string" ? image.name : typeof image.uri === "string" ? image.uri : "",
+        `texture_${i}`,
+      );
+
+      let candidate = `textures/${baseName}.${extension}`;
+      let serial = 1;
+      while (usedNames.has(candidate.toLowerCase())) {
+        candidate = `textures/${baseName}_${serial}.${extension}`;
+        serial += 1;
+      }
+      usedNames.add(candidate.toLowerCase());
+
+      const blobBytes = new Uint8Array(bytes.byteLength);
+      blobBytes.set(bytes);
+
+      extractedTextures.push({
+        fileName: candidate,
+        blob: new Blob([blobBytes.buffer], { type: mimeType || "application/octet-stream" }),
+      });
+    }
+  }
+
+  const baseName = sourceVrmFile.name.replace(/\.[^.]+$/, "") || "converted";
+  const zipBlobWriter = new BlobWriter("application/zip");
+  const zipWriter = new ZipWriter(zipBlobWriter);
+  await zipWriter.add(`${baseName}.pmx`, new BlobReader(pmxBlob));
+  for (const texture of extractedTextures) {
+    await zipWriter.add(texture.fileName, new BlobReader(texture.blob));
+  }
+  await zipWriter.close();
+
+  return {
+    zipBlob: await zipBlobWriter.getData(),
+    textureCount: extractedTextures.length,
+  };
+}
+
 function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
   const geometry = mesh.geometry as THREE.BufferGeometry & { userData?: unknown };
   const mmd = asRecord(asRecord(geometry.userData).MMD);
@@ -1868,14 +2041,25 @@ export default function App() {
       });
 
       let outputBlob = result.blob;
+      let outputExtension: ConvertedOutput["fileExtension"] = result.fileExtension;
+      const licenseText = generateLicenseText(vrmInfoData, appLocale);
       if (result.fileExtension === "zip") {
-        const licenseText = generateLicenseText(vrmInfoData, appLocale);
         outputBlob = await addLicenseToZip(result.blob, licenseText);
+      } else if (result.fileExtension === "pmx") {
+        const wrapped = await buildRustPmxZipFromVrm(file, result.blob);
+        outputBlob = await addLicenseToZip(wrapped.zipBlob, licenseText);
+        outputExtension = "zip";
+        appendConsoleLine(
+          [
+            `[INFO] Rust PMX packaged as ZIP with ${wrapped.textureCount} texture file(s) from source VRM.`,
+          ],
+          "info",
+        );
       }
 
       const nextOutput: ConvertedOutput = {
         blob: outputBlob,
-        fileExtension: result.fileExtension,
+        fileExtension: outputExtension,
       };
       const conversionReportId = createConversionReportId();
       setConvertedOutput(nextOutput);
@@ -1892,7 +2076,7 @@ export default function App() {
         );
       }
 
-      if (result.fileExtension === "zip") {
+      if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
         throw new Error("Current preview supports ZIP output with PMX resources.");
