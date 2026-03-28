@@ -297,6 +297,34 @@ function mulMat4(a, b) {
   return out;
 }
 
+function addWeightedMat4(out, m, w) {
+  for (let i = 0; i < 16; i++) {
+    out[i] += m[i] * w;
+  }
+}
+
+function transformPointMat4(m, x, y, z) {
+  return [
+    m[0] * x + m[4] * y + m[8] * z + m[12],
+    m[1] * x + m[5] * y + m[9] * z + m[13],
+    m[2] * x + m[6] * y + m[10] * z + m[14],
+  ];
+}
+
+function transformDirMat4(m, x, y, z) {
+  return [
+    m[0] * x + m[4] * y + m[8] * z,
+    m[1] * x + m[5] * y + m[9] * z,
+    m[2] * x + m[6] * y + m[10] * z,
+  ];
+}
+
+function normalize3(v) {
+  const len = Math.hypot(v[0], v[1], v[2]);
+  if (!len || !Number.isFinite(len)) return [0, 1, 0];
+  return [v[0] / len, v[1] / len, v[2] / len];
+}
+
 function nodeLocalMatrix(node) {
   if (Array.isArray(node.matrix) && node.matrix.length === 16) {
     return node.matrix.map((v) => Number(v));
@@ -462,6 +490,74 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices) {
   return { bones, boneIndexByNodeIndex };
 }
 
+function buildSkinPoseData(gltfJson, binBuffer, skinIndex, worldMatrices) {
+  if (!Array.isArray(gltfJson.skins) || skinIndex < 0 || skinIndex >= gltfJson.skins.length) {
+    return null;
+  }
+  const skin = gltfJson.skins[skinIndex];
+  const joints = Array.isArray(skin && skin.joints) ? skin.joints : null;
+  if (!joints || joints.length === 0) return null;
+
+  const ibmAccessor = typeof skin.inverseBindMatrices === "number" ? skin.inverseBindMatrices : null;
+  const ibm = ibmAccessor != null ? readAcc(gltfJson, binBuffer, ibmAccessor) : null;
+  if (!ibm) return null;
+
+  const jointMatrices = new Array(joints.length);
+  for (let i = 0; i < joints.length; i++) {
+    const nodeIdx = joints[i];
+    const start = i * 16;
+    if (
+      typeof nodeIdx !== "number" ||
+      nodeIdx < 0 ||
+      nodeIdx >= worldMatrices.length ||
+      start + 15 >= ibm.length
+    ) {
+      jointMatrices[i] = identityMat4();
+      continue;
+    }
+
+    const invBind = ibm.slice(start, start + 16).map((v) => Number(v));
+    const jointWorld = worldMatrices[nodeIdx] || identityMat4();
+    jointMatrices[i] = mulMat4(jointWorld, invBind);
+  }
+
+  return { joints, jointMatrices };
+}
+
+function skinVertexPose(pos, nrm, jointsRaw, weightsRaw, vertIndex, poseData) {
+  if (!poseData || !jointsRaw || !weightsRaw) {
+    return {
+      pos: [pos[0], pos[1], pos[2]],
+      nrm: [nrm[0], nrm[1], nrm[2]],
+    };
+  }
+
+  const blended = new Array(16).fill(0);
+  let sumW = 0;
+  for (let k = 0; k < 4; k++) {
+    const j = Number(jointsRaw[vertIndex * 4 + k] ?? -1);
+    const w = Number(weightsRaw[vertIndex * 4 + k] ?? 0);
+    if (j < 0 || j >= poseData.jointMatrices.length || w <= 0) continue;
+    addWeightedMat4(blended, poseData.jointMatrices[j], w);
+    sumW += w;
+  }
+
+  if (sumW <= 0) {
+    return {
+      pos: [pos[0], pos[1], pos[2]],
+      nrm: [nrm[0], nrm[1], nrm[2]],
+    };
+  }
+
+  if (Math.abs(sumW - 1) > 1e-6) {
+    for (let i = 0; i < 16; i++) blended[i] /= sumW;
+  }
+
+  const sp = transformPointMat4(blended, pos[0], pos[1], pos[2]);
+  const sn = normalize3(transformDirMat4(blended, nrm[0], nrm[1], nrm[2]));
+  return { pos: sp, nrm: sn };
+}
+
 function resolveVertexDeform(
   jointsRaw,
   weightsRaw,
@@ -567,6 +663,8 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const { paths: texturePaths, imageIndexToTextureIndex } = buildTexturePathMap(gltfJson);
   const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
   const meshes = Array.isArray(gltfJson.meshes) ? gltfJson.meshes : [];
+  const parentIndices = buildNodeParentIndices(gltfJson);
+  const worldMatrices = buildWorldMatrices(gltfJson, parentIndices);
 
   const meshBindings = [];
   for (let i = 0; i < nodes.length; i++) {
@@ -603,6 +701,7 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     const skin =
       binding.skinIndex >= 0 && Array.isArray(gltfJson.skins) ? gltfJson.skins[binding.skinIndex] : null;
     const skinJoints = Array.isArray(skin && skin.joints) ? skin.joints : null;
+    const skinPoseData = buildSkinPoseData(gltfJson, binBuffer, binding.skinIndex, worldMatrices);
 
     for (const prim of mesh.primitives || []) {
       const baseVertex = vertices.length;
@@ -618,15 +717,29 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       const vertCount = positions ? Math.floor(positions.length / 3) : 0;
 
       for (let i = 0; i < vertCount; i++) {
+        const srcPos = [
+          Number(positions[i * 3] ?? 0),
+          Number(positions[i * 3 + 1] ?? 0),
+          Number(positions[i * 3 + 2] ?? 0),
+        ];
+        const srcNrm = normals
+          ? [
+              Number(normals[i * 3] ?? 0),
+              Number(normals[i * 3 + 1] ?? 1),
+              Number(normals[i * 3 + 2] ?? 0),
+            ]
+          : [0, 1, 0];
+        const skinned = skinVertexPose(srcPos, srcNrm, joints, weights, i, skinPoseData);
+
         // Position: glTF right-hand → PMX left-hand (X flip) + MMD unit scale
-        const px = (positions[i * 3] ?? 0) * MIKU_METER * -1;
-        const py = (positions[i * 3 + 1] ?? 0) * MIKU_METER;
-        const pz = (positions[i * 3 + 2] ?? 0) * MIKU_METER;
+        const px = skinned.pos[0] * MIKU_METER * -1;
+        const py = skinned.pos[1] * MIKU_METER;
+        const pz = skinned.pos[2] * MIKU_METER;
 
         // Normal: same X flip, no scale
-        const nx = normals ? (normals[i * 3] ?? 0) * -1 : 0;
-        const ny = normals ? (normals[i * 3 + 1] ?? 0) : 0;
-        const nz = normals ? (normals[i * 3 + 2] ?? 0) : 0;
+        const nx = skinned.nrm[0] * -1;
+        const ny = skinned.nrm[1];
+        const nz = skinned.nrm[2];
 
         // UV: pass through as-is
         const u = uvs ? (uvs[i * 2] ?? 0) : 0;
