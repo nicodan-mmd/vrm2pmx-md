@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD024 MD034 MD060 -->
+
 # Sentry Top 3 Issues Summary (2026-03-29)
 
 対象プロジェクト: `nicodan/vrm_to_pmx_converterr`
@@ -21,7 +23,7 @@
 
 - 件数: 54
 - レベル: info
-- URL: https://nicodan.sentry.io/issues/7363547311/
+- URL: [Issue 7363547311](https://nicodan.sentry.io/issues/7363547311/)
 - 何が起きているか:
   ユーザー報告ベースで「PMX の色テクスチャが欠落して見える」ことを示す品質シグナル。
 - 実害:
@@ -33,7 +35,7 @@
 
 - 件数: 45
 - レベル: error
-- URL: https://nicodan.sentry.io/issues/7370376415/
+- URL: [Issue 7370376415](https://nicodan.sentry.io/issues/7370376415/)
 - 何が起きているか:
   Python 側で例外トレースバックが発生し、変換処理そのものが失敗しているエラー。
 - 実害:
@@ -45,7 +47,7 @@
 
 - 件数: 15
 - レベル: info
-- URL: https://nicodan.sentry.io/issues/7363547439/
+- URL: [Issue 7363547439](https://nicodan.sentry.io/issues/7363547439/)
 - 何が起きているか:
   ユーザー報告ベースで「部分変換になっている可能性」を示す品質シグナル。
 - 実害:
@@ -55,11 +57,24 @@
 
 ## 参考: 取得した生データ（上位3件）
 
-| Short ID | Title | Count | Level | First Seen | Last Seen |
-|---|---|---:|---|---|---|
-| VRM_TO_PMX_CONVERTERR-A | convert.quality_signal.user_reported.PMX_MISSING_COLOR_TEXTURES | 54 | info | 2026-03-25T17:33:23.382Z | 2026-03-29T11:12:44.342Z |
-| VRM_TO_PMX_CONVERTERR-H | Error: PythonError: Traceback (most recent call last): | 45 | error | 2026-03-28T07:43:33.378Z | 2026-03-29T11:47:56.49Z |
-| VRM_TO_PMX_CONVERTERR-B | convert.quality_signal.user_reported.PARTIAL_CONVERSION_HINT | 15 | info | 2026-03-25T17:33:23.379Z | 2026-03-29T10:33:48.694Z |
+1. VRM_TO_PMX_CONVERTERR-A
+   title: convert.quality_signal.user_reported.PMX_MISSING_COLOR_TEXTURES
+   count: 54
+   level: info
+   first_seen: 2026-03-25T17:33:23.382Z
+   last_seen: 2026-03-29T11:12:44.342Z
+2. VRM_TO_PMX_CONVERTERR-H
+   title: Error: PythonError: Traceback (most recent call last):
+   count: 45
+   level: error
+   first_seen: 2026-03-28T07:43:33.378Z
+   last_seen: 2026-03-29T11:47:56.49Z
+3. VRM_TO_PMX_CONVERTERR-B
+   title: convert.quality_signal.user_reported.PARTIAL_CONVERSION_HINT
+   count: 15
+   level: info
+   first_seen: 2026-03-25T17:33:23.379Z
+   last_seen: 2026-03-29T10:33:48.694Z
 
 ## 次アクション案
 
@@ -77,7 +92,7 @@
 
 ## A 対応方針（PMX_MISSING_COLOR_TEXTURES）
 
-### 目的
+### Aの目的
 
 - VRM から PMX への色テクスチャ参照が欠落しないようにする。
 
@@ -94,7 +109,7 @@
 
 ### 再現基準ケース（2026-03-29 確定）
 
-1. Issue: https://nicodan.sentry.io/issues/7363547311/
+1. Issue: [7363547311](https://nicodan.sentry.io/issues/7363547311/)
 2. 症状: PMX 側でスカートが欠ける（色テクスチャ欠落の見え方）
 3. 直近イベント例: `704b0793747845e1a9c057a8820e4d62`
 4. このケースを A 修正の回帰確認基準（Before/After 比較）として固定する。
@@ -124,7 +139,7 @@
 
 ## B 対応方針（PARTIAL_CONVERSION_HINT）
 
-### 目的
+### Bの目的
 
 - 部分変換の原因を減らしつつ、回避不能な差分（VRM と PMX の仕様差）を可視化する。
 
@@ -146,7 +161,7 @@
 
 ## H 対応方針（PythonError）
 
-### 目的
+### Hの目的
 
 - 例外で即中断せず、PMX として成立可能な最低要素がある場合は変換を続行する。
 
@@ -169,7 +184,7 @@
 1. 報告フォームに「ファイル名を送信する」チェックボックスを追加する。
 2. デフォルトは **未チェック** とする。
 3. 説明文を追加する:
-  「公開モデルの場合、検証可能性が上がります。」
+   「公開モデルの場合、検証可能性が上がります。」
 
 ### 送信ルール
 

@@ -32,13 +32,19 @@ def load_sentry_token() -> str:
 
 
 def request_json(url: str, token: str) -> dict[str, Any]:
+    if not url.startswith("https://sentry.io/api/0/"):
+        raise RuntimeError(f"Unexpected URL: {url}")
+
     req = urllib.request.Request(
         url,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
         method="GET",
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
@@ -53,7 +59,9 @@ def resolve_event(
     event_id: str | None,
 ) -> dict[str, Any]:
     if issue_id:
-        return request_json(f"https://sentry.io/api/0/issues/{issue_id}/events/latest/", token)
+        return request_json(
+            f"https://sentry.io/api/0/issues/{issue_id}/events/latest/", token
+        )
 
     if event_id:
         return request_json(
@@ -67,7 +75,9 @@ def resolve_event(
 def deep_collect_data_urls(payload: Any, out: dict[str, str]) -> None:
     if isinstance(payload, dict):
         for key, value in payload.items():
-            if key in {"preview_vrm_data_url", "preview_pmx_data_url"} and isinstance(value, str):
+            if key in {"preview_vrm_data_url", "preview_pmx_data_url"} and isinstance(
+                value, str
+            ):
                 out[key] = value
             deep_collect_data_urls(value, out)
     elif isinstance(payload, list):
@@ -104,7 +114,9 @@ def main() -> int:
         description="Restore preview_vrm_data_url / preview_pmx_data_url images from Sentry event"
     )
     parser.add_argument("--org", default="nicodan", help="Sentry org slug")
-    parser.add_argument("--project", default="vrm_to_pmx_converterr", help="Sentry project slug")
+    parser.add_argument(
+        "--project", default="vrm_to_pmx_converterr", help="Sentry project slug"
+    )
     parser.add_argument("--issue-id", help="Numeric issue ID (e.g. 7363547311)")
     parser.add_argument("--event-id", help="Event ID (32 hex)")
     parser.add_argument(
@@ -148,7 +160,9 @@ def main() -> int:
         "warnings": warnings,
     }
     meta_path = out_dir / f"{resolved_event_id}_restore_meta.json"
-    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     print(f"event_id={resolved_event_id}")
     print(f"restored={len(restored_files)}")
@@ -156,8 +170,9 @@ def main() -> int:
         print(f"file={fp}")
     if warnings:
         for w in warnings:
-            print(f"warn={w}")
-    print(f"meta={str(meta_path).replace('\\', '/')}")
+            print(f"warn={w}", file=sys.stderr)
+    meta_path_str = str(meta_path).replace("\\", "/")
+    print(f"meta={meta_path_str}")
     return 0
 
 

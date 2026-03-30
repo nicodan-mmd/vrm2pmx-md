@@ -358,7 +358,14 @@ class VrmReader(PmxReader):
                             # 画像の開始位置はオフセット分ずらす
                             image_start = self.offset + image_buffer["byteOffset"]
                             # 拡張子
-                            ext = MIME_TYPE[image["mimeType"]]
+                            ext = MIME_TYPE.get(image["mimeType"])
+                            if ext is None:
+                                logger.warning(
+                                    f"Unknown mimeType: {image['mimeType']}, skipping image {image.get('name', '?')}"
+                                )
+                                self.has_texture_missing = True
+                                image_offset += image_buffer["byteLength"]
+                                continue
                             # 画像名
                             image_name = f"{image['name']}.{ext}"
                             with open(
@@ -438,9 +445,14 @@ class VrmReader(PmxReader):
                                         )
 
                                         # 法線データ
-                                        normals = self.read_from_accessor(
-                                            vrm, primitive["attributes"]["NORMAL"]
-                                        )
+                                        if "NORMAL" in primitive["attributes"]:
+                                            normals = self.read_from_accessor(
+                                                vrm, primitive["attributes"]["NORMAL"]
+                                            )
+                                        else:
+                                            normals = [
+                                                MVector3D(0, 1, 0) for _ in range(len(positions))
+                                            ]
 
                                         # UVデータ
                                         if "TEXCOORD_0" in primitive["attributes"]:
@@ -724,7 +736,7 @@ class VrmReader(PmxReader):
                                                 f'-- 面データ解析[{primitive["indices"]}]'
                                             )
                                         logger.test(
-                                            f'{midx}-{pidx}: indices: {primitive["indices"]} {indices[:9]} max: {max(indices)}, '
+                                            f'{midx}-{pidx}: indices: {primitive["indices"]} {indices[:9]} max: {max(indices, default=0)}, '
                                             f'{len(indices)}/{len(indices_by_material[vrm_material["name"]])}'
                                         )
 
@@ -2165,9 +2177,10 @@ class VrmReader(PmxReader):
         dest_joints = np.array(dest_joint_list)
 
         # 尻は下半身に統合
-        dest_joints = np.where(
-            dest_joints == pmx.bones["腰"].index, pmx.bones["下半身"].index, dest_joints
-        )
+        if "腰" in pmx.bones and "下半身" in pmx.bones:
+            dest_joints = np.where(
+                dest_joints == pmx.bones["腰"].index, pmx.bones["下半身"].index, dest_joints
+            )
 
         for direction in ["右", "左"]:
             # 足・ひざ・足首はそれぞれDに載せ替え
@@ -2403,6 +2416,8 @@ class VrmReader(PmxReader):
 
         translation = np.array(node.get("translation", [0.0, 0.0, 0.0]), dtype=np.float64)
         rotation = node.get("rotation", [0.0, 0.0, 0.0, 1.0])
+        if len(rotation) < 4:
+            rotation = [0.0, 0.0, 0.0, 1.0]
         scale = np.array(node.get("scale", [1.0, 1.0, 1.0]), dtype=np.float64)
 
         qx = float(rotation[0])
@@ -2547,7 +2562,8 @@ class VrmReader(PmxReader):
                 pmx.bones[bone_name].position = pmx.bones[
                     f"{bone_name[-1]}足"
                 ].position.copy()
-                pmx.bones[bone_name].effect_index = pmx.bones["腰"].index
+                if "腰" in pmx.bones:
+                    pmx.bones[bone_name].effect_index = pmx.bones["腰"].index
                 pmx.bones[bone_name].effect_factor = -1
             elif "D" == bone_name[-1]:
                 parent_name = bone_name[:-1]
@@ -2567,9 +2583,10 @@ class VrmReader(PmxReader):
             elif "下半身" == bone_name:
                 pmx.bones[bone_name].flag = 0x0000 | 0x0002 | 0x0008 | 0x0010
                 pmx.bones[bone_name].tail_index = -1
-                pmx.bones[bone_name].tail_position = (
-                    pmx.bones["腰"].position - pmx.bones[bone_name].position
-                )
+                if "腰" in pmx.bones:
+                    pmx.bones[bone_name].tail_position = (
+                        pmx.bones["腰"].position - pmx.bones[bone_name].position
+                    )
 
         # MMDで定義されていないボーン類
         for bone_name, bone in bones.items():
