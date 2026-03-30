@@ -64,6 +64,16 @@ const HISTORY: Array<{
 
 export default function AboutDialog({ open, version, locale, defaultTab, onClose }: AboutDialogProps) {
   const [activeTab, setActiveTab] = useState<TabId>("about");
+  const privacyPolicyTitle: Record<HistoryLocale, string> = {
+    ja: "Privacy Policy",
+    en: "Privacy Policy",
+    zh: "隐私政策",
+  };
+  const privacyPolicyText: Record<HistoryLocale, string> = {
+    ja: "Thank You ❤ を送ると、匿名ID付きで記録されます。",
+    en: "When you send Thank You ❤, it is recorded with an anonymous ID.",
+    zh: "发送 Thank You ❤ 时，会以匿名 ID 进行记录。",
+  };
 
   useEffect(() => {
     if (!open) {
@@ -185,6 +195,10 @@ export default function AboutDialog({ open, version, locale, defaultTab, onClose
             <a href="https://gildas-lormeau.github.io/zip.js/" target="_blank" rel="noopener noreferrer" className="about-link">zip.js</a>{" · "}
             <a href="https://react-icons.github.io/react-icons/" target="_blank" rel="noopener noreferrer" className="about-link">react-icons</a>
           </p>
+
+          <hr className="about-divider" />
+          <p><strong>{privacyPolicyTitle[locale]}:</strong></p>
+          <p>{privacyPolicyText[locale]}</p>
 
           <hr className="about-divider" />
           <p>Powered by GitHub Copilot</p>

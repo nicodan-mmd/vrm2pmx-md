@@ -877,6 +877,24 @@ button:disabled {
   background: linear-gradient(120deg, #7ea8c9, #98bdd9);
 }
 
+.footer-heart-button {
+  padding: 2px 4px;
+  border: none;
+  border-radius: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #95a0ac;
+  background: transparent;
+}
+
+.footer-heart-button.is-locked,
+.footer-heart-button:disabled {
+  color: #d55366;
+  background: transparent;
+  cursor: pointer;
+  opacity: 1;
+}
+
 .footer-action-button-reset {
   background: linear-gradient(120deg, #bd8790, #d4a5ac);
 }
@@ -890,6 +908,76 @@ button:disabled {
   background: #0f172266;
   padding: 20px;
   padding-top: 15vh;
+}
+
+.heart-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  display: grid;
+  place-items: start center;
+  background: #0f172266;
+  padding: 20px;
+  padding-top: 18vh;
+}
+
+.heart-modal {
+  width: min(460px, 100%);
+  border-radius: 14px;
+  border: 1px solid #c8d9eb;
+  background: #f9fcff;
+  box-shadow: 0 24px 60px #1f2a3755;
+  overflow: hidden;
+}
+
+.heart-modal-header {
+  padding: 12px 16px;
+  background: #eef5fd;
+}
+
+.heart-modal-header h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  color: #254466;
+}
+
+.heart-modal-body {
+  padding: 14px 16px 10px;
+}
+
+.heart-message-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 76px;
+  border: 1px solid #c5d4e4;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.9rem;
+  color: #24384f;
+  background: #ffffff;
+}
+
+.heart-remaining {
+  margin: 8px 2px 0;
+  font-size: 0.76rem;
+  color: #607388;
+  text-align: right;
+}
+
+.heart-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.footer-action-button.heart-submit-button {
+  color: #2f5a3f;
+  background: linear-gradient(120deg, #d8f2df, #c8eaca);
+}
+
+.heart-submit-icon {
+  color: #d55366;
 }
 
 .about-modal {

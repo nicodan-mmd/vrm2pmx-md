@@ -162,7 +162,23 @@ type AppI18n = {
   previewShaderErrorTitle: string;
   previewShaderErrorMessage: string;
   previewShaderErrorOk: string;
+  heartButtonAriaLabel: string;
+  heartDialogTitle: string;
+  heartDialogPlaceholder: string;
+  heartDialogCancel: string;
+  heartDialogSubmit: string;
+  heartDialogRemaining: (remaining: number) => string;
+  heartDialogSent: string;
+  heartDialogError: string;
+  heartAlreadySent: string;
 };
+
+const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
+const LAST_BOOT_VERSION_KEY = "vrm2pmx.last_boot_version";
+const HEART_LOCK_UNTIL_KEY = "vrm2pmx.heart_lock_until";
+const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
+const HEART_SLACK_WEBHOOK_URL = (import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined)?.trim() ?? "";
+const HEART_GAS_WEB_APP_URL = (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ?? "";
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
   ja: {
@@ -202,6 +218,15 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     previewShaderErrorMessage:
       "変換は成功していますが、PMXプレビューの描画でエラーが発生しました。\nZIPはダウンロード可能です。\n「品質崩れを報告」で送信していただければ将来の改善につながります。",
     previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "開発者にハートを送る",
+    heartDialogTitle: "開発者にハートを送る",
+    heartDialogPlaceholder: "ひとことメッセージ（任意）",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `残り ${remaining} 文字`,
+    heartDialogSent: "ハートを送りました。ありがとうございます。",
+    heartDialogError: "送信に失敗しました。時間をおいて再試行してください。",
+    heartAlreadySent: "ありがとうございます。ハートは受け取り済みです。",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -240,6 +265,15 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     previewShaderErrorMessage:
       "Conversion succeeded, and ZIP download is available, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
     previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "Send a heart to the developer",
+    heartDialogTitle: "Send a heart to the developer",
+    heartDialogPlaceholder: "Leave a short message (optional)",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `${remaining} characters left`,
+    heartDialogSent: "Heart sent. Thank you!",
+    heartDialogError: "Failed to send. Please try again later.",
+    heartAlreadySent: "Thank you. Your heart has already been received.",
   },
   zh: {
     errorReportingModalTitle: "错误报告发送",
@@ -278,6 +312,15 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     previewShaderErrorMessage:
       "转换成功，ZIP可以下载，但PMX预览渲染失败。\n点击「报告质量问题」提交报告有助于未来改善。",
     previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "向开发者发送爱心",
+    heartDialogTitle: "向开发者发送爱心",
+    heartDialogPlaceholder: "留言（可选）",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `还可输入 ${remaining} 个字符`,
+    heartDialogSent: "爱心已发送，感谢支持！",
+    heartDialogError: "发送失败，请稍后重试。",
+    heartAlreadySent: "感谢支持，已收到您的爱心。",
   },
 };
 
@@ -986,6 +1029,86 @@ function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
   );
 }
 
+function HeartThanksDialog({
+  open,
+  i18n,
+  message,
+  onMessageChange,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: {
+  open: boolean;
+  i18n: AppI18n;
+  message: string;
+  onMessageChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+}) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open) {
+    return null;
+  }
+
+  const remaining = 200 - message.length;
+  const heartSubmitText = i18n.heartDialogSubmit.replace("❤", "").trim();
+
+  return (
+    <div
+      className="heart-modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section className="heart-modal" role="dialog" aria-modal="true" aria-labelledby="heart-title">
+        <header className="heart-modal-header">
+          <h2 id="heart-title">{i18n.heartDialogTitle}</h2>
+        </header>
+        <div className="heart-modal-body">
+          <textarea
+            className="heart-message-input"
+            rows={3}
+            maxLength={200}
+            value={message}
+            placeholder={i18n.heartDialogPlaceholder}
+            onChange={(event) => onMessageChange(event.target.value)}
+          />
+          <p className="heart-remaining">{i18n.heartDialogRemaining(remaining)}</p>
+        </div>
+        <footer className="heart-modal-actions">
+          <button type="button" className="footer-action-button" onClick={onClose} disabled={isSubmitting}>
+            {i18n.heartDialogCancel}
+          </button>
+          <button type="button" className="footer-action-button heart-submit-button" onClick={onSubmit} disabled={isSubmitting}>
+            {heartSubmitText.length > 0 ? `${heartSubmitText} ` : ""}
+            <span className="heart-submit-icon" aria-hidden="true">
+              ❤
+            </span>
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -1007,6 +1130,11 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [aboutDefaultTab, setAboutDefaultTab] = useState<AboutTabId>("about");
+  const [isHeartDialogOpen, setIsHeartDialogOpen] = useState(false);
+  const [heartMessage, setHeartMessage] = useState("");
+  const [heartLockUntil, setHeartLockUntil] = useState<number | null>(null);
+  const [isHeartSentVisual, setIsHeartSentVisual] = useState(false);
+  const [isHeartSubmitting, setIsHeartSubmitting] = useState(false);
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
@@ -1092,11 +1220,23 @@ export default function App() {
     [],
   );
   const i18n = APP_I18N[appLocale];
+  const isHeartLocked = heartLockUntil !== null && heartLockUntil - 5000 > Date.now();
+
+  const onHeartButtonClick = () => {
+    if (isHeartLocked) {
+      void Swal.fire({
+        icon: "info",
+        title: i18n.heartAlreadySent,
+        timer: 1400,
+        showConfirmButton: false,
+      });
+      return;
+    }
+    setIsHeartDialogOpen(true);
+  };
 
   // Record last_launch_date and open About/History on version change
   useEffect(() => {
-    const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
-    const LAST_BOOT_VERSION_KEY = "vrm2pmx.last_boot_version";
     try {
       window.localStorage.setItem(LAST_LAUNCH_DATE_KEY, new Date().toISOString());
       const savedVersion = window.localStorage.getItem(LAST_BOOT_VERSION_KEY);
@@ -1109,6 +1249,122 @@ export default function App() {
       // localStorage unavailable — ignore
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(HEART_LOCK_UNTIL_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = Number(raw);
+      if (Number.isFinite(parsed) && parsed - 5000 > Date.now()) {
+        setHeartLockUntil(parsed);
+        setIsHeartSentVisual(true);
+      }
+    } catch {
+      // localStorage unavailable — ignore
+    }
+  }, []);
+
+  const onSubmitHeart = async () => {
+    if (isHeartSubmitting || isHeartLocked) {
+      return;
+    }
+
+    const trimmed = heartMessage.trim();
+    const feedbackUserId = (() => {
+      try {
+        const existing = window.localStorage.getItem(HEART_FEEDBACK_USER_ID_KEY)?.trim();
+        if (existing) {
+          return existing;
+        }
+        const nextId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `fallback-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        window.localStorage.setItem(HEART_FEEDBACK_USER_ID_KEY, nextId);
+        return nextId;
+      } catch {
+        return `ephemeral-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+    })();
+
+    const lines = ["❤ A user sent a heart from VRM to MMD Converter.", `feedbackUserId: ${feedbackUserId}`];
+    if (trimmed.length > 0) {
+      lines.push("Message:");
+      lines.push(trimmed);
+    }
+
+    setIsHeartSubmitting(true);
+    try {
+      const sentAtIso = new Date().toISOString();
+      const requests: Array<Promise<unknown>> = [];
+
+      if (HEART_SLACK_WEBHOOK_URL.length > 0) {
+        requests.push(
+          fetch(HEART_SLACK_WEBHOOK_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text: lines.join("\n") }),
+          }),
+        );
+      }
+
+      if (HEART_GAS_WEB_APP_URL.length > 0) {
+        requests.push(
+          fetch(HEART_GAS_WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+              // no-cors で送るため text/plain を使う
+              "Content-Type": "text/plain;charset=utf-8",
+            },
+            body: JSON.stringify({
+              source: "vrm2pmx-web-heart",
+              feedbackUserId,
+              locale: appLocale,
+              appVersion: APP_VERSION,
+              sentAt: sentAtIso,
+              message: trimmed,
+            }),
+          }),
+        );
+      }
+
+      if (requests.length === 0) {
+        throw new Error("No feedback endpoint configured");
+      }
+
+      await Promise.all(requests);
+
+      setIsHeartSentVisual(true);
+      const lockUntil = Date.now() + 24 * 60 * 60 * 1000;
+      setHeartLockUntil(lockUntil);
+      try {
+        window.localStorage.setItem(HEART_LOCK_UNTIL_KEY, String(lockUntil));
+      } catch {
+        // localStorage unavailable — ignore
+      }
+
+      setIsHeartDialogOpen(false);
+      setHeartMessage("");
+      void Swal.fire({
+        icon: "success",
+        title: i18n.heartDialogSent,
+        timer: 1400,
+        showConfirmButton: false,
+      });
+    } catch {
+      void Swal.fire({
+        icon: "error",
+        title: i18n.heartDialogError,
+      });
+    } finally {
+      setIsHeartSubmitting(false);
+    }
+  };
 
   // Monitor PWA installation event to immediately show "Local"
   useEffect(() => {
@@ -1307,6 +1563,19 @@ export default function App() {
 
     if (vrmInputRef.current) {
       vrmInputRef.current.value = "";
+    }
+
+    setHeartMessage("");
+    setIsHeartDialogOpen(false);
+    setIsHeartSubmitting(false);
+    setIsHeartSentVisual(false);
+    setHeartLockUntil(null);
+
+    try {
+      window.localStorage.removeItem(HEART_LOCK_UNTIL_KEY);
+      window.localStorage.removeItem(HEART_FEEDBACK_USER_ID_KEY);
+    } catch {
+      // localStorage unavailable — ignore
     }
   }
 
@@ -3295,6 +3564,15 @@ export default function App() {
           <div className="app-footer-meta">
             <p className="app-version">Version {APP_VERSION}</p>
             <p className="app-launch-state">{launchStateLabel}</p>
+            <button
+              type="button"
+              className={`footer-heart-button${isHeartSentVisual ? " is-locked" : ""}`}
+              aria-label={i18n.heartButtonAriaLabel}
+              title={i18n.heartButtonAriaLabel}
+              onClick={onHeartButtonClick}
+            >
+              ❤
+            </button>
             <PwaInstallControl i18n={i18n} />
           </div>
           <div className="app-footer-actions">
@@ -3322,6 +3600,17 @@ export default function App() {
         locale={appLocale}
         defaultTab={aboutDefaultTab}
         onClose={() => setIsAboutOpen(false)}
+      />
+      <HeartThanksDialog
+        open={isHeartDialogOpen}
+        i18n={i18n}
+        message={heartMessage}
+        onMessageChange={setHeartMessage}
+        onClose={() => setIsHeartDialogOpen(false)}
+        onSubmit={() => {
+          void onSubmitHeart();
+        }}
+        isSubmitting={isHeartSubmitting}
       />
     </main>
   );
