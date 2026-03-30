@@ -1,6 +1,14 @@
 import * as Sentry from "@sentry/react";
 import type { ConvertMode } from "../../../services/convertClient";
 
+type ScopeWithAttachment = Sentry.Scope & {
+  addAttachment?: (attachment: {
+    filename: string;
+    data: string | Uint8Array;
+    contentType?: string;
+  }) => void;
+};
+
 export type QualitySignalSource = "fallback" | "auto_detected" | "user_reported";
 export type QualitySignalLevel = "warning" | "info";
 
@@ -33,7 +41,36 @@ export type QualitySignalReportInput = {
     materialCount: number;
     materialSlotCount: number;
     colorTextureCount: number;
+    loadedColorTextureCount: number;
+    pendingColorTextureCount: number;
     textureCoverage: number;
+    loadedTextureCoverage: number;
+    materialRenderStats: {
+      frontSideCount: number;
+      doubleSideCount: number;
+      backSideCount: number;
+      transparentCount: number;
+      alphaTestMaterialCount: number;
+      hasAlphaMapCount: number;
+      mapTransparentCount: number;
+      depthWriteOffCount: number;
+      depthTestOffCount: number;
+    };
+    materialRenderSamples: string[];
+    materialRenderDiagnostics: Array<{
+      name: string;
+      meshName: string;
+      meshRenderOrder: number;
+      side: string;
+      transparent: boolean;
+      alphaTest: number;
+      depthWrite: boolean;
+      depthTest: boolean;
+      opacity: number;
+      hasMap: boolean;
+      mapTransparent: boolean;
+      hasAlphaMap: boolean;
+    }>;
   };
 };
 
@@ -75,6 +112,49 @@ export function createConversionReportId(): string {
   return `convert-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
+function decodeBase64ToBytes(base64Value: string): Uint8Array {
+  const binary = atob(base64Value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function addPreviewAttachment(
+  scope: ScopeWithAttachment,
+  dataUrl: string,
+  filenameBase: string,
+): boolean {
+  if (typeof scope.addAttachment !== "function") {
+    return false;
+  }
+
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return false;
+  }
+
+  const contentType = match[1] || "image/jpeg";
+  const payload = match[2] || "";
+  if (!payload) {
+    return false;
+  }
+
+  try {
+    const bytes = decodeBase64ToBytes(payload);
+    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    scope.addAttachment({
+      filename: `${filenameBase}.${ext}`,
+      data: bytes,
+      contentType,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function reportQualitySignals({
   source,
   signals,
@@ -99,6 +179,7 @@ export function reportQualitySignals({
 
   normalizedSignals.forEach((signalCode, index) => {
     Sentry.withScope((scope) => {
+      const attachableScope = scope as ScopeWithAttachment;
       scope.setLevel(level);
       scope.setTag("mode", requestedMode);
       scope.setTag("event_type", "quality_signal");
@@ -131,19 +212,33 @@ export function reportQualitySignals({
           hasPmx: Boolean(previewSnapshots.pmxDataUrl),
         });
 
-        // Keep payload size bounded while still attaching visual evidence.
+        const base = `${conversionReportId}_${signalCode}`;
+        let attachedVrm = false;
+        let attachedPmx = false;
+
         if (previewSnapshots.vrmDataUrl) {
-          scope.setExtra(
-            "preview_vrm_data_url",
-            previewSnapshots.vrmDataUrl.slice(0, 120_000),
+          attachedVrm = addPreviewAttachment(
+            attachableScope,
+            previewSnapshots.vrmDataUrl,
+            `${base}_preview_vrm`,
           );
+          if (!attachedVrm) {
+            scope.setExtra("preview_vrm_data_url_prefix", previewSnapshots.vrmDataUrl.slice(0, 160));
+          }
         }
         if (previewSnapshots.pmxDataUrl) {
-          scope.setExtra(
-            "preview_pmx_data_url",
-            previewSnapshots.pmxDataUrl.slice(0, 120_000),
+          attachedPmx = addPreviewAttachment(
+            attachableScope,
+            previewSnapshots.pmxDataUrl,
+            `${base}_preview_pmx`,
           );
+          if (!attachedPmx) {
+            scope.setExtra("preview_pmx_data_url_prefix", previewSnapshots.pmxDataUrl.slice(0, 160));
+          }
         }
+
+        scope.setTag("preview_vrm_attached", attachedVrm ? "true" : "false");
+        scope.setTag("preview_pmx_attached", attachedPmx ? "true" : "false");
       }
 
       if (pmxPreviewDiagnostics) {

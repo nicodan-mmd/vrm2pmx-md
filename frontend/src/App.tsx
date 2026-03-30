@@ -60,7 +60,36 @@ type PmxPreviewDiagnostics = {
   materialCount: number;
   materialSlotCount: number;
   colorTextureCount: number;
+  loadedColorTextureCount: number;
+  pendingColorTextureCount: number;
   textureCoverage: number;
+  loadedTextureCoverage: number;
+  materialRenderStats: {
+    frontSideCount: number;
+    doubleSideCount: number;
+    backSideCount: number;
+    transparentCount: number;
+    alphaTestMaterialCount: number;
+    hasAlphaMapCount: number;
+    mapTransparentCount: number;
+    depthWriteOffCount: number;
+    depthTestOffCount: number;
+  };
+  materialRenderSamples: string[];
+  materialRenderDiagnostics: Array<{
+    name: string;
+    meshName: string;
+    meshRenderOrder: number;
+    side: string;
+    transparent: boolean;
+    alphaTest: number;
+    depthWrite: boolean;
+    depthTest: boolean;
+    opacity: number;
+    hasMap: boolean;
+    mapTransparent: boolean;
+    hasAlphaMap: boolean;
+  }>;
 };
 
 type InfoRow = {
@@ -476,12 +505,50 @@ function createThreeWarnFilter() {
 }
 
 function normalizeAssetPath(path: string): string {
-  const noQuery = path.split("?")[0].split("#")[0] || "";
+  let noQuery = path.split("?")[0].split("#")[0] || "";
+
+  if (/^(blob:|https?:)/i.test(noQuery)) {
+    try {
+      const unwrap = noQuery.startsWith("blob:") ? noQuery.slice(5) : noQuery;
+      noQuery = new URL(unwrap).pathname || noQuery;
+    } catch {
+      // Keep original string when URL parsing fails.
+    }
+  }
+
   const decoded = decodeURIComponent(noQuery);
   return decoded
     .replace(/\\/g, "/")
     .replace(/^\.\//, "")
     .replace(/^\/+/, "");
+}
+
+function buildAssetLookupCandidates(path: string): string[] {
+  const normalized = normalizeAssetPath(path);
+  const segments = normalized.split("/").filter((segment) => segment.length > 0);
+  const candidates = new Set<string>();
+
+  if (normalized) {
+    candidates.add(normalized);
+    candidates.add(normalized.toLowerCase());
+  }
+
+  const fileName = segments[segments.length - 1] ?? normalized;
+  if (fileName) {
+    candidates.add(fileName);
+    candidates.add(fileName.toLowerCase());
+  }
+
+  for (let i = 1; i < segments.length - 1; i += 1) {
+    const suffix = segments.slice(i).join("/");
+    if (!suffix) {
+      continue;
+    }
+    candidates.add(suffix);
+    candidates.add(suffix.toLowerCase());
+  }
+
+  return [...candidates];
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -756,11 +823,96 @@ function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean
   return Boolean(tex.image || tex.source?.data);
 }
 
-function captureCanvasSnapshotDataUrl(
+function hasPendingTextureCallback(texture: THREE.Texture | null | undefined): boolean {
+  if (!texture) {
+    return false;
+  }
+  const tex = texture as THREE.Texture & {
+    readyCallbacks?: Array<(texture: THREE.Texture) => void>;
+  };
+  return Array.isArray(tex.readyCallbacks);
+}
+
+function getMaterialColorTexture(material: THREE.Material | null | undefined): THREE.Texture | null {
+  if (!material) {
+    return null;
+  }
+  const withMap = material as THREE.Material & {
+    map?: THREE.Texture | null;
+  };
+  return withMap.map ?? null;
+}
+
+function getMaterialSideLabel(side: THREE.Side | undefined): string {
+  if (side === THREE.DoubleSide) {
+    return "DoubleSide";
+  }
+  if (side === THREE.BackSide) {
+    return "BackSide";
+  }
+  return "FrontSide";
+}
+
+function collectMeshMaterials(root: THREE.Object3D): THREE.Material[] {
+  const materials: THREE.Material[] = [];
+  root.traverse((object) => {
+    const maybeMesh = object as THREE.Mesh;
+    if (!maybeMesh.isMesh) {
+      return;
+    }
+
+    const entries = Array.isArray(maybeMesh.material)
+      ? maybeMesh.material
+      : [maybeMesh.material];
+    for (const material of entries) {
+      if (material) {
+        materials.push(material);
+      }
+    }
+  });
+  return materials;
+}
+
+async function waitForTextureReady(texture: THREE.Texture, timeoutMs: number): Promise<void> {
+  if (hasTextureImageData(texture) || !hasPendingTextureCallback(texture)) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+
+    const tex = texture as THREE.Texture & {
+      readyCallbacks?: Array<(texture: THREE.Texture) => void>;
+    };
+    tex.readyCallbacks?.push(() => finish());
+    window.setTimeout(finish, timeoutMs);
+  });
+}
+
+async function waitForMeshColorTextures(root: THREE.Object3D, timeoutMs: number): Promise<void> {
+  const uniqueTextures = new Set<THREE.Texture>();
+  for (const material of collectMeshMaterials(root)) {
+    const texture = getMaterialColorTexture(material);
+    if (texture) {
+      uniqueTextures.add(texture);
+    }
+  }
+
+  await Promise.all([...uniqueTextures].map((texture) => waitForTextureReady(texture, timeoutMs)));
+}
+
+async function captureCanvasSnapshotDataUrl(
   canvas: HTMLCanvasElement | null,
   width: number,
   height: number,
-): string | null {
+): Promise<string | null> {
   if (!canvas) {
     return null;
   }
@@ -779,7 +931,31 @@ function captureCanvasSnapshotDataUrl(
     return null;
   }
 
-  ctx.drawImage(canvas, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+  // Wait for rendering to settle so WebGL canvas pixels are present.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+  const capture = () => {
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(canvas, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+    return ctx.getImageData(0, 0, width, height);
+  };
+
+  let imageData = capture();
+
+  // If the sampled frame is effectively black/empty, retry once after a short delay.
+  let sum = 0;
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    sum += data[i] + data[i + 1] + data[i + 2];
+  }
+  const avg = sum / (width * height * 3);
+  if (avg < 2) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    imageData = capture();
+    void imageData;
+  }
+
   return tmp.toDataURL("image/jpeg", 0.72);
 }
 
@@ -1254,7 +1430,13 @@ export default function App() {
     setPmxInfoData({ summaryRows: [], licenseRows: [] });
 
     const canvas = pmxCanvasRef.current;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      // Needed so report snapshots can capture the currently rendered frame reliably.
+      preserveDrawingBuffer: true,
+    });
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 1000);
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -1501,16 +1683,13 @@ export default function App() {
       const pmxPath = normalizeAssetPath(pmxEntryName);
       pmxDebug("pmx path selected", { pmxPath });
       loadingManager.setURLModifier((url) => {
-        if (url.startsWith("blob:")) {
-          return url;
+        for (const candidate of buildAssetLookupCandidates(url)) {
+          const resolved = assetMap.get(candidate);
+          if (resolved) {
+            return resolved;
+          }
         }
-        const normalized = normalizeAssetPath(url);
-        return (
-          assetMap.get(normalized) ??
-          assetMap.get(normalized.toLowerCase()) ??
-          assetMap.get((normalized.split("/").pop() ?? normalized).toLowerCase()) ??
-          url
-        );
+        return url;
       });
 
       const loader = new MMDLoader(loadingManager);
@@ -1553,23 +1732,48 @@ export default function App() {
             m.emissive.convertSRGBToLinear();
           }
           if (m.map) {
-            if (hasTextureImageData(m.map)) {
-              m.map.colorSpace = THREE.SRGBColorSpace;
-              m.map.needsUpdate = true;
-            }
+            m.map.colorSpace = THREE.SRGBColorSpace;
+            m.map.needsUpdate = true;
           }
           if (m.emissiveMap) {
-            if (hasTextureImageData(m.emissiveMap)) {
-              m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-              m.emissiveMap.needsUpdate = true;
-            }
+            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            m.emissiveMap.needsUpdate = true;
           }
           if (m.matcap) {
-            if (hasTextureImageData(m.matcap)) {
-              m.matcap.colorSpace = THREE.SRGBColorSpace;
-              m.matcap.needsUpdate = true;
-            }
+            m.matcap.colorSpace = THREE.SRGBColorSpace;
+            m.matcap.needsUpdate = true;
           }
+          m.needsUpdate = true;
+        }
+      });
+
+      await waitForMeshColorTextures(mesh, 1200);
+
+      // MMDLoader may mark texture-side transparency (map.transparent) but leave
+      // material.transparent as false. Syncing them prevents masked cloth parts
+      // (e.g. aprons) from being rendered as fully opaque/discarded artifacts.
+      mesh.traverse((obj) => {
+        const maybeMesh = obj as THREE.Mesh;
+        if (!maybeMesh.isMesh) {
+          return;
+        }
+        const mats = Array.isArray(maybeMesh.material)
+          ? maybeMesh.material
+          : [maybeMesh.material];
+        for (const mat of mats) {
+          if (!mat) {
+            continue;
+          }
+          const m = mat as THREE.MeshToonMaterial & {
+            map?: (THREE.Texture & { transparent?: boolean }) | null;
+          };
+          const mapTransparent = Boolean(m.map && m.map.transparent);
+          if (!mapTransparent) {
+            continue;
+          }
+
+          m.transparent = true;
+          m.alphaTest = Math.max(m.alphaTest ?? 0, 0.001);
           m.needsUpdate = true;
         }
       });
@@ -1605,8 +1809,11 @@ export default function App() {
 
       const skinnedMeshes: THREE.SkinnedMesh[] = [];
       const materialNames: string[] = [];
+      const materialRenderDiagnostics: PmxPreviewDiagnostics["materialRenderDiagnostics"] = [];
       let materialSlotCount = 0;
       let colorTextureCount = 0;
+      let loadedColorTextureCount = 0;
+      let pendingColorTextureCount = 0;
       mesh.traverse((object) => {
         const maybeSkinnedMesh = object as THREE.SkinnedMesh;
         if (maybeSkinnedMesh.isSkinnedMesh) {
@@ -1627,9 +1834,38 @@ export default function App() {
             materialNames.push(material.name);
           }
 
-          const toon = material as THREE.MeshToonMaterial | null;
-          if (toon?.map && hasTextureImageData(toon.map)) {
+          const colorTexture = getMaterialColorTexture(material);
+          if (colorTexture) {
             colorTextureCount += 1;
+            if (hasTextureImageData(colorTexture)) {
+              loadedColorTextureCount += 1;
+            } else if (hasPendingTextureCallback(colorTexture)) {
+              pendingColorTextureCount += 1;
+            }
+          }
+
+          if (materialRenderDiagnostics.length < 64 && material) {
+            const withRenderProps = material as THREE.Material & {
+              map?: THREE.Texture | null;
+              alphaMap?: THREE.Texture | null;
+            };
+            materialRenderDiagnostics.push({
+              name: material.name || "(no-name)",
+              meshName: maybeMesh.name || "(no-mesh-name)",
+              meshRenderOrder: maybeMesh.renderOrder,
+              side: getMaterialSideLabel(material.side),
+              transparent: Boolean(material.transparent),
+              alphaTest: Number((material.alphaTest ?? 0).toFixed(4)),
+              depthWrite: Boolean(material.depthWrite),
+              depthTest: Boolean(material.depthTest),
+              opacity: Number((material.opacity ?? 1).toFixed(4)),
+              hasMap: Boolean(withRenderProps.map),
+              mapTransparent: Boolean(
+                withRenderProps.map
+                && (withRenderProps.map as THREE.Texture & { transparent?: boolean }).transparent,
+              ),
+              hasAlphaMap: Boolean(withRenderProps.alphaMap),
+            });
           }
         }
       });
@@ -1637,7 +1873,60 @@ export default function App() {
       const textureCoverage = materialSlotCount > 0
         ? colorTextureCount / materialSlotCount
         : 0;
-      if (materialSlotCount >= 6 && colorTextureCount === 0) {
+      const loadedTextureCoverage = materialSlotCount > 0
+        ? loadedColorTextureCount / materialSlotCount
+        : 0;
+
+      const materialRenderStats = materialRenderDiagnostics.reduce(
+        (acc, item) => {
+          if (item.side === "FrontSide") {
+            acc.frontSideCount += 1;
+          } else if (item.side === "DoubleSide") {
+            acc.doubleSideCount += 1;
+          } else if (item.side === "BackSide") {
+            acc.backSideCount += 1;
+          }
+          if (item.transparent) {
+            acc.transparentCount += 1;
+          }
+          if (item.alphaTest > 0) {
+            acc.alphaTestMaterialCount += 1;
+          }
+          if (item.hasAlphaMap) {
+            acc.hasAlphaMapCount += 1;
+          }
+          if (item.mapTransparent) {
+            acc.mapTransparentCount += 1;
+          }
+          if (!item.depthWrite) {
+            acc.depthWriteOffCount += 1;
+          }
+          if (!item.depthTest) {
+            acc.depthTestOffCount += 1;
+          }
+          return acc;
+        },
+        {
+          frontSideCount: 0,
+          doubleSideCount: 0,
+          backSideCount: 0,
+          transparentCount: 0,
+          alphaTestMaterialCount: 0,
+          hasAlphaMapCount: 0,
+          mapTransparentCount: 0,
+          depthWriteOffCount: 0,
+          depthTestOffCount: 0,
+        },
+      );
+      const materialRenderSamples = materialRenderDiagnostics.slice(0, 32).map((item) =>
+        `${item.name} | mesh=${item.meshName} | side=${item.side} | tr=${item.transparent ? 1 : 0} | aT=${item.alphaTest} | dW=${item.depthWrite ? 1 : 0} | dT=${item.depthTest ? 1 : 0} | op=${item.opacity} | map=${item.hasMap ? 1 : 0} | mapTr=${item.mapTransparent ? 1 : 0} | aMap=${item.hasAlphaMap ? 1 : 0}`,
+      );
+      if (
+        materialSlotCount >= 6
+        && colorTextureCount === 0
+        && loadedColorTextureCount === 0
+        && pendingColorTextureCount === 0
+      ) {
         runtimeQualitySignalsRef.current.add("pmx-missing-color-textures");
       }
 
@@ -1668,7 +1957,13 @@ export default function App() {
         materialCount: new Set(materialNames).size,
         materialSlotCount,
         colorTextureCount,
+        loadedColorTextureCount,
+        pendingColorTextureCount,
         textureCoverage: Number(textureCoverage.toFixed(3)),
+        loadedTextureCoverage: Number(loadedTextureCoverage.toFixed(3)),
+        materialRenderStats,
+        materialRenderSamples,
+        materialRenderDiagnostics,
       };
 
       pmxDebug("mesh summary", {
@@ -1678,7 +1973,13 @@ export default function App() {
         materialCount: new Set(materialNames).size,
         materialSlotCount,
         colorTextureCount,
+        loadedColorTextureCount,
+        pendingColorTextureCount,
         textureCoverage: Number(textureCoverage.toFixed(3)),
+        loadedTextureCoverage: Number(loadedTextureCoverage.toFixed(3)),
+        materialRenderStats,
+        materialRenderSamples,
+        materialRenderDiagnostics,
         sampleMaterials: [...new Set(materialNames)].slice(0, 40),
       });
 
@@ -1998,12 +2299,12 @@ export default function App() {
 
     const snapshotWidth = 320;
     const snapshotHeight = 320;
-    const vrmDataUrl = captureCanvasSnapshotDataUrl(
+    const vrmDataUrl = await captureCanvasSnapshotDataUrl(
       vrmCanvasRef.current,
       snapshotWidth,
       snapshotHeight,
     );
-    const pmxDataUrl = captureCanvasSnapshotDataUrl(
+    const pmxDataUrl = await captureCanvasSnapshotDataUrl(
       pmxCanvasRef.current,
       snapshotWidth,
       snapshotHeight,
@@ -2210,6 +2511,8 @@ export default function App() {
       canvas,
       antialias: true,
       alpha: true,
+      // Needed so report snapshots can capture the currently rendered frame reliably.
+      preserveDrawingBuffer: true,
     });
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
