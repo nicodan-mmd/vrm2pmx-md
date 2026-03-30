@@ -49,7 +49,7 @@ body {
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   border-radius: 22px;
-  padding: 28px;
+  padding: 28px 28px 14px 28px;
   box-shadow: 0 20px 70px #1f2a3722;
   z-index: 1;
 }
@@ -786,7 +786,7 @@ button:disabled {
 }
 
 .app-footer {
-  margin-top: 14px;
+  margin-top: 7px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -826,7 +826,7 @@ button:disabled {
 .app-footer-actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .footer-install-button {
@@ -978,6 +978,12 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
+  .app-version,
+  .app-launch-state {
+    position: static;
+    font-size: 0.75rem;
+  }
+
   .card {
     padding: 20px;
     border-radius: 16px;
