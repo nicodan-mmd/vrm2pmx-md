@@ -11,7 +11,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MMDLoader } from "three-stdlib";
 import { useReactPWAInstall } from "react-pwa-install";
-import AboutDialog from "./components/AboutDialog";
+import AboutDialog, { type TabId as AboutTabId } from "./components/AboutDialog";
 import { APP_VERSION } from "./constants/appInfo";
 import {
   type ConvertMode,
@@ -1006,6 +1006,7 @@ export default function App() {
   const logLinesRef = useRef<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [aboutDefaultTab, setAboutDefaultTab] = useState<AboutTabId>("about");
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
@@ -1091,6 +1092,23 @@ export default function App() {
     [],
   );
   const i18n = APP_I18N[appLocale];
+
+  // Record last_launch_date and open About/History on version change
+  useEffect(() => {
+    const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
+    const LAST_BOOT_VERSION_KEY = "vrm2pmx.last_boot_version";
+    try {
+      window.localStorage.setItem(LAST_LAUNCH_DATE_KEY, new Date().toISOString());
+      const savedVersion = window.localStorage.getItem(LAST_BOOT_VERSION_KEY);
+      if (savedVersion !== APP_VERSION) {
+        window.localStorage.setItem(LAST_BOOT_VERSION_KEY, APP_VERSION);
+        setAboutDefaultTab("history");
+        setIsAboutOpen(true);
+      }
+    } catch {
+      // localStorage unavailable — ignore
+    }
+  }, []);
 
   // Monitor PWA installation event to immediately show "Local"
   useEffect(() => {
@@ -3301,6 +3319,8 @@ export default function App() {
       <AboutDialog
         open={isAboutOpen}
         version={APP_VERSION}
+        locale={appLocale}
+        defaultTab={aboutDefaultTab}
         onClose={() => setIsAboutOpen(false)}
       />
     </main>

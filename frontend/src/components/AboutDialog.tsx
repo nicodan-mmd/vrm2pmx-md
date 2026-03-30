@@ -1,17 +1,75 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
+
+type HistoryLocale = "ja" | "en" | "zh";
 
 type AboutDialogProps = {
   open: boolean;
   version: string;
+  locale: HistoryLocale;
+  defaultTab?: TabId;
   onClose: () => void;
 };
 
-export default function AboutDialog({ open, version, onClose }: AboutDialogProps) {
+export type TabId = "about" | "history";
+
+const HISTORY: Array<{
+  version: string;
+  date: string;
+  items: Record<HistoryLocale, string>[];
+}> = [
+  {
+    version: "v1.5.1",
+    date: "2026-03-30",
+    items: [
+      {
+        ja: "ユーザーレポートによる表示崩れ改善",
+        en: "UI display issues fixed based on user reports",
+        zh: "基于用户反馈改善了显示问题",
+      },
+      {
+        ja: "エラーとなっていた処理を続行可能な場合には継続",
+        en: "Processing continues when non-critical errors occur",
+        zh: "可继续的处理不再中断",
+      },
+    ],
+  },
+  {
+    version: "v1.5.0",
+    date: "2026-03-26",
+    items: [
+      {
+        ja: "操作無しでモデルをゆっくり回転",
+        en: "Model auto-rotates when idle",
+        zh: "无操作时模型自动缓慢旋转",
+      },
+      {
+        ja: "英語、中国語対応",
+        en: "English and Chinese language support added",
+        zh: "新增英语和中文支持",
+      },
+      {
+        ja: "ボーン表示ボタン追加",
+        en: "Bone display toggle button added",
+        zh: "添加骨骼显示切换按钮",
+      },
+      {
+        ja: "表示崩れ報告機能追加",
+        en: "Display quality report feature added",
+        zh: "添加显示异常报告功能",
+      },
+    ],
+  },
+];
+
+export default function AboutDialog({ open, version, locale, defaultTab, onClose }: AboutDialogProps) {
+  const [activeTab, setActiveTab] = useState<TabId>("about");
+
   useEffect(() => {
     if (!open) {
       return;
     }
+    setActiveTab(defaultTab ?? "about");
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -46,6 +104,32 @@ export default function AboutDialog({ open, version, onClose }: AboutDialogProps
             Close
           </button>
         </header>
+        <div className="about-tabs">
+          <button
+            type="button"
+            className={`about-tab${activeTab === "about" ? " about-tab-active" : ""}`}
+            onClick={() => setActiveTab("about")}
+          >About</button>
+          <button
+            type="button"
+            className={`about-tab${activeTab === "history" ? " about-tab-active" : ""}`}
+            onClick={() => setActiveTab("history")}
+          >History</button>
+        </div>
+        {activeTab === "history" ? (
+          <div className="about-modal-body about-history-body">
+            {HISTORY.map((entry) => (
+              <div key={entry.version} className="history-entry">
+                <p className="history-version">{entry.version} <span className="history-date">{entry.date}</span></p>
+                <ul className="history-list">
+                  {entry.items.map((item, i) => (
+                    <li key={i}>{item[locale]}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="about-modal-body">
           <p><strong>VRM to MMD Converter</strong></p>
           <p>Version {version}</p>
@@ -106,6 +190,7 @@ export default function AboutDialog({ open, version, onClose }: AboutDialogProps
           <p>Powered by GitHub Copilot</p>
 
         </div>
+        )}
       </section>
     </div>
   );

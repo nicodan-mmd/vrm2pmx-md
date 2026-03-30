@@ -35,3 +35,7 @@ lint:
         - ALL
       paths:
         - .venv/**
+    - linters:
+        - markdownlint
+      paths:
+        - docs/Sentry-Reports/**

@@ -1,5 +1,3 @@
-<!-- markdownlint-disable MD024 MD034 MD060 -->
-
 # Sentry Top 3 Issues Summary (2026-03-29)
 
 対象プロジェクト: `nicodan/vrm_to_pmx_converterr`
@@ -57,24 +55,28 @@
 
 ## 参考: 取得した生データ（上位3件）
 
-1. VRM_TO_PMX_CONVERTERR-A
-   title: convert.quality_signal.user_reported.PMX_MISSING_COLOR_TEXTURES
-   count: 54
-   level: info
-   first_seen: 2026-03-25T17:33:23.382Z
-   last_seen: 2026-03-29T11:12:44.342Z
-2. VRM_TO_PMX_CONVERTERR-H
-   title: Error: PythonError: Traceback (most recent call last):
-   count: 45
-   level: error
-   first_seen: 2026-03-28T07:43:33.378Z
-   last_seen: 2026-03-29T11:47:56.49Z
-3. VRM_TO_PMX_CONVERTERR-B
-   title: convert.quality_signal.user_reported.PARTIAL_CONVERSION_HINT
-   count: 15
-   level: info
-   first_seen: 2026-03-25T17:33:23.379Z
-   last_seen: 2026-03-29T10:33:48.694Z
+```text
+VRM_TO_PMX_CONVERTERR-A
+  Title: convert.quality_signal.user_reported.PMX_MISSING_COLOR_TEXTURES
+  Count: 54
+  Level: info
+  First seen: 2026-03-25T17:33:23.382Z
+  Last seen: 2026-03-29T11:12:44.342Z
+
+VRM_TO_PMX_CONVERTERR-H
+  Title: Error: PythonError: Traceback (most recent call last):
+  Count: 45
+  Level: error
+  First seen: 2026-03-28T07:43:33.378Z
+  Last seen: 2026-03-29T11:47:56.49Z
+
+VRM_TO_PMX_CONVERTERR-B
+  Title: convert.quality_signal.user_reported.PARTIAL_CONVERSION_HINT
+  Count: 15
+  Level: info
+  First seen: 2026-03-25T17:33:23.379Z
+  Last seen: 2026-03-29T10:33:48.694Z
+```
 
 ## 次アクション案
 
@@ -143,7 +145,7 @@
 
 - 部分変換の原因を減らしつつ、回避不能な差分（VRM と PMX の仕様差）を可視化する。
 
-### 修正方針
+### Bの修正方針
 
 1. 変換失敗で欠落した要素を分類して、フォールバック可能なものは救済する。
 2. 救済不能な要素は警告として明示し、出力は継続する。
@@ -171,7 +173,7 @@
 2. 主要ボーン（センター系など）が最低限構築可能
 3. PMX ファイルとして構造破綻しない
 
-### 実装方針
+### Hの実装方針
 
 1. 致命エラーと非致命エラーを分離する。
 2. 非致命エラーは記録して継続、致命エラーのみ停止する。
