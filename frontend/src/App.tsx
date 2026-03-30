@@ -1725,12 +1725,6 @@ export default function App() {
             emissiveMap?: THREE.Texture | null;
             matcap?: THREE.Texture | null;
           };
-          if (m.color) {
-            m.color.convertSRGBToLinear();
-          }
-          if (m.emissive) {
-            m.emissive.convertSRGBToLinear();
-          }
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             m.map.needsUpdate = true;
@@ -1766,14 +1760,22 @@ export default function App() {
           }
           const m = mat as THREE.MeshToonMaterial & {
             map?: (THREE.Texture & { transparent?: boolean }) | null;
+            alphaMap?: THREE.Texture | null;
           };
+          const materialLabel = `${maybeMesh.name || ""} ${m.name || ""}`.toLowerCase();
           const mapTransparent = Boolean(m.map && m.map.transparent);
-          if (!mapTransparent) {
+          const likelySkinMaterial = /(skin|body|face|head|hair|肌|素体|顔|頭|髪)/.test(materialLabel);
+          if (!mapTransparent || likelySkinMaterial) {
             continue;
           }
 
-          m.transparent = true;
-          m.alphaTest = Math.max(m.alphaTest ?? 0, 0.001);
+          // Prefer cutout-style rendering for alpha-textured cloth layers.
+          // This avoids transparent-sort artifacts where a large skirt plane
+          // gets rendered in front of apron/chest details.
+          m.transparent = false;
+          m.alphaTest = Math.max(m.alphaTest ?? 0, 0.06);
+          m.depthWrite = true;
+          m.depthTest = true;
           m.needsUpdate = true;
         }
       });

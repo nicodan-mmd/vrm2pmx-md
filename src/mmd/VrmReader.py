@@ -70,6 +70,12 @@ class VrmReader(PmxReader):
         self.is_check = is_check
         self.offset = 0
         self.buffer = b""
+        # 変換時の失敗フラグ（条件付きログ出力用）
+        self.has_morph_bind_failure = False
+        self.has_bone_missing = False
+        self.has_joint_ref_failure = False
+        self.has_physics_skip = False
+        self.has_texture_missing = False
 
     def read_model_name(self):
         return ""
@@ -380,7 +386,8 @@ class VrmReader(PmxReader):
                 vertex_idx = 0
                 pmx.indices = []
                 accessors = {}
-                materials_by_type = {}
+                material_by_name = {}
+                material_creation_order = []
                 indices_by_material = {}
                 node_pairs = {}
                 bones = {}
@@ -493,6 +500,7 @@ class VrmReader(PmxReader):
                                                 )
                                         except Exception as e:
                                             # 取れない場合はとりあえず空
+                                            self.has_joint_ref_failure = True
                                             logger.warning(
                                                 "-- skin metadata fallback (mesh=%s): %s",
                                                 midx,
@@ -666,9 +674,7 @@ class VrmReader(PmxReader):
                 if "meshes" in vrm.json_data:
                     for midx, mesh in enumerate(vrm.json_data["meshes"]):
                         if "primitives" in mesh:
-                            for pidx, primitive in enumerate(
-                                sorted(mesh["primitives"], key=lambda x: x["material"])
-                            ):
+                            for pidx, primitive in enumerate(mesh["primitives"]):
                                 if (
                                     "material" in primitive
                                     and "materials" in vrm.json_data
@@ -722,14 +728,7 @@ class VrmReader(PmxReader):
                                             f'{len(indices)}/{len(indices_by_material[vrm_material["name"]])}'
                                         )
 
-                                    if (
-                                        vrm_material["alphaMode"]
-                                        not in materials_by_type
-                                        or vrm_material["name"]
-                                        not in materials_by_type[
-                                            vrm_material["alphaMode"]
-                                        ]
-                                    ):
+                                    if vrm_material["name"] not in material_by_name:
                                         # 材質種別別に材質の存在がない場合
 
                                         # VRMの材質拡張情報（VRM0.x のみ存在、VRM1.x ではデフォルト値を使用）
@@ -821,6 +820,7 @@ class VrmReader(PmxReader):
                                             len(pmx.textures),
                                         )
                                         if texture_index < 0:
+                                            self.has_texture_missing = True
                                             logger.warning(
                                                 "Main texture missing or invalid: material=%s source=%s",
                                                 vrm_material["name"],
@@ -1028,46 +1028,29 @@ class VrmReader(PmxReader):
                                             len(indices),
                                         )
 
-                                        # 材質順番を決める
-                                        material_key = self._resolve_material_key(
-                                            material.name,
-                                            vrm_material["alphaMode"],
-                                            profile_name,
-                                        )
-
-                                        if material_key not in materials_by_type:
-                                            materials_by_type[material_key] = {}
-                                        materials_by_type[material_key][
+                                        material_by_name[vrm_material["name"]] = material
+                                        material_creation_order.append(
                                             vrm_material["name"]
-                                        ] = material
+                                        )
 
                                         logger.info(
                                             f'-- 材質データ解析[{vrm_material["name"]}]'
                                         )
                                     else:
                                         # 材質がある場合は、面数を加算する
-                                        materials_by_type[vrm_material["alphaMode"]][
+                                        material_by_name[
                                             vrm_material["name"]
                                         ].vertex_count += len(indices)
 
-                # 材質を不透明(OPAQUE)→透明順(BLEND)に並べ替て設定
-                for material_type in ["OPAQUE", "MASK", "BLEND", "Eye", "EyeHighlight"]:
-                    if material_type in materials_by_type:
-                        for material in materials_by_type[material_type].values():
-                            pmx.materials[material.name] = material
-                            for midx in range(
-                                0, len(indices_by_material[material.name]), 3
-                            ):
-                                # 面の貼り方がPMXは逆
-                                pmx.indices.append(
-                                    indices_by_material[material.name][midx + 2]
-                                )
-                                pmx.indices.append(
-                                    indices_by_material[material.name][midx + 1]
-                                )
-                                pmx.indices.append(
-                                    indices_by_material[material.name][midx]
-                                )
+                # glTF primitive の出現順を維持して PMX 材質順を決定する
+                for material_name in material_creation_order:
+                    material = material_by_name[material_name]
+                    pmx.materials[material.name] = material
+                    for midx in range(0, len(indices_by_material[material.name]), 3):
+                        # 面の貼り方がPMXは逆
+                        pmx.indices.append(indices_by_material[material.name][midx + 2])
+                        pmx.indices.append(indices_by_material[material.name][midx + 1])
+                        pmx.indices.append(indices_by_material[material.name][midx])
 
                 # グループモーフ定義
                 expression_groups = self._iter_expression_groups(vrm)
@@ -1096,6 +1079,7 @@ class VrmReader(PmxReader):
                         else:
                             for bind in shape.get("binds", []):
                                 if bind.get("index") not in pmx.morphs:
+                                    self.has_morph_bind_failure = True
                                     continue
                                 morph.offsets.append(
                                     GroupMorphData(
@@ -1138,6 +1122,7 @@ class VrmReader(PmxReader):
                     or self._has_optional_physics_source(vrm)
                 )
                 if not enable_optional_physics:
+                    self.has_physics_skip = True
                     logger.warning(
                         "-- VRoidProfile: spring metadata not found, skipping optional physics generation"
                     )
@@ -1449,6 +1434,7 @@ class VrmReader(PmxReader):
                     bust_joint_setting = self.physics_pairs["胸先"]
                     for bone_name in bust_rigidbodies.keys():
                         if bone_name not in pmx.bones:
+                            self.has_bone_missing = True
                             continue
                         bone = pmx.bones[bone_name]
                         translation_limit_min = MVector3D(
@@ -1564,6 +1550,9 @@ class VrmReader(PmxReader):
                     + f"ライセンス: {_meta_license}\r\n{licence_comment}\r\n"
                     + "変換: Vrm2PmxConverter (@miu200521358)"
                 )
+
+                # ===== 多言語対応診断サマリー出力 =====
+                self._log_conversion_summary(vrm, pmx, profile_name)
 
             return True
         except MKilledException as ke:
@@ -2166,6 +2155,7 @@ class VrmReader(PmxReader):
                 continue
             bone_name = node_pairs[skin_joint_idx]
             if bone_name not in pmx.bones:
+                self.has_bone_missing = True
                 continue
             dest_joint_list.append(pmx.bones[bone_name].index)
 
@@ -3022,6 +3012,81 @@ class VrmReader(PmxReader):
     def define_buf_type(self, componentType: int):
         """vrm_common.define_buf_type へのデリゲート（後方互換維持）。"""
         return _define_buf_type(componentType)
+
+    # ===== 多言語対応ログ出力 =====
+    @staticmethod
+    def _get_i18n_messages() -> dict[str, dict[str, str]]:
+        """多言語対応メッセージ辞書を返す（日本語 / 英語 / 中国語）"""
+        return {
+            "ja": {
+                "header": "==============================================",
+                "title": "以下は、対応が見つけられなかったため処理できませんでした。",
+                "morph_bind": "・表情バインドの参照先モーフが不在",
+                "bone_missing": "・ボーンが不在",
+                "joint_ref": "・スキニング時のジョイント参照が不在",
+                "physics_skip": "・VRoid物理（剛体/関節）が「spring metadata なし」",
+                "texture_skip": "・メインテクスチャ欠落 → 材質は作るが髪ブレンド機能スキップ",
+            },
+            "en": {
+                "header": "==============================================",
+                "title": "The following items could not be processed because no correspondence was found.",
+                "morph_bind": "・Expression bind target morph not found",
+                "bone_missing": "・Bone not found",
+                "joint_ref": "・Joint reference not found during skinning",
+                "physics_skip": "・VRoid physics (rigid body/joint) skipped due to missing spring metadata",
+                "texture_skip": "・Main texture missing → material created but hair blend feature skipped",
+            },
+            "zh": {
+                "header": "==============================================",
+                "title": "以下项目因未找到对应的处理而无法处理。",
+                "morph_bind": "・表情绑定的参考形态不存在",
+                "bone_missing": "・骨骼不存在",
+                "joint_ref": "・蒙皮时关节引用不存在",
+                "physics_skip": "・VRoid 物理（刚体/关节）因缺少 spring metadata 而跳过",
+                "texture_skip": "・主纹理缺失 → 已创建材质但跳过了头发混合功能",
+            },
+        }
+
+    def _log_conversion_summary(self, vrm: VrmModel, pmx: PmxModel, profile_name: str):
+        """多言語対応で変換結果サマリーをログ出力する（実際に発生した失敗のみ）"""
+        # 実際に失敗が発生したか確認
+        has_any_failure = (
+            self.has_morph_bind_failure
+            or self.has_bone_missing
+            or self.has_joint_ref_failure
+            or self.has_physics_skip
+            or self.has_texture_missing
+        )
+
+        # 失敗がなければログ出力をスキップ
+        if not has_any_failure:
+            return
+
+        # 言語検出（ブラウザのローカル言語に基づく、デフォルト は日本語）
+        # ここでは常に全言語を出力する形式を採用
+        messages = self._get_i18n_messages()
+
+        for locale_key in ["ja", "en", "zh"]:
+            msgs = messages[locale_key]
+            separator = msgs["header"]
+            title = msgs["title"]
+
+            logger.info(separator)
+            logger.info(title)
+
+            # 実際に発生した失敗のみを出力
+            if self.has_morph_bind_failure:
+                logger.info(msgs["morph_bind"])
+            if self.has_bone_missing:
+                logger.info(msgs["bone_missing"])
+            if self.has_joint_ref_failure:
+                logger.info(msgs["joint_ref"])
+            if self.has_physics_skip:
+                logger.info(msgs["physics_skip"])
+            if self.has_texture_missing:
+                logger.info(msgs["texture_skip"])
+
+            logger.info(separator)
 
     def read_text(self, format_size):
         bresult = self.unpack(format_size, "{0}s".format(format_size))
