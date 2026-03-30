@@ -23,10 +23,10 @@ export default defineConfig({
         "assets/favicon/apple-touch-icon.png",
       ],
       manifest: {
-        name: "VRM to PMX Converter",
-        short_name: "VRM2PMX",
+        name: "VRM to MMD Converter",
+        short_name: "V2MC",
         description:
-          "Convert VRM to PMX in your browser with preview. ブラウザ上でVRMをPMXへ変換し、プレビューできるツールです。",
+          "Convert VRM to MMD in your browser with preview. ブラウザ上でVRMをMMDへ変換し、プレビューできるツールです。",
         theme_color: "#8d643d",
         background_color: "#8d643d",
         display: "standalone",

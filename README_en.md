@@ -23,7 +23,7 @@ A modernized VRM→PMX conversion tool based on [vrm2pmx](https://github.com/miu
 
 ## GitHub Pages
 
-[VRM to PMX Converter](https://nicodan-mmd.github.io/vrm2pmx-md/)
+[VRM to MMD Converter](https://nicodan-mmd.github.io/vrm2pmx-md/)
 
 ## About VRM and PMX
 

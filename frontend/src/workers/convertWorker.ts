@@ -230,7 +230,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     runtime.globals.set("__input_suffix", inputSuffix);
     runtime.globals.set("__logging_level", PY_LOGGING_LEVEL);
 
-    postProgress(request.id, "converting", "Converting VRM to PMX...");
+    postProgress(request.id, "converting", "Converting VRM to MMD...");
     await runtime.runPythonAsync(`
   from service.Vrm2PmxBytesService import convert_vrm_zip_bytes
   __output_bytes = convert_vrm_zip_bytes(

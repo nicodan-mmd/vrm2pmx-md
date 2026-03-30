@@ -2,8 +2,7 @@
     ・UnityChan.vrm
         BOOTH版 vrm2pmx wakapippi
             変換終わらない
-        GitHub 版 vrm2pmx   
+        GitHub 版 vrm2pmx
             正常終了だけど空
-        VRM to PMX Converter
+        VRM to MMD Converter
             表示崩れだけど出力
-            

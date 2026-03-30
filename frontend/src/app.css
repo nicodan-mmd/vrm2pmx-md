@@ -794,10 +794,14 @@ button:disabled {
 }
 
 .app-version {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  z-index: 20;
   margin: 0;
   font-size: 0.82rem;
   color: #4a5f78;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .app-footer-meta {

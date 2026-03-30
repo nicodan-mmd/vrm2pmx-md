@@ -47,7 +47,7 @@ export default function AboutDialog({ open, version, onClose }: AboutDialogProps
           </button>
         </header>
         <div className="about-modal-body">
-          <p><strong>VRM to PMX Converter</strong></p>
+          <p><strong>VRM to MMD Converter</strong></p>
           <p>Version {version}</p>
           <p>This tool converts VRM models to PMX format in browser using Wasm/Pyodide runtime.</p>
 

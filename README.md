@@ -23,7 +23,7 @@
 
 ## GitHubPages URL
 
-[VRM to PMX Converter](https://nicodan-mmd.github.io/vrm2pmx-md/)
+[VRM to MMD Converter](https://nicodan-mmd.github.io/vrm2pmx-md/)
 
 ## VRM と PMX について
 
