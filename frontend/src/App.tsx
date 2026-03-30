@@ -1084,12 +1084,43 @@ export default function App() {
     rightBaseQuaternion: null,
     armPoseSign: 1,
   });
+  const [isInstalledState, setIsInstalledState] = useState(false);
   const backendEnabled = isBackendFallbackEnabled();
   const appLocale = useMemo(
     () => detectAppLocale(typeof navigator !== "undefined" ? navigator.language : "en"),
     [],
   );
   const i18n = APP_I18N[appLocale];
+
+  // Monitor PWA installation event to immediately show "Local"
+  useEffect(() => {
+    const handleAppInstalled = () => {
+      setIsInstalledState(true);
+    };
+    window.addEventListener("appinstalled", handleAppInstalled);
+    return () => {
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const launchStateLabel = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "Web";
+    }
+
+    // If just installed, immediately show "Local"
+    if (isInstalledState) {
+      return "Local";
+    }
+
+    const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      iosStandalone ||
+      document.referrer.startsWith("android-app://");
+
+    return isStandalone ? "Local" : "Web";
+  }, [isInstalledState]);
 
   const canConvert = useMemo(
     () => !!file && status !== "uploading" && !isPreviewing && isVrmReady,
@@ -2780,7 +2811,7 @@ export default function App() {
       <div className="halo" />
       <section className="card">
         <h1 className="app-title">
-          VRM to MMD Converter (Web)
+          VRM to MMD Converter
           <span className="app-subtitle">A web-based modernization of vrm2pmx and vroid2pmx mix</span>
         </h1>
         <section className="preview-grid" aria-label="Model previews">
@@ -3245,6 +3276,7 @@ export default function App() {
         <footer className="app-footer" aria-label="Application footer actions">
           <div className="app-footer-meta">
             <p className="app-version">Version {APP_VERSION}</p>
+            <p className="app-launch-state">{launchStateLabel}</p>
             <PwaInstallControl i18n={i18n} />
           </div>
           <div className="app-footer-actions">

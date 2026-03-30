@@ -793,15 +793,28 @@ button:disabled {
   gap: 12px;
 }
 
-.app-version {
+.app-version,
+.app-launch-state {
   position: fixed;
   top: 10px;
-  left: 12px;
   z-index: 20;
   margin: 0;
   font-size: 0.82rem;
   color: #4a5f78;
   font-weight: 400;
+}
+
+.app-version {
+  left: 12px;
+}
+
+.app-launch-state {
+  right: 12px;
+  padding: 1px 8px;
+  color: #6a7c90;
+  border: 1px solid #90a0b2;
+  border-radius: 0;
+  background: transparent;
 }
 
 .app-footer-meta {
