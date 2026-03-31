@@ -32,6 +32,8 @@ jobs:
 
       - name: Build Frontend
         working-directory: frontend
+        env:
+          VITE_HEART_GAS_WEB_APP_URL: ${{ vars.VITE_HEART_GAS_WEB_APP_URL }}
         run: |
           npm ci
           npm run build
