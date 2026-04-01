@@ -1,0 +1,253 @@
+{
+  "date": "2026-03-27",
+  "commit": "working-tree",
+  "branch": "main",
+  "environment": "backend",
+  "input": {
+    "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー_リンリン.vrm",
+    "size_bytes": 21938004
+  },
+  "runs": {
+    "warmup": 1,
+    "measured": 3,
+    "python_sec": [
+      10.624367,
+      10.530873,
+      10.578981
+    ],
+    "rust_requested_sec": []
+  },
+  "summary": {
+    "python_avg_sec": 10.578074,
+    "python_min_sec": 10.530873,
+    "python_max_sec": 10.624367,
+    "rust_avg_sec": 0,
+    "rust_min_sec": 0,
+    "rust_max_sec": 0,
+    "delta_sec": 0
+  },
+  "mode": {
+    "requested": "python",
+    "used": "backend",
+    "fallback_reason": ""
+  },
+  "artifact": {
+    "zip_path": "docs/Rust-Conversion/Comparisons/artifacts/20260327_linlin_backend_baseline.zip",
+    "sha256": "9dd53345dc255e5d28791b4190e0f12825b2a8311a66b2e90e44253bc9c39bf4",
+    "zip_summary": {
+      "entry_count": 40,
+      "entries": [
+        {
+          "name": "result.pmx",
+          "file_size": 6652871,
+          "compress_size": 2449175
+        },
+        {
+          "name": "tex/MatcapWarp_01.png",
+          "file_size": 5626,
+          "compress_size": 295
+        },
+        {
+          "name": "tex/MatcapWarp_02.png",
+          "file_size": 5626,
+          "compress_size": 295
+        },
+        {
+          "name": "tex/N00_000_00_Body_00_SKIN_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 57
+        },
+        {
+          "name": "tex/N00_000_00_EyeHighlight_00_EYE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_EyeIris_00_EYE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_EyeWhite_00_EYE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_FaceBrow_00_FACE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_FaceEyelash_00_FACE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_FaceEyeline_00_FACE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_FaceMouth_00_FACE_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 57
+        },
+        {
+          "name": "tex/N00_000_00_Face_00_out.png",
+          "file_size": 15047,
+          "compress_size": 14139
+        },
+        {
+          "name": "tex/N00_000_00_Face_00_SKIN_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 57
+        },
+        {
+          "name": "tex/N00_000_00_HairBack_00_HAIR_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_00_HairBack_00_nml.png",
+          "file_size": 97078,
+          "compress_size": 95376
+        },
+        {
+          "name": "tex/N00_000_Hair_00_HAIR_01_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_Hair_00_HAIR_02_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 51
+        },
+        {
+          "name": "tex/N00_000_Hair_00_nml_01.png",
+          "file_size": 105128,
+          "compress_size": 105040
+        },
+        {
+          "name": "tex/N00_000_Hair_00_nml_02.png",
+          "file_size": 105128,
+          "compress_size": 105040
+        },
+        {
+          "name": "tex/N00_004_01_Shoes_01_CLOTH_TOON.bmp",
+          "file_size": 4150,
+          "compress_size": 57
+        },
+        {
+          "name": "tex/Shader_NoneBlack.png",
+          "file_size": 81,
+          "compress_size": 76
+        },
+        {
+          "name": "tex/Shader_NoneNormal.png",
+          "file_size": 80,
+          "compress_size": 76
+        },
+        {
+          "name": "tex/Thumbnail.png",
+          "file_size": 1523456,
+          "compress_size": 1519723
+        },
+        {
+          "name": "tex/_01.png",
+          "file_size": 46064,
+          "compress_size": 44274
+        },
+        {
+          "name": "tex/_02.png",
+          "file_size": 99034,
+          "compress_size": 93275
+        },
+        {
+          "name": "tex/_03.png",
+          "file_size": 40068,
+          "compress_size": 33576
+        },
+        {
+          "name": "tex/_04.png",
+          "file_size": 393574,
+          "compress_size": 390742
+        },
+        {
+          "name": "tex/_05.png",
+          "file_size": 20542,
+          "compress_size": 410
+        },
+        {
+          "name": "tex/_06.png",
+          "file_size": 134135,
+          "compress_size": 131337
+        },
+        {
+          "name": "tex/_07.png",
+          "file_size": 10461,
+          "compress_size": 6458
+        },
+        {
+          "name": "tex/_08.png",
+          "file_size": 32109,
+          "compress_size": 28694
+        },
+        {
+          "name": "tex/_09.png",
+          "file_size": 26382,
+          "compress_size": 22958
+        },
+        {
+          "name": "tex/_11.png",
+          "file_size": 3787979,
+          "compress_size": 3785644
+        },
+        {
+          "name": "tex/_12.png",
+          "file_size": 134069,
+          "compress_size": 133875
+        },
+        {
+          "name": "tex/_13.png",
+          "file_size": 169832,
+          "compress_size": 162972
+        },
+        {
+          "name": "tex/_15.png",
+          "file_size": 59822,
+          "compress_size": 51515
+        },
+        {
+          "name": "tex/_17.png",
+          "file_size": 59822,
+          "compress_size": 51515
+        },
+        {
+          "name": "tex/無題199_20220829041953.png",
+          "file_size": 335705,
+          "compress_size": 334952
+        },
+        {
+          "name": "tex/無題199_20220829054009.png",
+          "file_size": 457294,
+          "compress_size": 456331
+        },
+        {
+          "name": "tex/無題21_20220409224721.png",
+          "file_size": 5092869,
+          "compress_size": 5093256
+        }
+      ]
+    }
+  },
+  "mmd_equivalence": {
+    "load_success": false,
+    "visual_equivalent": false,
+    "structural_equivalent": false,
+    "notes": [
+      "Pending external-app verification by user."
+    ]
+  },
+  "status": "warn",
+  "next_action": "Ask user to verify loadability with external applications."
+}

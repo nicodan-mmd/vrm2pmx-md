@@ -1,0 +1,23 @@
+{
+  "date": "2026-03-28",
+  "branch": "main",
+  "stage": "rust-runtime-availability",
+  "change_type": "frontend-scaffolding",
+  "validation": {
+    "type_errors": false,
+    "frontend_build": "pass",
+    "build_artifact_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "runtime_manifest_check": "rust/vrm2pmx_rust_manifest.json",
+    "expected_first_result": "RUST_RUNTIME_UNAVAILABLE",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "not-requested"
+  },
+  "status": "pass",
+  "next_action": "Define the manifest schema and placeholder runtime asset layout under frontend public path."
+}

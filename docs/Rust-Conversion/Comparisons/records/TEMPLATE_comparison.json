@@ -1,0 +1,38 @@
+{
+  "date": "",
+  "commit": "",
+  "branch": "",
+  "environment": "dev",
+  "input": {
+    "path": "",
+    "size_bytes": 0
+  },
+  "runs": {
+    "warmup": 0,
+    "measured": 0,
+    "python_sec": [],
+    "rust_requested_sec": []
+  },
+  "summary": {
+    "python_avg_sec": 0,
+    "python_min_sec": 0,
+    "python_max_sec": 0,
+    "rust_avg_sec": 0,
+    "rust_min_sec": 0,
+    "rust_max_sec": 0,
+    "delta_sec": 0
+  },
+  "mode": {
+    "requested": "rust",
+    "used": "wasm",
+    "fallback_reason": ""
+  },
+  "mmd_equivalence": {
+    "load_success": true,
+    "visual_equivalent": true,
+    "structural_equivalent": true,
+    "notes": []
+  },
+  "status": "warn",
+  "next_action": ""
+}

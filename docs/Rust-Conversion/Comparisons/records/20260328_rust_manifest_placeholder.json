@@ -1,0 +1,23 @@
+{
+  "date": "2026-03-28",
+  "branch": "main",
+  "stage": "rust-manifest-placeholder",
+  "change_type": "frontend-asset-contract",
+  "validation": {
+    "type_errors": false,
+    "frontend_build": "pass",
+    "worker_asset_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "manifest_lookup": "found",
+    "expected_first_result": "RUST_CONVERT_NOT_IMPLEMENTED",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "not-requested"
+  },
+  "status": "pass",
+  "next_action": "Implement the runtime loader bridge that consumes entryJs and entryWasm from the manifest."
+}

@@ -1,0 +1,74 @@
+{
+  "date": "2026-03-28",
+  "milestone": "Stage-03 — First end-to-end PMX output (動くところまで)",
+  "branch": "feature/rust-conversion-poc",
+  "commit": "TBD (this commit)",
+  "previousCommit": "d7bc999",
+  "description": "Rust path now produces a real PMX 2.0 binary file instead of throwing RUST_CONVERT_NOT_IMPLEMENTED. The conversion is handled by a new pure-JS module (pmxWriter.js) that reads glTF accessors from the BIN chunk extracted by Wasm and writes a compliant PMX 2.0 binary.",
+  "scope": {
+    "included": [
+      "All mesh primitives → merged vertex/face lists",
+      "Coordinate transform: X-flip + MIKU_METER (12.5) scale for positions",
+      "Normal X-flip",
+      "Winding reversal (glTF CCW → PMX CW: [a,b,c] → [c,b,a])",
+      "One material per glTF primitive (white diffuse, no textures)",
+      "One bone: センター at origin (Bdef1 → all vertices)",
+      "Standard display frames: Root + 表情",
+      "PMX 2.0 index size determination (mirrors Python define_index_size)"
+    ],
+    "notIncluded": [
+      "Texture image embedding",
+      "Bone hierarchy (rig)",
+      "Blend shapes / morphs",
+      "Rigid bodies / physics",
+      "Spring bones"
+    ]
+  },
+  "files": {
+    "new": [
+      "frontend/public/rust/pmxWriter.js"
+    ],
+    "modified": [
+      "frontend/public/rust/vrm2pmx_rust_loader.js",
+      "frontend/public/rust/vrm2pmx_rust_manifest.json"
+    ]
+  },
+  "changeDetails": {
+    "pmxWriter.js": {
+      "lines": "~375",
+      "keyComponents": [
+        "BinaryWriter class (dynamic ArrayBuffer growth, i8/i16/i32/f32/bytes/text/idx methods)",
+        "idxSize(count) — mirrors Python define_index_size exactly",
+        "readAcc(gltfJson, binBuffer, accessorIndex) — full glTF accessor reader with byteStride support",
+        "buildPmxFromGltf(gltfJson, binBuffer, opts) — main export, produces Uint8Array"
+      ]
+    },
+    "vrm2pmx_rust_loader.js": {
+      "changes": [
+        "Added: import { buildPmxFromGltf } from './pmxWriter.js' at top",
+        "Removed: debug sample-accessor read block (step 7)",
+        "Replaced: RUST_CONVERT_NOT_IMPLEMENTED throw with buildPmxFromGltf call + return { output, fileExtension: 'pmx', usedMode: 'rust' }"
+      ]
+    }
+  },
+  "buildResult": {
+    "status": "pass",
+    "tool": "vite",
+    "errors": 0,
+    "warnings": [
+      "node: module externalization (pyodide, pre-existing)",
+      "large chunk size (pre-existing)"
+    ]
+  },
+  "pythonBaseline": {
+    "model": "リンリン.vrm",
+    "measuredAt": "previous session",
+    "wallTime_s": 10.58
+  },
+  "nextSteps": [
+    "Stage-04: Validate PMX output in external app (PMX Editor / MikuMikuDance)",
+    "Stage-04: Add texture image extraction from glTF images[] array",
+    "Stage-05: Add VRM0 bone hierarchy mapping (Head/Neck/Spine/etc.)",
+    "Stage-06: Add VRM0 blend shape group → PMX morphs"
+  ]
+}

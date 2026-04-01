@@ -1,12 +1,14 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
+import { convertViaRustWorker } from "../rust/workerClient";
 import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
 
-export type ConvertMode = "auto" | "backend" | "wasm";
+export type ConvertMode = "auto" | "backend" | "wasm" | "rust";
+export type ConvertExecutionMode = Exclude<ConvertMode, "auto">;
 
 export type ConvertResult = {
   blob: Blob;
   fileExtension: "zip" | "pmx";
-  usedMode: "backend" | "wasm";
+  usedMode: ConvertExecutionMode;
   fallbackReason?: string;
 };
 
@@ -56,6 +58,10 @@ export function toUserFriendlyConvertError(
   if (normalized.includes("failed to fetch")) {
     if (context.mode === "backend") {
       return "Backend server is not reachable. Start FastAPI on 127.0.0.1:8000, or switch to Wasm mode.";
+    }
+
+    if (context.mode === "rust") {
+      return "Rust experimental mode could not complete and Wasm fallback assets were not reachable. Reload the page and retry, or switch to Wasm mode.";
     }
 
     if (context.mode === "auto" && context.backendEnabled) {
@@ -145,6 +151,32 @@ async function convertViaWasm(
   };
 }
 
+async function convertViaRust(
+  file: File,
+  options?: ConvertOptions,
+): Promise<ConvertResult> {
+  const inputBuffer = await file.arrayBuffer();
+  const response = await convertViaRustWorker(
+    file.name,
+    inputBuffer,
+    (event) => {
+      options?.onProgress?.({ stage: event.stage, message: event.message });
+    },
+    options?.onLog,
+    options?.signal,
+  );
+
+  if (response.status === "error") {
+    throw new Error(response.message);
+  }
+
+  return {
+    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    fileExtension: response.fileExtension,
+    usedMode: response.usedMode,
+  };
+}
+
 export async function convertWithMode(
   file: File,
   mode: ConvertMode,
@@ -176,6 +208,54 @@ export async function convertWithMode(
       }),
     );
     return result;
+  }
+
+  if (mode === "rust") {
+    try {
+      const result = await convertViaRust(file, options);
+      console.info(
+        JSON.stringify({
+          event: "convert.completed",
+          requestedMode: mode,
+          finalMode: result.usedMode,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        }),
+      );
+      return result;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+
+      const fallbackReason = error instanceof Error ? error.message : "Unknown rust error";
+      console.warn(
+        JSON.stringify({
+          event: "convert.rust.unavailable",
+          requestedMode: "rust",
+          attemptedMode: "rust",
+          fallbackMode: "wasm",
+          fallbackReason,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        }),
+      );
+
+      const wasmResult = await convertViaWasm(file, options);
+      console.info(
+        JSON.stringify({
+          event: "convert.fallback.completed",
+          requestedMode: mode,
+          attemptedMode: "rust",
+          fallbackMode: wasmResult.usedMode,
+          fallbackReason,
+          finalMode: wasmResult.usedMode,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        }),
+      );
+      return {
+        ...wasmResult,
+        fallbackReason,
+      };
+    }
   }
 
   try {

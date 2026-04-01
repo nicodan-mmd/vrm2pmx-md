@@ -1,0 +1,40 @@
+{
+  "date": "2026-03-28",
+  "branch": "feature/rust-conversion-poc",
+  "commit": "c14509c",
+  "stage": "rust-json-extract",
+  "change_type": "wasm-implementation",
+  "wasm_size_bytes": {
+    "before": 9621,
+    "after": 12039
+  },
+  "rust_exports": {
+    "added": ["vrm2pmx_get_json_chunk"],
+    "refactored": ["vrm2pmx_parse_glb_json_len"],
+    "new_internals": ["read_u32_le", "glb_locate_json_chunk"]
+  },
+  "validation": {
+    "type_errors": false,
+    "rust_compile": "pass",
+    "frontend_build": "pass",
+    "build_artifact_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "first_attempt": "rust",
+    "first_result": "RUST_CONVERT_NOT_IMPLEMENTED (vrmVersion detected)",
+    "final_used": "wasm"
+  },
+  "vrm_detection": {
+    "mechanism": "glTF extensions key lookup (VRMC_vrm=v1, VRM=v0)",
+    "result_vrm0": 0,
+    "result_vrm1": 1,
+    "result_unknown": -1
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "pending"
+  },
+  "status": "pass",
+  "next_action": "Extract BIN chunk from GLB in Rust; parse glTF accessors in JS bridge to read mesh vertex data."
+}

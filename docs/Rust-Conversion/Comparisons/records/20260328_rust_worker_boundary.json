@@ -1,0 +1,23 @@
+{
+  "date": "2026-03-28",
+  "branch": "main",
+  "stage": "rust-worker-boundary",
+  "change_type": "frontend-scaffolding",
+  "validation": {
+    "type_errors": false,
+    "frontend_build": "pass",
+    "build_artifact_emitted": true
+  },
+  "mode": {
+    "requested": "rust",
+    "first_attempt": "rust",
+    "first_result": "RUST_CONVERT_NOT_IMPLEMENTED",
+    "final_used": "wasm"
+  },
+  "mmd_equivalence": {
+    "output_comparison_run": false,
+    "external_app_validation": "pending"
+  },
+  "status": "pass",
+  "next_action": "Move executable conversion logic into the Rust path and record the next comparison result."
+}

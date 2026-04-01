@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "sync:py-src": "node scripts/sync_py_src.mjs",
+    "build:rust-runtime": "node scripts/build_rust_runtime.mjs",
     "dev": "npm run sync:py-src && vite",
     "build": "npm run sync:py-src && tsc -b && vite build",
     "preview": "vite preview"
