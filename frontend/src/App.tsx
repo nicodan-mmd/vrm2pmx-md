@@ -3009,6 +3009,7 @@ export default function App() {
                 <span>Grid</span>
               </label>
               */}
+              {/* Rust mode toggle — hidden until Rust converter is production-ready
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"
@@ -3019,6 +3020,7 @@ export default function App() {
                 />
                 <span>Rust</span>
               </label>
+              */}
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"
