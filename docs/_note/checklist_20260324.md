@@ -7,7 +7,7 @@
   - [x] Special thanks
   - [x] Forked from vrm2pmx 表記
   - [x] 使用ライブラリリンクの横並び表示
-- [x] タイトル (VRM to MMD Converter) の中央寄せ
+- [x] タイトル (VRM to PMX Converter) の中央寄せ
 - [x] Log View ヘッダーの上下余白を縮小
 - [x] VRM Preview のプレースホルダーに補足文追加
   - (Only VRM 0.0 can be converted)
