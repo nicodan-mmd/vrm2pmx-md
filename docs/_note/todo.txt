@@ -9,6 +9,13 @@
         たぶんコンバート後にモデルの調整が要る感じなのかなぁ
             https://x.com/zoku_ban56962/status/2037803167220707433
 
+・PMX Preview
+    ・モーション再生
+    ・Auto Tailor
+
+・X Post機能
+    GAS → Gyazo
+
 ・PMX-VMD-Scripting-Tools
     導入
 
@@ -47,6 +54,8 @@
     ライセンスの問題もあるので見送り
 
 ・Sentry やばくなったら GlitchTip
+
+・pmx_tailer 統合
 
 
 --
