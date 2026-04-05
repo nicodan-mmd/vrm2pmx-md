@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { APP_VERSION } from "../constants/appInfo";
 import { getPyodide, getPyodideVersion } from "../wasm/pyodideRuntime";
 import type {
   WorkerLogResponse,
@@ -236,7 +237,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   __output_bytes = convert_vrm_zip_bytes(
       bytes(__input_bytes),
       file_suffix=__input_suffix,
-      version_name="wasm-poc",
+      version_name="${APP_VERSION}",
       logging_level=int(__logging_level),
   )
 `);
