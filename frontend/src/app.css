@@ -811,6 +811,21 @@ button:disabled {
   left: 12px;
 }
 
+.app-version-link {
+  border: none;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.app-version-link:hover,
+.app-version-link:focus-visible {
+  color: #2563a8;
+  text-decoration: underline;
+}
+
 .app-launch-state {
   right: 12px;
   padding: 1px 8px;
@@ -881,7 +896,17 @@ button:disabled {
   padding: 2px 4px;
   border: none;
   border-radius: 0;
-  font-size: 1.1rem;
+  font-size: 1.32rem;
+  line-height: 1;
+  color: #95a0ac;
+  background: transparent;
+}
+
+.footer-settings-button {
+  padding: 2px 4px;
+  border: none;
+  border-radius: 0;
+  font-size: 1.32rem;
   line-height: 1;
   color: #95a0ac;
   background: transparent;
@@ -1091,6 +1116,17 @@ button:disabled {
 
 .about-modal-body p:last-child {
   margin-bottom: 0;
+}
+
+.about-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.about-settings-body .install-hint {
+  max-width: 100%;
 }
 
 .error-reporting-modal {

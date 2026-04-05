@@ -34,5 +34,5 @@ Track whether conversion outputs remain equivalent for MMD usage, not whether by
 
 ## Naming
 
-- Markdown: YYYYMMDD_<sample>_<env>_comparison.md
-- JSON: YYYYMMDD_<sample>_<env>_comparison.json
+- Markdown: `YYYYMMDD_{sample}_{env}_comparison.md`
+- JSON: `YYYYMMDD_{sample}_{env}_comparison.json`

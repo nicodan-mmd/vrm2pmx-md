@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 
 type HistoryLocale = "ja" | "en" | "zh";
@@ -8,10 +8,12 @@ type AboutDialogProps = {
   version: string;
   locale: HistoryLocale;
   defaultTab?: TabId;
+  installControl?: ReactNode;
+  onAllReset: () => void;
   onClose: () => void;
 };
 
-export type TabId = "about" | "history";
+export type TabId = "about" | "history" | "setting";
 
 const HISTORY: Array<{
   version: string;
@@ -62,7 +64,15 @@ const HISTORY: Array<{
   },
 ];
 
-export default function AboutDialog({ open, version, locale, defaultTab, onClose }: AboutDialogProps) {
+export default function AboutDialog({
+  open,
+  version,
+  locale,
+  defaultTab,
+  installControl,
+  onAllReset,
+  onClose,
+}: AboutDialogProps) {
   const [activeTab, setActiveTab] = useState<TabId>("about");
   const privacyPolicyTitle: Record<HistoryLocale, string> = {
     ja: "Privacy Policy",
@@ -91,7 +101,7 @@ export default function AboutDialog({ open, version, locale, defaultTab, onClose
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, defaultTab, onClose]);
 
   if (!open) {
     return null;
@@ -124,7 +134,12 @@ export default function AboutDialog({ open, version, locale, defaultTab, onClose
             type="button"
             className={`about-tab${activeTab === "history" ? " about-tab-active" : ""}`}
             onClick={() => setActiveTab("history")}
-          >History</button>
+          >Version</button>
+          <button
+            type="button"
+            className={`about-tab${activeTab === "setting" ? " about-tab-active" : ""}`}
+            onClick={() => setActiveTab("setting")}
+          >Setting</button>
         </div>
         {activeTab === "history" ? (
           <div className="about-modal-body about-history-body">
@@ -138,6 +153,20 @@ export default function AboutDialog({ open, version, locale, defaultTab, onClose
                 </ul>
               </div>
             ))}
+          </div>
+        ) : activeTab === "setting" ? (
+          <div className="about-modal-body about-settings-body">
+            <p><strong>Setting</strong></p>
+            <div className="about-settings-actions">
+              {installControl}
+              <button
+                type="button"
+                className="footer-action-button footer-action-button-reset"
+                onClick={onAllReset}
+              >
+                All Reset
+              </button>
+            </div>
           </div>
         ) : (
         <div className="about-modal-body">

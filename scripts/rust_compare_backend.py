@@ -3,17 +3,20 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import http.client
 import json
 import mimetypes
 import time
-import urllib.request
+import urllib.parse
 import uuid
 import zipfile
 from pathlib import Path
 from typing import Any
 
 
-def build_multipart_body(file_path: Path, field_name: str = "vrm_file") -> tuple[bytes, str]:
+def build_multipart_body(
+    file_path: Path, field_name: str = "vrm_file"
+) -> tuple[bytes, str]:
     boundary = f"----vrm2pmx-boundary-{uuid.uuid4().hex}"
     mime_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
     file_bytes = file_path.read_bytes()
@@ -37,17 +40,34 @@ def build_multipart_body(file_path: Path, field_name: str = "vrm_file") -> tuple
 
 
 def post_convert(endpoint: str, file_path: Path) -> tuple[bytes, float]:
+    parsed_endpoint = urllib.parse.urlparse(endpoint)
+    if parsed_endpoint.scheme not in {"http", "https"}:
+        raise ValueError(f"Unsupported endpoint scheme: {parsed_endpoint.scheme!r}")
+    if not parsed_endpoint.netloc:
+        raise ValueError(f"Endpoint host is missing: {endpoint!r}")
+
     body, content_type = build_multipart_body(file_path)
-    req = urllib.request.Request(
-        endpoint,
-        data=body,
-        headers={"Content-Type": content_type},
-        method="POST",
+    target = parsed_endpoint.path or "/"
+    if parsed_endpoint.query:
+        target = f"{target}?{parsed_endpoint.query}"
+
+    connection_cls = (
+        http.client.HTTPSConnection
+        if parsed_endpoint.scheme == "https"
+        else http.client.HTTPConnection
     )
+    conn = connection_cls(parsed_endpoint.netloc, timeout=600)
 
     started = time.perf_counter()
-    with urllib.request.urlopen(req, timeout=600) as resp:
+    try:
+        conn.request("POST", target, body=body, headers={"Content-Type": content_type})
+        resp = conn.getresponse()
         payload = resp.read()
+        if resp.status >= 400:
+            raise RuntimeError(f"Convert API failed: HTTP {resp.status} {resp.reason}")
+    finally:
+        conn.close()
+
     elapsed = time.perf_counter() - started
     return payload, elapsed
 
@@ -111,12 +131,20 @@ def to_markdown(record: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Record backend baseline comparison for Rust migration")
+    parser = argparse.ArgumentParser(
+        description="Record backend baseline comparison for Rust migration"
+    )
     parser.add_argument("--input", required=True, help="Path to input VRM/GLB file")
-    parser.add_argument("--endpoint", default="http://127.0.0.1:8000/api/convert", help="Backend convert endpoint")
+    parser.add_argument(
+        "--endpoint",
+        default="http://127.0.0.1:8000/api/convert",
+        help="Backend convert endpoint",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="Number of warmup runs")
     parser.add_argument("--runs", type=int, default=3, help="Number of measured runs")
-    parser.add_argument("--sample", default="sample", help="Sample label for file naming")
+    parser.add_argument(
+        "--sample", default="sample", help="Sample label for file naming"
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -141,11 +169,14 @@ def main() -> int:
         if zip_bytes is None:
             zip_bytes = payload
 
-    assert zip_bytes is not None
+    if zip_bytes is None:
+        raise RuntimeError("Conversion did not return any payload")
 
     date_tag = dt.datetime.now().strftime("%Y%m%d")
     stem = f"{date_tag}_{args.sample}_backend_baseline"
-    zip_rel_path = Path("docs") / "Rust-Conversion" / "Comparisons" / "artifacts" / f"{stem}.zip"
+    zip_rel_path = (
+        Path("docs") / "Rust-Conversion" / "Comparisons" / "artifacts" / f"{stem}.zip"
+    )
     zip_abs_path = repo_root / zip_rel_path
     zip_abs_path.write_bytes(zip_bytes)
 
@@ -201,7 +232,9 @@ def main() -> int:
 
     json_path = records_dir / f"{stem}.json"
     md_path = records_dir / f"{stem}.md"
-    json_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    json_path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     md_path.write_text(to_markdown(record), encoding="utf-8")
 
     print(f"Saved: {json_path}")

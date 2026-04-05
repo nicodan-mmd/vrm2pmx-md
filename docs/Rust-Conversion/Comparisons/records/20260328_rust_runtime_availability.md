@@ -18,7 +18,7 @@
 
 - Type errors: none
 - Frontend build: pass
-- Build artifact: dist/assets/rustWorker-*.js emitted
+- Build artifact: dist/assets/rustWorker-\*.js emitted
 
 ## Expected runtime behavior
 

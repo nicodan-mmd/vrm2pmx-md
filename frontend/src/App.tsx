@@ -5,6 +5,7 @@ import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
 import { IoCopyOutline } from "react-icons/io5";
+import { MdOutlineSettings } from "react-icons/md";
 import Swal from "sweetalert2";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -3774,7 +3775,17 @@ export default function App() {
 
         <footer className="app-footer" aria-label="Application footer actions">
           <div className="app-footer-meta">
-            <p className="app-version">Version {APP_VERSION}</p>
+            <button
+              type="button"
+              className="app-version app-version-link"
+              title="Open version history"
+              onClick={() => {
+                setAboutDefaultTab("history");
+                setIsAboutOpen(true);
+              }}
+            >
+              Version {APP_VERSION}
+            </button>
             <p className="app-launch-state">{launchStateLabel}</p>
             <button
               type="button"
@@ -3785,23 +3796,30 @@ export default function App() {
             >
               ❤
             </button>
-            <PwaInstallControl i18n={i18n} />
           </div>
           <div className="app-footer-actions">
             <button
               type="button"
+              className="footer-settings-button"
+              aria-label="Settings"
+              title="Settings"
+              onClick={() => {
+                setAboutDefaultTab("setting");
+                setIsAboutOpen(true);
+              }}
+            >
+              <MdOutlineSettings aria-hidden="true" />
+            </button>
+            {/* <button
+              type="button"
               className="footer-action-button"
-              onClick={() => setIsAboutOpen(true)}
+              onClick={() => {
+                setAboutDefaultTab("about");
+                setIsAboutOpen(true);
+              }}
             >
               About
-            </button>
-            <button
-              type="button"
-              className="footer-action-button footer-action-button-reset"
-              onClick={onAllReset}
-            >
-              All Reset
-            </button>
+            </button> */}
           </div>
         </footer>
       </section>
@@ -3811,6 +3829,8 @@ export default function App() {
         version={APP_VERSION}
         locale={appLocale}
         defaultTab={aboutDefaultTab}
+        installControl={<PwaInstallControl i18n={i18n} />}
+        onAllReset={onAllReset}
         onClose={() => setIsAboutOpen(false)}
       />
       <HeartThanksDialog
