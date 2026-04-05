@@ -13,6 +13,7 @@ import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoad
 import { MMDLoader } from "three-stdlib";
 import { useReactPWAInstall } from "react-pwa-install";
 import AboutDialog, { type TabId as AboutTabId } from "./components/AboutDialog";
+import Dialog from "./components/Dialog";
 import { APP_VERSION } from "./constants/appInfo";
 import {
   type ConvertMode,
@@ -1310,6 +1311,16 @@ export default function App() {
   const [heartLockUntil, setHeartLockUntil] = useState<number | null>(null);
   const [isHeartSentVisual, setIsHeartSentVisual] = useState(false);
   const [isHeartSubmitting, setIsHeartSubmitting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState<{
+    title: string;
+    message: string;
+    type?: "alert" | "confirm" | "warning" | "error" | "success";
+    okLabel?: string;
+    cancelLabel?: string;
+    onOk?: () => void | Promise<void>;
+    onCancel?: () => void;
+  }>({ title: "", message: "" });
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
@@ -1397,6 +1408,23 @@ export default function App() {
   );
   const i18n = APP_I18N[appLocale];
   const isHeartLocked = heartLockUntil !== null && heartLockUntil - 5000 > Date.now();
+
+  const showDialog = (config: {
+    title: string;
+    message: string;
+    type?: "alert" | "confirm" | "warning" | "error" | "success";
+    okLabel?: string;
+    cancelLabel?: string;
+    onOk?: () => void | Promise<void>;
+    onCancel?: () => void;
+  }) => {
+    setDialogConfig(config);
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
 
   const onHeartButtonClick = () => {
     if (isHeartLocked) {
@@ -1705,55 +1733,59 @@ export default function App() {
   }
 
   function onAllReset() {
-    const confirmed = window.confirm("Reset all settings and clear local storage?");
-    if (!confirmed) {
-      return;
-    }
+    showDialog({
+      title: "Confirm",
+      message: "Reset all settings and clear local storage?",
+      type: "confirm",
+      okLabel: "Reset",
+      cancelLabel: "Cancel",
+      onOk: () => {
+        cleanupPreview();
+        cleanupPmxPreview();
+        setConvertedOutput(null);
+        setDetectedProfileResult(null);
+        setDetectedQualityRiskSignals([]);
+        setLastRequestedMode(null);
+        setLastUsedMode(null);
+        setLastFallbackReason(null);
+        setLastConversionReportId(null);
+        setLogLines([]);
+        logLinesRef.current = [];
+        setCopyStatus("idle");
+        setErrorDetail("");
+        setStatus("idle");
+        setConvertProgressPercent(0);
+        setConvertProgressStage(null);
+        setFile(null);
+        setMessage("VRM file is not selected yet.");
+        setErrorDetail("");
+        setIsVrmReady(false);
+        setVrmInfoData({ summaryRows: [], licenseRows: [] });
+        setPmxInfoData({ summaryRows: [], licenseRows: [] });
+        setIsVrmRedistributionOrModificationNG(false);
+        setIsVrmMetadataOpen(false);
+        setIsPmxMetadataOpen(false);
+        setIsVrmDropActive(false);
+        resetToDefaults();
 
-    cleanupPreview();
-    cleanupPmxPreview();
-    setConvertedOutput(null);
-    setDetectedProfileResult(null);
-    setDetectedQualityRiskSignals([]);
-    setLastRequestedMode(null);
-    setLastUsedMode(null);
-    setLastFallbackReason(null);
-    setLastConversionReportId(null);
-    setLogLines([]);
-    logLinesRef.current = [];
-    setCopyStatus("idle");
-    setErrorDetail("");
-    setStatus("idle");
-    setConvertProgressPercent(0);
-    setConvertProgressStage(null);
-    setFile(null);
-    setIsVrmReady(false);
-    setVrmInfoData({ summaryRows: [], licenseRows: [] });
-    setPmxInfoData({ summaryRows: [], licenseRows: [] });
-    setIsVrmRedistributionOrModificationNG(false);
-    setIsVrmMetadataOpen(false);
-    setIsPmxMetadataOpen(false);
-    setMessage("VRM file is not selected yet.");
-    setIsVrmDropActive(false);
+        if (vrmInputRef.current) {
+          vrmInputRef.current.value = "";
+        }
 
-    resetToDefaults();
+        setHeartMessage("");
+        setIsHeartDialogOpen(false);
+        setIsHeartSubmitting(false);
+        setIsHeartSentVisual(false);
+        setHeartLockUntil(null);
 
-    if (vrmInputRef.current) {
-      vrmInputRef.current.value = "";
-    }
-
-    setHeartMessage("");
-    setIsHeartDialogOpen(false);
-    setIsHeartSubmitting(false);
-    setIsHeartSentVisual(false);
-    setHeartLockUntil(null);
-
-    try {
-      window.localStorage.removeItem(HEART_LOCK_UNTIL_KEY);
-      window.localStorage.removeItem(HEART_FEEDBACK_USER_ID_KEY);
-    } catch {
-      // localStorage unavailable — ignore
-    }
+        try {
+          window.localStorage.removeItem(HEART_LOCK_UNTIL_KEY);
+          window.localStorage.removeItem(HEART_FEEDBACK_USER_ID_KEY);
+        } catch {
+          // localStorage unavailable — ignore
+        }
+      },
+    });
   }
 
   async function buildConvertInputFile(sourceFile: File): Promise<File> {
@@ -2587,19 +2619,9 @@ export default function App() {
     }
   }
 
-  async function onConvert() {
+  async function performConvertWithMode(requestedMode: ConvertMode) {
     if (!file) {
       return;
-    }
-    const requestedMode: ConvertMode = rustEnabled ? "rust" : mode;
-
-    if (taPoseAngle === 0) {
-      const shouldContinue = window.confirm(i18n.taPoseZeroConfirm);
-      if (!shouldContinue) {
-        setErrorDetail("");
-        setMessage(i18n.taPoseZeroCanceled);
-        return;
-      }
     }
 
     if (isVrmRedistributionOrModificationNG) {
@@ -2772,11 +2794,43 @@ export default function App() {
         setLogEnabled(true);
         appendConsoleLine(["[ERROR] Convert failed:"], "error");
         rawDetail.split("\n").forEach((line) => appendConsoleLine([line], "error"));
-        window.alert("Convert error. Please see Log View.");
+        showDialog({
+          title: "Error",
+          message: "Convert error. Please see Log View.",
+          type: "error",
+        });
       }
     } finally {
       abortControllerRef.current = null;
     }
+  }
+
+  async function onConvert() {
+    if (!file) {
+      return;
+    }
+    const requestedMode: ConvertMode = rustEnabled ? "rust" : mode;
+
+    if (taPoseAngle === 0) {
+      showDialog({
+        title: "Confirm",
+        message: i18n.taPoseZeroConfirm,
+        type: "confirm",
+        okLabel: "Continue",
+        cancelLabel: "Cancel",
+        onOk: async () => {
+          closeDialog();
+          await performConvertWithMode(requestedMode);
+        },
+        onCancel: () => {
+          setErrorDetail("");
+          setMessage(i18n.taPoseZeroCanceled);
+        },
+      });
+      return;
+    }
+
+    await performConvertWithMode(requestedMode);
   }
 
   function onSubmit(event: FormEvent) {
@@ -3843,6 +3897,17 @@ export default function App() {
           void onSubmitHeart();
         }}
         isSubmitting={isHeartSubmitting}
+      />
+      <Dialog
+        open={dialogOpen}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        type={dialogConfig.type}
+        okLabel={dialogConfig.okLabel}
+        cancelLabel={dialogConfig.cancelLabel}
+        onOk={dialogConfig.onOk}
+        onCancel={dialogConfig.onCancel}
+        onClose={closeDialog}
       />
     </main>
   );

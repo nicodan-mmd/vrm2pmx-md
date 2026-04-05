@@ -1,0 +1,149 @@
+.dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.dialog-backdrop.dialog-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dialog-content {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 450px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.dialog-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.dialog-icon-info {
+  color: #2563a8;
+}
+
+.dialog-icon-success {
+  color: #22c55e;
+}
+
+.dialog-icon-warning {
+  color: #f59e0b;
+}
+
+.dialog-icon-error {
+  color: #ef4444;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.dialog-body {
+  padding: 20px;
+}
+
+.dialog-message {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.dialog-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.dialog-button {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background-color: white;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.dialog-button:hover:not(:disabled) {
+  background-color: #e8e8e8;
+  border-color: #b0b0b0;
+}
+
+.dialog-button:focus {
+  outline: 2px solid #2563a8;
+  outline-offset: -2px;
+}
+
+.dialog-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dialog-button-ok {
+  background-color: #2563a8;
+  color: white;
+  border-color: #2563a8;
+}
+
+.dialog-button-ok:hover:not(:disabled) {
+  background-color: #1e5393;
+  border-color: #1e5393;
+}
+
+.dialog-button-cancel {
+  background-color: white;
+  color: #4b5563;
+  border-color: #d0d0d0;
+}
+
+.dialog-button-cancel:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #b0b0b0;
+}
