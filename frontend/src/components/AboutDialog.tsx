@@ -241,7 +241,6 @@ export default function AboutDialog({
         ) : (
         <div className="about-modal-body">
           <p><strong>VRM to MMD Converter</strong></p>
-          <p>Version {version}</p>
           <p>This tool converts VRM models to PMX format in browser using Wasm/Pyodide runtime.</p>
 
           <hr className="about-divider" />
