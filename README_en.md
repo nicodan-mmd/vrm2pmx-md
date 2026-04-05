@@ -53,6 +53,34 @@ A model data format used in MikuMikuDance (MMD).
 - WebAssembly (Wasm)
   - [Pyodide](https://pyodide.org/) — Python execution in the browser
 
+## Security
+
+Socket is set up for local, on-demand dependency supply-chain scanning.
+
+- Launcher: `run_socket_scan.bat`
+- Script: `scripts/run_socket_scan.ps1`
+- Required environment variable: `SOCKET_SECURITY_API_KEY`
+
+First run or upgrade:
+
+```powershell
+.\run_socket_scan.bat -Upgrade
+```
+
+Regular local scan:
+
+```powershell
+.\run_socket_scan.bat
+```
+
+Pass the API key directly for a one-off run:
+
+```powershell
+.\run_socket_scan.bat -ApiKey "YOUR_SOCKET_API_KEY"
+```
+
+This path is fully local and does not depend on GitHub Pages deployment or pushing changes.
+
 ## History
 
 1.0 - VRM 0.0 display & conversion, VRM 1.0 display only

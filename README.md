@@ -54,6 +54,34 @@ MikuMikuDance (MMD) で利用されるモデルデータフォーマット。
 - Wasm (Web Assembly)
   - [Pyodide](https://pyodide.org/) — ブラウザ上での Python 実行
 
+## Security
+
+依存パッケージのサプライチェーン監視として、Socket をローカルで任意実行できるようにしています。
+
+- 実行スクリプト: `run_socket_scan.bat`
+- 実体: `scripts/run_socket_scan.ps1`
+- 必要な環境変数: `SOCKET_SECURITY_API_KEY`
+
+初回または更新したい時:
+
+```powershell
+.\run_socket_scan.bat -Upgrade
+```
+
+2回目以降の通常実行:
+
+```powershell
+.\run_socket_scan.bat
+```
+
+API キーを一時指定する場合:
+
+```powershell
+.\run_socket_scan.bat -ApiKey "YOUR_SOCKET_API_KEY"
+```
+
+この方式は GitHub Pages の公開フローとは連動しないため、push せずにローカルだけで確認できます。
+
 ## History
 
 1.0 - VRM 0.0 表示・変換、VRM 1.0 表示のみ対応
