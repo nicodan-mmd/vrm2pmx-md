@@ -226,9 +226,11 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const inputSuffix = request.fileName.toLowerCase().endsWith(".glb")
       ? ".glb"
       : ".vrm";
+    const sourceStem = request.fileName.replace(/\.[^.]+$/, "") || "result";
 
     runtime.globals.set("__input_bytes", new Uint8Array(request.fileBuffer));
     runtime.globals.set("__input_suffix", inputSuffix);
+    runtime.globals.set("__input_file_stem", sourceStem);
     runtime.globals.set("__logging_level", PY_LOGGING_LEVEL);
 
     postProgress(request.id, "converting", "Converting VRM to MMD...");
@@ -237,6 +239,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   __output_bytes = convert_vrm_zip_bytes(
       bytes(__input_bytes),
       file_suffix=__input_suffix,
+      source_stem=str(__input_file_stem),
       version_name="${APP_VERSION}",
       logging_level=int(__logging_level),
   )
@@ -263,6 +266,7 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     runtime.globals.delete("__input_bytes");
     runtime.globals.delete("__input_suffix");
+    runtime.globals.delete("__input_file_stem");
     runtime.globals.delete("__logging_level");
     runtime.globals.delete("__output_bytes");
 

@@ -62,6 +62,76 @@ const HISTORY: Array<{
       },
     ],
   },
+  {
+    version: "v1.4",
+    date: "N/A",
+    items: [
+      {
+        ja: "メタデータボタン追加",
+        en: "Metadata button added",
+        zh: "添加元数据按钮",
+      },
+      {
+        ja: "ライセンス確認とVRMのlicense.txtをZIPに含めるようにした",
+        en: "Added license confirmation and included VRM license.txt in ZIP output",
+        zh: "增加许可证确认，并将 VRM 的 license.txt 包含到 ZIP 输出中",
+      },
+    ],
+  },
+  {
+    version: "v1.3",
+    date: "N/A",
+    items: [
+      {
+        ja: "VRM1.0対応",
+        en: "Added VRM 1.0 support",
+        zh: "支持 VRM 1.0",
+      },
+    ],
+  },
+  {
+    version: "v1.2",
+    date: "N/A",
+    items: [
+      {
+        ja: "PWA化(ローカル起動)",
+        en: "Added PWA support (local launch)",
+        zh: "已实现 PWA（本地启动）",
+      },
+    ],
+  },
+  {
+    version: "v1.1",
+    date: "N/A",
+    items: [
+      {
+        ja: "レポート用にSentry導入",
+        en: "Introduced Sentry for reporting",
+        zh: "为报告功能引入 Sentry",
+      },
+      {
+        ja: "揺れもの、シェーダー、モーフの変換処理追加",
+        en: "Added conversion support for spring bones, shaders, and morphs",
+        zh: "新增揺れ物、着色器和形变的转换处理",
+      },
+    ],
+  },
+  {
+    version: "v1.0",
+    date: "N/A",
+    items: [
+      {
+        ja: "vrm2pmx,vroid2pmxの統合",
+        en: "Integrated vrm2pmx and vroid2pmx",
+        zh: "整合 vrm2pmx 与 vroid2pmx",
+      },
+      {
+        ja: "Web化、UI調整",
+        en: "Migrated to web and adjusted UI",
+        zh: "Web 化并进行了 UI 调整",
+      },
+    ],
+  },
 ];
 
 export default function AboutDialog({

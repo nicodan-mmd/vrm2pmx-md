@@ -17,6 +17,16 @@ from service.Vrm2PmxExportService import Vrm2PmxExportService
 from utils.MLogger import MLogger
 
 
+def _sanitize_output_stem(name: str | None) -> str:
+    if not name:
+        return "result"
+
+    # Keep filenames portable across platforms and avoid path traversal.
+    sanitized = "".join(ch for ch in name.strip() if ch not in '<>:"/\\|?*')
+    sanitized = sanitized.strip(" .")
+    return sanitized or "result"
+
+
 def _create_result_zip(output_dir: Path) -> bytes:
     archive_buffer = io.BytesIO()
 
@@ -36,6 +46,7 @@ def convert_vrm_bytes(
     bone_pairs: dict[str, Any] | None = None,
     physics_pairs: dict[str, Any] | None = None,
     file_suffix: str = ".vrm",
+    source_stem: str | None = None,
     version_name: str = "bytes-poc",
     logging_level: int = MLogger.INFO,
 ) -> bytes:
@@ -44,6 +55,7 @@ def convert_vrm_bytes(
         bone_pairs=bone_pairs,
         physics_pairs=physics_pairs,
         file_suffix=file_suffix,
+        source_stem=source_stem,
         version_name=version_name,
         logging_level=logging_level,
         output_format="pmx",
@@ -56,6 +68,7 @@ def convert_vrm_zip_bytes(
     bone_pairs: dict[str, Any] | None = None,
     physics_pairs: dict[str, Any] | None = None,
     file_suffix: str = ".vrm",
+    source_stem: str | None = None,
     version_name: str = "bytes-poc",
     logging_level: int = MLogger.INFO,
 ) -> bytes:
@@ -64,6 +77,7 @@ def convert_vrm_zip_bytes(
         bone_pairs=bone_pairs,
         physics_pairs=physics_pairs,
         file_suffix=file_suffix,
+        source_stem=source_stem,
         version_name=version_name,
         logging_level=logging_level,
         output_format="zip",
@@ -76,6 +90,7 @@ def _convert_vrm_bytes_impl(
     bone_pairs: dict[str, Any] | None = None,
     physics_pairs: dict[str, Any] | None = None,
     file_suffix: str = ".vrm",
+    source_stem: str | None = None,
     version_name: str = "bytes-poc",
     logging_level: int = MLogger.INFO,
     output_format: str = "pmx",
@@ -93,7 +108,8 @@ def _convert_vrm_bytes_impl(
     input_path = tmp_dir / f"source{file_suffix.lower()}"
     output_dir = tmp_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "result.pmx"
+    output_stem = _sanitize_output_stem(source_stem)
+    output_path = output_dir / f"{output_stem}.pmx"
 
     try:
         input_path.write_bytes(vrm_bytes)

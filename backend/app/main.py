@@ -42,6 +42,15 @@ app.add_middleware(
 MLogger.initialize(level=MLogger.INFO, is_file=False)
 
 
+def _sanitize_output_stem(name: str | None) -> str:
+    if not name:
+        return "result"
+
+    sanitized = "".join(ch for ch in name.strip() if ch not in '<>:"/\\|?*')
+    sanitized = sanitized.strip(" .")
+    return sanitized or "result"
+
+
 def _create_result_zip(output_dir: Path, zip_path: Path) -> None:
     with zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for file_path in output_dir.rglob("*"):
@@ -94,7 +103,8 @@ async def convert(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     input_path = input_dir / f"source{suffix}"
-    output_path = output_dir / "result.pmx"
+    output_stem = _sanitize_output_stem(Path(vrm_file.filename).stem)
+    output_path = output_dir / f"{output_stem}.pmx"
 
     try:
         with input_path.open("wb") as fh:
