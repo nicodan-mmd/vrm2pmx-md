@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react";
 import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
-import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
 import { IoCopyOutline } from "react-icons/io5";
@@ -154,6 +154,7 @@ type AppI18n = {
   qualityAutoReportConfirm: (signals: string) => string;
   allResetConfirmTitle: string;
   allResetConfirmMessage: string;
+  allResetCounterLabel: string;
   taPoseZeroConfirm: string;
   taPoseZeroCanceled: string;
   installButtonLabel: string;
@@ -181,6 +182,7 @@ const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
 const LAST_BOOT_VERSION_KEY = "vrm2pmx.last_boot_version";
 const HEART_LOCK_UNTIL_KEY = "vrm2pmx.heart_lock_until";
 const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
+const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const HEART_SLACK_WEBHOOK_URL = (import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined)?.trim() ?? "";
 const HEART_GAS_WEB_APP_URL = (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ?? "";
 
@@ -210,6 +212,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
     allResetConfirmTitle: "リセット確認",
     allResetConfirmMessage: "すべての設定をリセットし、ローカルストレージをクリアしますか？",
+    allResetCounterLabel: "変換カウンターもリセットする",
     taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
     taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
     installButtonLabel: "Install",
@@ -259,6 +262,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       `Conversion succeeded, but possible quality-risk signals were detected in logs.\n\nDetected signals: ${signals}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
     allResetConfirmTitle: "Confirm Reset",
     allResetConfirmMessage: "Reset all settings and clear local storage?",
+    allResetCounterLabel: "Also reset the conversion counter",
     taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
     taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
     installButtonLabel: "Install",
@@ -308,6 +312,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       `转换成功，但在日志中检测到可能存在质量问题的信号。\n\n检测信号: ${signals}\n\n是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。`,
     allResetConfirmTitle: "重置确认",
     allResetConfirmMessage: "重置所有设置并清除本地存储吗？",
+    allResetCounterLabel: "同时重置转换计数器",
     taPoseZeroConfirm: "T/A Pose 已设置为 0 度。确定继续转换吗？",
     taPoseZeroCanceled: "因 0 度姿势设置，已取消转换。",
     installButtonLabel: "Install",
@@ -1292,6 +1297,19 @@ function HeartThanksDialog({
   );
 }
 
+function formatLocalCounter(count: number): string {
+  const s = count.toString();
+  const padded = s.padStart(6, "0");
+  const chunks: string[] = [];
+  let remaining = padded;
+  while (remaining.length > 3) {
+    chunks.unshift(remaining.slice(-3));
+    remaining = remaining.slice(0, -3);
+  }
+  chunks.unshift(remaining);
+  return `LOCAL: ${chunks.join(",")}`;
+}
+
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -1328,7 +1346,17 @@ export default function App() {
     cancelLabel?: string;
     onOk?: () => void | Promise<void>;
     onCancel?: () => void;
+    content?: ReactNode;
   }>({ title: "", message: "" });
+  const [localCounter, setLocalCounter] = useState<number>(() => {
+    try {
+      const raw = window.localStorage.getItem(LOCAL_COUNTER_KEY);
+      return raw ? (parseInt(raw, 10) || 0) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const resetCounterCheckboxRef = useRef<HTMLInputElement | null>(null);
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
@@ -1425,6 +1453,7 @@ export default function App() {
     cancelLabel?: string;
     onOk?: () => void | Promise<void>;
     onCancel?: () => void;
+    content?: ReactNode;
   }) => {
     setDialogConfig(config);
     setDialogOpen(true);
@@ -1747,7 +1776,18 @@ export default function App() {
       type: "confirm",
       okLabel: "Reset",
       cancelLabel: "Cancel",
+      content: (
+        <label className="dialog-extra-label">
+          <input
+            type="checkbox"
+            ref={resetCounterCheckboxRef}
+            defaultChecked={false}
+          />
+          {i18n.allResetCounterLabel}
+        </label>
+      ),
       onOk: () => {
+        const shouldResetCounter = resetCounterCheckboxRef.current?.checked ?? false;
         cleanupPreview();
         cleanupPmxPreview();
         setConvertedOutput(null);
@@ -1791,6 +1831,14 @@ export default function App() {
           window.localStorage.removeItem(HEART_FEEDBACK_USER_ID_KEY);
         } catch {
           // localStorage unavailable — ignore
+        }
+        if (shouldResetCounter) {
+          setLocalCounter(0);
+          try {
+            window.localStorage.removeItem(LOCAL_COUNTER_KEY);
+          } catch {
+            // localStorage unavailable — ignore
+          }
         }
       },
     });
@@ -2737,6 +2785,13 @@ export default function App() {
       setConvertProgressPercent(100);
       setConvertProgressStage("done");
       setStatus("done");
+      setLocalCounter((prev) => {
+        const next = prev + 1;
+        try {
+          window.localStorage.setItem(LOCAL_COUNTER_KEY, String(next));
+        } catch { /* ignore */ }
+        return next;
+      });
       idleAnimationRef.current.isConverting = false;
       const convertLogLines = logLinesRef.current.slice(convertLogStartIndex);
       const qualityRiskSignals = [
@@ -3884,6 +3939,8 @@ export default function App() {
             </button> */}
           </div>
         </footer>
+
+        <div className="local-counter" aria-label="Local counter">{formatLocalCounter(localCounter)}</div>
       </section>
 
       <AboutDialog
@@ -3916,6 +3973,7 @@ export default function App() {
         onOk={dialogConfig.onOk}
         onCancel={dialogConfig.onCancel}
         onClose={closeDialog}
+        content={dialogConfig.content}
       />
     </main>
   );

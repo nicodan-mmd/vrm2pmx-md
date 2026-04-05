@@ -147,3 +147,21 @@
   background-color: #f3f4f6;
   border-color: #b0b0b0;
 }
+
+.dialog-extra {
+  margin-top: 10px;
+}
+
+.dialog-extra-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dialog-extra-label input[type="checkbox"] {
+  cursor: pointer;
+}

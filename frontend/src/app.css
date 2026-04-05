@@ -1,3 +1,10 @@
+@font-face {
+  font-family: "DigitalCounter7";
+  src: url("/assets/digital_counter_7.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 :root {
   --bg-1: #f6f4ea;
   --bg-2: #d6e6f8;
@@ -794,6 +801,20 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.local-counter {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "DigitalCounter7", monospace;
+  font-size: 0.95rem;
+  color: #8899aa;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  z-index: 15;
+  white-space: nowrap;
 }
 
 .app-version,

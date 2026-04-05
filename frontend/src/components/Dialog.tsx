@@ -13,6 +13,7 @@ interface DialogProps {
   onCancel?: () => void;
   onClose: () => void;
   closeOnBackdropClick?: boolean;
+  content?: React.ReactNode;
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -26,6 +27,7 @@ export const Dialog: React.FC<DialogProps> = ({
   onCancel,
   onClose,
   closeOnBackdropClick = true,
+  content,
 }) => {
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -82,6 +84,7 @@ export const Dialog: React.FC<DialogProps> = ({
         </div>
         <div className="dialog-body">
           <p className="dialog-message">{message}</p>
+          {content && <div className="dialog-extra">{content}</div>}
         </div>
         <div className="dialog-footer">
           {isConfirm && (
