@@ -152,6 +152,8 @@ type AppI18n = {
   qualityReportSubmittedMessage: string;
   qualityReportEnableHint: string;
   qualityAutoReportConfirm: (signals: string) => string;
+  allResetConfirmTitle: string;
+  allResetConfirmMessage: string;
   taPoseZeroConfirm: string;
   taPoseZeroCanceled: string;
   installButtonLabel: string;
@@ -206,6 +208,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "Error Reporting を有効にすると、成功時の品質崩れケースを匿名で報告できます。",
     qualityAutoReportConfirm: (signals) =>
       `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
+    allResetConfirmTitle: "リセット確認",
+    allResetConfirmMessage: "すべての設定をリセットし、ローカルストレージをクリアしますか？",
     taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
     taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
     installButtonLabel: "Install",
@@ -253,6 +257,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "Enable Error Reporting to anonymously report successful conversions with quality issues.",
     qualityAutoReportConfirm: (signals) =>
       `Conversion succeeded, but possible quality-risk signals were detected in logs.\n\nDetected signals: ${signals}\n\nDo you want to send an anonymous report?\nIf sent, this case may be improved in a future release.`,
+    allResetConfirmTitle: "Confirm Reset",
+    allResetConfirmMessage: "Reset all settings and clear local storage?",
     taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
     taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
     installButtonLabel: "Install",
@@ -300,6 +306,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "启用错误报告功能，可匿名报告转换成功但质量有问题的情况。",
     qualityAutoReportConfirm: (signals) =>
       `转换成功，但在日志中检测到可能存在质量问题的信号。\n\n检测信号: ${signals}\n\n是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。`,
+    allResetConfirmTitle: "重置确认",
+    allResetConfirmMessage: "重置所有设置并清除本地存储吗？",
     taPoseZeroConfirm: "T/A Pose 已设置为 0 度。确定继续转换吗？",
     taPoseZeroCanceled: "因 0 度姿势设置，已取消转换。",
     installButtonLabel: "Install",
@@ -1734,8 +1742,8 @@ export default function App() {
 
   function onAllReset() {
     showDialog({
-      title: "Confirm",
-      message: "Reset all settings and clear local storage?",
+      title: i18n.allResetConfirmTitle,
+      message: i18n.allResetConfirmMessage,
       type: "confirm",
       okLabel: "Reset",
       cancelLabel: "Cancel",
