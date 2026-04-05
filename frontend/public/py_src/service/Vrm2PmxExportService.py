@@ -41,6 +41,7 @@ class Vrm2PmxExportService:
             # vrm展開
             logger.info("Vrm展開開始", decoration=MLogger.DECORATION_LINE)
             reader = VrmReader(self.options.vrm_model.path)
+            reader.converter_version = self.options.version_name
             reader.bone_pairs = self.options.bone_pairs
             reader.physics_pairs = self.options.physics_pairs
             result = reader.convert_glTF(

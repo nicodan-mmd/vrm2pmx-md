@@ -65,6 +65,7 @@ MIKU_METER = 12.5
 class VrmReader(PmxReader):
     def __init__(self, file_path: str, is_check=True):
         self.file_path = file_path
+        self.converter_version = "x.xx"
         self.bone_pairs = {}
         self.physics_pairs = {}
         self.is_check = is_check
@@ -1560,7 +1561,7 @@ class VrmReader(PmxReader):
                     f"モデル名: {_meta_title}\r\n"
                     + f"作者: {_meta_author}\r\n"
                     + f"ライセンス: {_meta_license}\r\n{licence_comment}\r\n"
-                    + "変換: Vrm2PmxConverter (@miu200521358)"
+                    + f"変換: VRM to MMD Converter - Version {self.converter_version}  (@nicodan-mmd)"
                 )
 
                 # ===== 多言語対応診断サマリー出力 =====
