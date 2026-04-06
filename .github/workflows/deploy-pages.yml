@@ -19,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: Vite-Firebase
 
     steps:
       - name: Checkout
