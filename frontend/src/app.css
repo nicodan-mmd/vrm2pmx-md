@@ -808,13 +808,62 @@ button:disabled {
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
+  display: inline-block;
   font-family: "DigitalCounter7", monospace;
   font-size: 0.95rem;
   color: #8899aa;
   letter-spacing: 0.05em;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   z-index: 15;
   white-space: nowrap;
+  perspective: 700px;
+}
+
+.local-counter.is-world {
+  color: #6ecff6;
+}
+
+.counter-face {
+  display: inline-grid;
+  grid-template-columns: 6ch 11ch;
+  align-items: center;
+  column-gap: 0.35rem;
+  animation: counter-flip-x 340ms ease;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+
+.counter-label {
+  text-align: left;
+}
+
+.counter-value {
+  text-align: right;
+}
+
+@keyframes counter-flip-x {
+  0% {
+    transform: rotateX(0deg);
+  }
+  49% {
+    transform: rotateX(90deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: rotateX(-90deg);
+    opacity: 0.35;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .counter-face {
+    animation: none;
+  }
 }
 
 .app-version,
@@ -1148,6 +1197,16 @@ button:disabled {
 
 .about-settings-body .install-hint {
   max-width: 100%;
+}
+
+.about-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #4a5f78;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .error-reporting-modal {

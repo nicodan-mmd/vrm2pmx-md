@@ -1,11 +1,12 @@
 import * as Sentry from "@sentry/react";
 import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
-import { type ChangeEvent, type DragEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { type ChangeEvent, type DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
 import { IoCopyOutline } from "react-icons/io5";
 import { MdOutlineSettings } from "react-icons/md";
+import CountUp from "react-countup";
 import Swal from "sweetalert2";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -33,6 +34,7 @@ import {
   detectProfileFromFile,
   type ProfileDetectionResult,
 } from "./features/convert/services/profileDetection";
+import { getWorldCounterFromFirestore, incrementWorldCounterOnFirestore } from "./services/worldCounter";
 import { useUiSettings, PMX_LIGHT_DEFAULT_INTENSITY_SCALE, PMX_LIGHT_DEFAULT_CONTRAST_FACTOR } from "./features/settings/hooks/useUiSettings";
 import { getRuntimeLogLevel, shouldCaptureLog, type ConsoleLogLevel } from "./utils/logging";
 
@@ -183,6 +185,7 @@ const LAST_BOOT_VERSION_KEY = "vrm2pmx.last_boot_version";
 const HEART_LOCK_UNTIL_KEY = "vrm2pmx.heart_lock_until";
 const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
+const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
 const HEART_SLACK_WEBHOOK_URL = (import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined)?.trim() ?? "";
 const HEART_GAS_WEB_APP_URL = (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ?? "";
 
@@ -1297,9 +1300,9 @@ function HeartThanksDialog({
   );
 }
 
-function formatLocalCounter(count: number): string {
+function formatCounterValue(count: number, minDigits: number): string {
   const s = count.toString();
-  const padded = s.padStart(6, "0");
+  const padded = s.padStart(minDigits, "0");
   const chunks: string[] = [];
   let remaining = padded;
   while (remaining.length > 3) {
@@ -1307,7 +1310,7 @@ function formatLocalCounter(count: number): string {
     remaining = remaining.slice(0, -3);
   }
   chunks.unshift(remaining);
-  return `LOCAL: ${chunks.join(",")}`;
+  return chunks.join(",");
 }
 
 export default function App() {
@@ -1319,6 +1322,7 @@ export default function App() {
     orbitSyncEnabled, setOrbitSyncEnabled, orbitSyncEnabledRef,
     logEnabled, setLogEnabled, logEnabledRef,
     rustEnabled, setRustEnabled,
+    worldCounterParticipationEnabled, setWorldCounterParticipationEnabled,
     gridEnabled, setGridEnabled, gridEnabledRef,
     pmxBrightnessScale, setPmxBrightnessScale,
     pmxContrastFactor, setPmxContrastFactor,
@@ -1356,6 +1360,16 @@ export default function App() {
       return 0;
     }
   });
+  const [worldCounter, setWorldCounter] = useState(0);
+  const [counterDisplayMode, setCounterDisplayMode] = useState<"local" | "world">(() => {
+    try {
+      const raw = window.localStorage.getItem(COUNTER_DISPLAY_MODE_KEY);
+      return raw === "world" ? "world" : "local";
+    } catch {
+      return "local";
+    }
+  });
+  const [counterFlipToken, setCounterFlipToken] = useState(0);
   const resetCounterCheckboxRef = useRef<HTMLInputElement | null>(null);
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
@@ -1444,6 +1458,67 @@ export default function App() {
   );
   const i18n = APP_I18N[appLocale];
   const isHeartLocked = heartLockUntil !== null && heartLockUntil - 5000 > Date.now();
+  const isWorldCounterDisplayed = counterDisplayMode === "world";
+  const formatWorldCountUpValue = useCallback((value: number) => {
+    return formatCounterValue(Math.floor(value), 9);
+  }, []);
+
+  const reportWorldCounterError = useCallback(
+    (action: "fetch" | "increment", error: unknown, context: Record<string, string>) => {
+      Sentry.withScope((scope) => {
+        scope.setLevel("warning");
+        scope.setTag("feature", "world_counter");
+        scope.setTag("action", action);
+        Object.entries(context).forEach(([key, value]) => {
+          scope.setContext(key, { value });
+        });
+        Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+      });
+    },
+    [],
+  );
+
+  function refreshWorldCounter(reason: string) {
+    void getWorldCounterFromFirestore()
+      .then((latest) => {
+        if (typeof latest === "number") {
+          setWorldCounter(latest);
+        }
+      })
+      .catch((error) => {
+        console.warn("world_counter.fetch_failed", { reason, error });
+        reportWorldCounterError("fetch", error, { reason });
+      });
+  }
+
+  useEffect(() => {
+    refreshWorldCounter("startup");
+    const intervalId = window.setInterval(() => {
+      refreshWorldCounter("interval_5min");
+    }, 5 * 60 * 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COUNTER_DISPLAY_MODE_KEY, counterDisplayMode);
+    } catch {
+      // localStorage unavailable — ignore
+    }
+  }, [counterDisplayMode]);
+
+  function onCounterToggle() {
+    setCounterFlipToken((prev) => prev + 1);
+    setCounterDisplayMode((prev) => {
+      const next = prev === "local" ? "world" : "local";
+      if (next === "world") {
+        refreshWorldCounter("toggle_to_world");
+      }
+      return next;
+    });
+  }
 
   const showDialog = (config: {
     title: string;
@@ -2785,6 +2860,18 @@ export default function App() {
       setConvertProgressPercent(100);
       setConvertProgressStage("done");
       setStatus("done");
+      if (worldCounterParticipationEnabled) {
+        void incrementWorldCounterOnFirestore()
+          .catch((error) => {
+            console.warn("world_counter.increment_failed", error);
+            reportWorldCounterError("increment", error, { reason: "convert_complete" });
+          })
+          .finally(() => {
+            refreshWorldCounter("convert_complete");
+          });
+      } else {
+        refreshWorldCounter("convert_complete_no_participation");
+      }
       setLocalCounter((prev) => {
         const next = prev + 1;
         try {
@@ -3940,7 +4027,38 @@ export default function App() {
           </div>
         </footer>
 
-        <div className="local-counter" aria-label="Local counter">{formatLocalCounter(localCounter)}</div>
+        <div
+          className={`local-counter${isWorldCounterDisplayed ? " is-world" : ""}`}
+          aria-label={isWorldCounterDisplayed ? "World counter" : "Local counter"}
+          onClick={onCounterToggle}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onCounterToggle();
+            }
+          }}
+        >
+          <span key={counterFlipToken} className="counter-face">
+            <span className="counter-label">{isWorldCounterDisplayed ? "WORLD" : "LOCAL"}:</span>
+            <span className="counter-value">
+              {isWorldCounterDisplayed ? (
+                <CountUp
+                  end={worldCounter}
+                  duration={1.2}
+                  preserveValue
+                  useEasing
+                  redraw={false}
+                  separator=","
+                  formattingFn={formatWorldCountUpValue}
+                />
+              ) : (
+                formatCounterValue(localCounter, 6)
+              )}
+            </span>
+          </span>
+        </div>
       </section>
 
       <AboutDialog
@@ -3949,6 +4067,8 @@ export default function App() {
         locale={appLocale}
         defaultTab={aboutDefaultTab}
         installControl={<PwaInstallControl i18n={i18n} />}
+        worldCounterParticipationEnabled={worldCounterParticipationEnabled}
+        onWorldCounterParticipationChange={setWorldCounterParticipationEnabled}
         onAllReset={onAllReset}
         onClose={() => setIsAboutOpen(false)}
       />

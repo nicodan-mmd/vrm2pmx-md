@@ -12,6 +12,7 @@ type UiSettingsSnapshot = {
   orbitSyncEnabled: boolean;
   logEnabled: boolean;
   rustEnabled: boolean;
+  worldCounterParticipationEnabled: boolean;
   pmxBrightnessScale: number;
   pmxContrastFactor: number;
 };
@@ -28,6 +29,7 @@ export function useUiSettings() {
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
   const [rustEnabled, setRustEnabled] = useState(false);
+  const [worldCounterParticipationEnabled, setWorldCounterParticipationEnabled] = useState(true);
   const [gridEnabled, setGridEnabled] = useState(false);
   const gridEnabledRef = useRef(false);
   const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
@@ -76,6 +78,9 @@ export function useUiSettings() {
         if (typeof saved.rustEnabled === "boolean") {
           setRustEnabled(saved.rustEnabled);
         }
+        if (typeof saved.worldCounterParticipationEnabled === "boolean") {
+          setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
+        }
         if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
           setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
         }
@@ -106,6 +111,7 @@ export function useUiSettings() {
       orbitSyncEnabled,
       logEnabled,
       rustEnabled,
+      worldCounterParticipationEnabled,
       pmxBrightnessScale,
       pmxContrastFactor,
     };
@@ -122,6 +128,7 @@ export function useUiSettings() {
     orbitSyncEnabled,
     logEnabled,
     rustEnabled,
+    worldCounterParticipationEnabled,
     pmxBrightnessScale,
     pmxContrastFactor,
   ]);
@@ -134,6 +141,7 @@ export function useUiSettings() {
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
     setRustEnabled(false);
+    setWorldCounterParticipationEnabled(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
     setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
   }
@@ -151,6 +159,8 @@ export function useUiSettings() {
     logEnabledRef,
     rustEnabled,
     setRustEnabled,
+    worldCounterParticipationEnabled,
+    setWorldCounterParticipationEnabled,
     gridEnabled,
     setGridEnabled,
     gridEnabledRef,

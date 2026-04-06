@@ -9,6 +9,8 @@ type AboutDialogProps = {
   locale: HistoryLocale;
   defaultTab?: TabId;
   installControl?: ReactNode;
+  worldCounterParticipationEnabled: boolean;
+  onWorldCounterParticipationChange: (enabled: boolean) => void;
   onAllReset: () => void;
   onClose: () => void;
 };
@@ -20,6 +22,27 @@ const HISTORY: Array<{
   date: string;
   items: Record<HistoryLocale, string>[];
 }> = [
+  {
+    version: "v1.5.2",
+    date: "2026-04-06",
+    items: [
+      {
+        ja: "UI調整、フッターのボタンを整理",
+        en: "UI adjustments and footer button reorganization",
+        zh: "UI调整，整理了页脚按钮",
+      },
+      {
+        ja: "Convert Counter機能実装 (Local, World)",
+        en: "Convert Counter feature implemented (Local, World)",
+        zh: "实装Convert Counter功能（本地/全局）",
+      },
+      {
+        ja: "ZIP内のPMXのファイル名をVRMのファイル名に合わせた",
+        en: "PMX filename in ZIP now matches the VRM filename",
+        zh: "ZIP内PMX文件名与VRM文件名保持一致",
+      },
+    ],
+  },
   {
     version: "v1.5.1",
     date: "2026-03-30",
@@ -140,6 +163,8 @@ export default function AboutDialog({
   locale,
   defaultTab,
   installControl,
+  worldCounterParticipationEnabled,
+  onWorldCounterParticipationChange,
   onAllReset,
   onClose,
 }: AboutDialogProps) {
@@ -227,6 +252,14 @@ export default function AboutDialog({
         ) : activeTab === "setting" ? (
           <div className="about-modal-body about-settings-body">
             <p><strong>Setting</strong></p>
+            <label className="about-settings-toggle">
+              <input
+                type="checkbox"
+                checked={worldCounterParticipationEnabled}
+                onChange={(event) => onWorldCounterParticipationChange(event.target.checked)}
+              />
+              <span>WORLD CONVERT COUNTER に参加する (外すと表示のみになります)</span>
+            </label>
             <div className="about-settings-actions">
               {installControl}
               <button
