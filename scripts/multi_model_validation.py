@@ -57,16 +57,16 @@ def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None
 
             # Display results
             counts = results[vrm_name]["counts"]
-            print(f"✓ Vertices: {counts.get('vertices', 0):6d}")
-            print(f"  Faces:    {counts.get('faces', 0):6d}")
-            print(f"  Bones:    {counts.get('bones', 0):6d}")
-            print(f"  Morphs:   {counts.get('morphs', 0):6d}")
-            print(f"  Materials:{counts.get('materials', 0):6d}")
-            print(f"  Textures: {counts.get('textures', 0):6d}")
-            print(f"  Time:     {results[vrm_name]['elapsed_ms']}ms")
+            print(f"[OK] Vertices: {counts.get('vertices', 0):6d}")
+            print(f"     Faces:    {counts.get('faces', 0):6d}")
+            print(f"     Bones:    {counts.get('bones', 0):6d}")
+            print(f"     Morphs:   {counts.get('morphs', 0):6d}")
+            print(f"     Materials:{counts.get('materials', 0):6d}")
+            print(f"     Textures: {counts.get('textures', 0):6d}")
+            print(f"     Time:     {results[vrm_name]['elapsed_ms']}ms")
 
         except Exception as e:
-            print(f"✗ Error: {e}")
+            print(f"[FAILED] Error: {e}")
             results[vrm_name] = {
                 "path": vrm_path,
                 "status": "error",
