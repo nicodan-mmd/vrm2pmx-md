@@ -894,7 +894,7 @@ button:disabled {
 }
 
 .local-counter.is-world {
-  color: #6ecff6;
+  color: #3f86c2;
 }
 
 .counter-face {
@@ -1036,11 +1036,15 @@ button:disabled {
 }
 
 .footer-heart-button {
-  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0;
   border: none;
   border-radius: 0;
-  font-size: 1.32rem;
-  line-height: 1;
+  font-size: 1.18rem;
+  line-height: 1.15;
   color: #95a0ac;
   background: transparent;
 }
@@ -1061,6 +1065,52 @@ button:disabled {
   background: transparent;
   cursor: pointer;
   opacity: 1;
+}
+
+.footer-social-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+}
+
+.footer-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  opacity: 0.76;
+  box-sizing: border-box;
+}
+
+.footer-social-link:hover,
+.footer-social-link:focus-visible {
+  opacity: 1;
+}
+
+.footer-social-icon {
+  display: block;
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+}
+
+.footer-social-link-x {
+  border: 1px solid #2f3f56;
+  border-radius: 2px;
+  background: #2f3f56;
+}
+
+.footer-social-link-x .footer-social-icon {
+  width: 10px;
+  height: 10px;
+  filter: invert(1);
+}
+
+.footer-social-icon-nico {
+  width: 17px;
+  height: 17px;
 }
 
 .footer-action-button-reset {

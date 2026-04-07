@@ -4103,6 +4103,36 @@ export default function App() {
             >
               ❤
             </button>
+            <div className="footer-social-links" aria-label="Social links">
+              <a
+                className="footer-social-link footer-social-link-x"
+                href="https://x.com/nicodan_mmd"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="X"
+                title="X"
+              >
+                <img
+                  className="footer-social-icon"
+                  src="/assets/social/x-logo-black.png"
+                  alt="X"
+                />
+              </a>
+              <a
+                className="footer-social-link footer-social-link-nico"
+                href="https://www.nicovideo.jp/watch/sm46100394"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="ニコニコ動画"
+                title="ニコニコ動画"
+              >
+                <img
+                  className="footer-social-icon footer-social-icon-nico"
+                  src="/assets/social/nico2tv.png"
+                  alt="ニコニコ動画"
+                />
+              </a>
+            </div>
           </div>
           <div className="app-footer-actions">
             <button
