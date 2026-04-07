@@ -1,0 +1,49 @@
+{
+  "input_name": "プロレスラー_リンリン.vrm",
+  "input_path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Booth\\プロレスラー リンリン\\プロレスラー_リンリン.vrm",
+  "requested_mode": "nim",
+  "actual_mode": "wasm",
+  "fallback_reason": "Nim experimental converter is not available in this build yet.",
+  "timestamp": "2026-04-07T17:55:24",
+  "runs": [
+    {
+      "run_index": 1,
+      "elapsed_ms": 16673,
+      "pmx_entry": "プロレスラー_リンリン.pmx",
+      "counts": {
+        "vertices": 45867,
+        "faces": 63282,
+        "bones": 203,
+        "morphs": 89,
+        "materials": 13,
+        "textures": 40,
+        "rigidbodies": 92,
+        "joints": 71
+      }
+    }
+  ],
+  "summary": {
+    "run_count": 1,
+    "elapsed_ms": {
+      "min": 16673,
+      "max": 16673,
+      "mean": 16673,
+      "median": 16673
+    },
+    "counts_stable": true,
+    "reference_counts": {
+      "vertices": 45867,
+      "faces": 63282,
+      "bones": 203,
+      "morphs": 89,
+      "materials": 13,
+      "textures": 40,
+      "rigidbodies": 92,
+      "joints": 71
+    }
+  },
+  "notes": [
+    "Current implementation uses Python/Wasm-compatible conversion path for repeatability checks.",
+    "Nim runtime is not connected yet; this record provides baseline and stability evidence."
+  ]
+}

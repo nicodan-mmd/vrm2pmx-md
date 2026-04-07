@@ -12,6 +12,7 @@ type UiSettingsSnapshot = {
   orbitSyncEnabled: boolean;
   logEnabled: boolean;
   rustEnabled: boolean;
+  nimEnabled: boolean;
   worldCounterParticipationEnabled: boolean;
   pmxBrightnessScale: number;
   pmxContrastFactor: number;
@@ -29,6 +30,7 @@ export function useUiSettings() {
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
   const [rustEnabled, setRustEnabled] = useState(false);
+  const [nimEnabled, setNimEnabled] = useState(false);
   const [worldCounterParticipationEnabled, setWorldCounterParticipationEnabled] = useState(true);
   const [gridEnabled, setGridEnabled] = useState(false);
   const gridEnabledRef = useRef(false);
@@ -78,6 +80,9 @@ export function useUiSettings() {
         if (typeof saved.rustEnabled === "boolean") {
           setRustEnabled(saved.rustEnabled);
         }
+        if (typeof saved.nimEnabled === "boolean") {
+          setNimEnabled(saved.nimEnabled);
+        }
         if (typeof saved.worldCounterParticipationEnabled === "boolean") {
           setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
         }
@@ -111,6 +116,7 @@ export function useUiSettings() {
       orbitSyncEnabled,
       logEnabled,
       rustEnabled,
+      nimEnabled,
       worldCounterParticipationEnabled,
       pmxBrightnessScale,
       pmxContrastFactor,
@@ -128,6 +134,7 @@ export function useUiSettings() {
     orbitSyncEnabled,
     logEnabled,
     rustEnabled,
+    nimEnabled,
     worldCounterParticipationEnabled,
     pmxBrightnessScale,
     pmxContrastFactor,
@@ -141,6 +148,7 @@ export function useUiSettings() {
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
     setRustEnabled(false);
+    setNimEnabled(false);
     setWorldCounterParticipationEnabled(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
     setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
@@ -159,6 +167,8 @@ export function useUiSettings() {
     logEnabledRef,
     rustEnabled,
     setRustEnabled,
+    nimEnabled,
+    setNimEnabled,
     worldCounterParticipationEnabled,
     setWorldCounterParticipationEnabled,
     gridEnabled,

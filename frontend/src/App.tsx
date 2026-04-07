@@ -64,6 +64,10 @@ type PmxPreviewDiagnostics = {
   assetKeyCount: number;
   materialCount: number;
   materialSlotCount: number;
+  vertexCount: number;
+  triangleCount: number;
+  boneCount: number;
+  morphCount: number;
   colorTextureCount: number;
   loadedColorTextureCount: number;
   pendingColorTextureCount: number;
@@ -111,6 +115,25 @@ type VrmInfoData = {
 type PmxInfoData = {
   summaryRows: InfoRow[];
   licenseRows: InfoRow[];
+};
+
+type OutputCountMetrics = {
+  vertices: number;
+  faces: number;
+  bones: number;
+  morphs: number;
+  materials: number;
+  textures: number;
+};
+
+type OutputCountDiff = {
+  delta: OutputCountMetrics;
+  ratio: Record<keyof OutputCountMetrics, number | null>;
+};
+
+type QualityGateResult = {
+  passed: boolean;
+  reasons: string[];
 };
 
 const DEBUG_PMX = false;
@@ -187,8 +210,76 @@ const HEART_LOCK_UNTIL_KEY = "vrm2pmx.heart_lock_until";
 const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
+const METRICS_BASELINE_KEY_PREFIX = "vrm2pmx.metrics.baseline";
+const NIM_VERTEX_RATIO_LIMIT = 1.05;
+const NIM_BONE_RATIO_TOLERANCE = 0.01;
+const NIM_MORPH_RATIO_TOLERANCE = 0.01;
 const HEART_SLACK_WEBHOOK_URL = (import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined)?.trim() ?? "";
 const HEART_GAS_WEB_APP_URL = (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ?? "";
+
+function toOutputCountMetrics(diagnostics: PmxPreviewDiagnostics): OutputCountMetrics {
+  return {
+    vertices: diagnostics.vertexCount,
+    faces: diagnostics.triangleCount,
+    bones: diagnostics.boneCount,
+    morphs: diagnostics.morphCount,
+    materials: diagnostics.materialCount,
+    textures: diagnostics.zipTextureFileCount,
+  };
+}
+
+function buildMetricsBaselineKey(inputName: string): string {
+  return `${METRICS_BASELINE_KEY_PREFIX}.${inputName}`;
+}
+
+function buildOutputCountDiff(
+  current: OutputCountMetrics,
+  baseline: OutputCountMetrics,
+): OutputCountDiff {
+  const delta: OutputCountMetrics = {
+    vertices: current.vertices - baseline.vertices,
+    faces: current.faces - baseline.faces,
+    bones: current.bones - baseline.bones,
+    morphs: current.morphs - baseline.morphs,
+    materials: current.materials - baseline.materials,
+    textures: current.textures - baseline.textures,
+  };
+
+  const ratio: OutputCountDiff["ratio"] = {
+    vertices: baseline.vertices > 0 ? Number((current.vertices / baseline.vertices).toFixed(6)) : null,
+    faces: baseline.faces > 0 ? Number((current.faces / baseline.faces).toFixed(6)) : null,
+    bones: baseline.bones > 0 ? Number((current.bones / baseline.bones).toFixed(6)) : null,
+    morphs: baseline.morphs > 0 ? Number((current.morphs / baseline.morphs).toFixed(6)) : null,
+    materials: baseline.materials > 0 ? Number((current.materials / baseline.materials).toFixed(6)) : null,
+    textures: baseline.textures > 0 ? Number((current.textures / baseline.textures).toFixed(6)) : null,
+  };
+
+  return { delta, ratio };
+}
+
+function evaluateNimQualityGate(diff: OutputCountDiff): QualityGateResult {
+  const reasons: string[] = [];
+
+  const vertexRatio = diff.ratio.vertices;
+  if (vertexRatio !== null && vertexRatio > NIM_VERTEX_RATIO_LIMIT) {
+    reasons.push(`vertices_ratio=${vertexRatio.toFixed(6)} > ${NIM_VERTEX_RATIO_LIMIT}`);
+  }
+
+  const boneRatio = diff.ratio.bones;
+  if (boneRatio !== null && Math.abs(boneRatio - 1) > NIM_BONE_RATIO_TOLERANCE) {
+    reasons.push(`bones_ratio=${boneRatio.toFixed(6)} outside +/-${NIM_BONE_RATIO_TOLERANCE}`);
+  }
+
+  const morphRatio = diff.ratio.morphs;
+  if (morphRatio !== null && Math.abs(morphRatio - 1) > NIM_MORPH_RATIO_TOLERANCE) {
+    reasons.push(`morphs_ratio=${morphRatio.toFixed(6)} outside +/-${NIM_MORPH_RATIO_TOLERANCE}`);
+  }
+
+  return {
+    passed: reasons.length === 0,
+    reasons,
+  };
+}
 
 const APP_I18N: Record<AppLocale, AppI18n> = {
   ja: {
@@ -1324,6 +1415,7 @@ export default function App() {
     orbitSyncEnabled, setOrbitSyncEnabled, orbitSyncEnabledRef,
     logEnabled, setLogEnabled, logEnabledRef,
     rustEnabled, setRustEnabled,
+    nimEnabled, setNimEnabled,
     worldCounterParticipationEnabled, setWorldCounterParticipationEnabled,
     gridEnabled, setGridEnabled, gridEnabledRef,
     pmxBrightnessScale, setPmxBrightnessScale,
@@ -2489,9 +2581,13 @@ export default function App() {
       scene.add(mesh);
 
       const skinnedMeshes: THREE.SkinnedMesh[] = [];
+      const uniqueBoneNames = new Set<string>();
       const materialNames: string[] = [];
       const materialRenderDiagnostics: PmxPreviewDiagnostics["materialRenderDiagnostics"] = [];
       let materialSlotCount = 0;
+      let vertexCount = 0;
+      let triangleCount = 0;
+      let morphCount = 0;
       let colorTextureCount = 0;
       let loadedColorTextureCount = 0;
       let pendingColorTextureCount = 0;
@@ -2499,11 +2595,33 @@ export default function App() {
         const maybeSkinnedMesh = object as THREE.SkinnedMesh;
         if (maybeSkinnedMesh.isSkinnedMesh) {
           skinnedMeshes.push(maybeSkinnedMesh);
+          if (maybeSkinnedMesh.skeleton?.bones) {
+            for (const bone of maybeSkinnedMesh.skeleton.bones) {
+              if (bone?.name) {
+                uniqueBoneNames.add(bone.name);
+              }
+            }
+          }
         }
 
         const maybeMesh = object as THREE.Mesh;
         if (!maybeMesh.isMesh) {
           return;
+        }
+
+        const geometry = maybeMesh.geometry;
+        const position = geometry?.getAttribute?.("position");
+        if (position && typeof position.count === "number") {
+          vertexCount += position.count;
+          if (geometry.index && typeof geometry.index.count === "number") {
+            triangleCount += Math.floor(geometry.index.count / 3);
+          } else {
+            triangleCount += Math.floor(position.count / 3);
+          }
+        }
+
+        if (maybeMesh.morphTargetDictionary) {
+          morphCount += Object.keys(maybeMesh.morphTargetDictionary).length;
         }
 
         const materials = Array.isArray(maybeMesh.material)
@@ -2637,6 +2755,10 @@ export default function App() {
         assetKeyCount: assetMap.size,
         materialCount: new Set(materialNames).size,
         materialSlotCount,
+        vertexCount,
+        triangleCount,
+        boneCount: uniqueBoneNames.size,
+        morphCount,
         colorTextureCount,
         loadedColorTextureCount,
         pendingColorTextureCount,
@@ -2808,6 +2930,8 @@ export default function App() {
     setMessage(
       requestedMode === "rust"
         ? "Rust experimental mode requested. This build will fall back to Wasm while the Rust converter is under development."
+        : requestedMode === "nim"
+          ? "Nim experimental mode requested. This build will fall back to Wasm while the Nim converter is under development."
         : mode === "backend"
           ? "Converting with backend... this can take a while for large files."
           : backendEnabled
@@ -2872,6 +2996,15 @@ export default function App() {
         );
       }
 
+      if (requestedMode === "nim") {
+        appendConsoleLine(
+          result.fallbackReason
+            ? [`[WARN] Nim experimental mode did not run yet. Using ${result.usedMode}. ${result.fallbackReason}`]
+            : [`[INFO] Nim experimental mode completed via ${result.usedMode}.`],
+          result.fallbackReason ? "warn" : "info",
+        );
+      }
+
       if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
@@ -2909,6 +3042,103 @@ export default function App() {
         ]),
       ].filter((signal) => !NON_QUALITY_RUNTIME_SIGNALS.has(signal));
       setDetectedQualityRiskSignals(qualityRiskSignals);
+
+      const diagnostics = pmxPreviewDiagnosticsRef.current;
+      if (diagnostics) {
+        const counts = toOutputCountMetrics(diagnostics);
+        const metricsRecord = {
+          event: "convert.output.counts",
+          inputName: file.name,
+          requestedMode,
+          actualMode: result.usedMode,
+          fallbackReason: result.fallbackReason ?? null,
+          counts,
+          timestamp: new Date().toISOString(),
+        };
+        appendConsoleLine([`[METRICS] ${JSON.stringify(metricsRecord)}`], "info");
+
+        const baselineKey = buildMetricsBaselineKey(file.name);
+        const baselineRaw = (() => {
+          try {
+            return window.localStorage.getItem(baselineKey);
+          } catch {
+            return null;
+          }
+        })();
+
+        if (baselineRaw) {
+          try {
+            const baseline = JSON.parse(baselineRaw) as {
+              sourceMode?: string;
+              counts?: OutputCountMetrics;
+              timestamp?: string;
+            };
+            if (baseline.counts) {
+              const diff = buildOutputCountDiff(counts, baseline.counts);
+              appendConsoleLine(
+                [
+                  `[METRICS_DIFF] ${JSON.stringify({
+                    event: "convert.output.counts.diff",
+                    inputName: file.name,
+                    requestedMode,
+                    actualMode: result.usedMode,
+                    baselineMode: baseline.sourceMode ?? "unknown",
+                    baselineTimestamp: baseline.timestamp ?? null,
+                    diff,
+                    timestamp: metricsRecord.timestamp,
+                  })}`,
+                ],
+                "info",
+              );
+
+              if (requestedMode === "nim") {
+                const gate = evaluateNimQualityGate(diff);
+                appendConsoleLine(
+                  [
+                    `[QUALITY_GATE] ${JSON.stringify({
+                      event: "convert.nim.quality-gate",
+                      inputName: file.name,
+                      requestedMode,
+                      actualMode: result.usedMode,
+                      passed: gate.passed,
+                      reasons: gate.reasons,
+                      threshold: {
+                        verticesRatioMax: NIM_VERTEX_RATIO_LIMIT,
+                        bonesRatioTolerance: NIM_BONE_RATIO_TOLERANCE,
+                        morphsRatioTolerance: NIM_MORPH_RATIO_TOLERANCE,
+                      },
+                      timestamp: metricsRecord.timestamp,
+                    })}`,
+                  ],
+                  gate.passed ? "info" : "warn",
+                );
+
+                if (!gate.passed) {
+                  runtimeQualitySignalsRef.current.add("nim-quality-gate-failed");
+                }
+              }
+            }
+          } catch {
+            appendConsoleLine(["[WARN] Failed to parse metrics baseline JSON."], "warn");
+          }
+        }
+
+        // Use Python-compatible routes (Wasm/Backend) as baseline for future Nim comparisons.
+        if (requestedMode !== "nim" && (result.usedMode === "wasm" || result.usedMode === "backend")) {
+          try {
+            window.localStorage.setItem(
+              buildMetricsBaselineKey(file.name),
+              JSON.stringify({
+                sourceMode: result.usedMode,
+                counts,
+                timestamp: metricsRecord.timestamp,
+              }),
+            );
+          } catch {
+            // localStorage unavailable — ignore baseline persistence.
+          }
+        }
+      }
 
       if (result.fallbackReason) {
         setMessage(
@@ -2980,7 +3210,7 @@ export default function App() {
     if (!file) {
       return;
     }
-    const requestedMode: ConvertMode = rustEnabled ? "rust" : mode;
+    const requestedMode: ConvertMode = nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
 
     if (taPoseAngle === 0) {
       showDialog({
@@ -3962,6 +4192,16 @@ export default function App() {
                 <span>Rust</span>
               </label>
               */}
+              <label className="pmx-tool-checkbox">
+                <input
+                  type="checkbox"
+                  name="nim-mode"
+                  checked={nimEnabled}
+                  onChange={(event) => setNimEnabled(event.target.checked)}
+                  disabled={status === "uploading"}
+                />
+                <span>Nim</span>
+              </label>
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"

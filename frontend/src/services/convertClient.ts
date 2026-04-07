@@ -2,7 +2,7 @@ import { convertViaWasmWorker } from "../wasm/workerClient";
 import { convertViaRustWorker } from "../rust/workerClient";
 import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
 
-export type ConvertMode = "auto" | "backend" | "wasm" | "rust";
+export type ConvertMode = "auto" | "backend" | "wasm" | "rust" | "nim";
 export type ConvertExecutionMode = Exclude<ConvertMode, "auto">;
 
 export type ConvertResult = {
@@ -62,6 +62,10 @@ export function toUserFriendlyConvertError(
 
     if (context.mode === "rust") {
       return "Rust experimental mode could not complete and Wasm fallback assets were not reachable. Reload the page and retry, or switch to Wasm mode.";
+    }
+
+    if (context.mode === "nim") {
+      return "Nim experimental mode could not complete and Wasm fallback assets were not reachable. Reload the page and retry, or switch to Wasm mode.";
     }
 
     if (context.mode === "auto" && context.backendEnabled) {
@@ -256,6 +260,38 @@ export async function convertWithMode(
         fallbackReason,
       };
     }
+  }
+
+  if (mode === "nim") {
+    const fallbackReason = "Nim experimental converter is not available in this build yet.";
+    console.warn(
+      JSON.stringify({
+        event: "convert.nim.unavailable",
+        requestedMode: "nim",
+        attemptedMode: "nim",
+        fallbackMode: "wasm",
+        fallbackReason,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      }),
+    );
+
+    const wasmResult = await convertViaWasm(file, options);
+    console.info(
+      JSON.stringify({
+        event: "convert.fallback.completed",
+        requestedMode: mode,
+        attemptedMode: "nim",
+        fallbackMode: wasmResult.usedMode,
+        fallbackReason,
+        finalMode: wasmResult.usedMode,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      }),
+    );
+
+    return {
+      ...wasmResult,
+      fallbackReason,
+    };
   }
 
   try {
