@@ -158,6 +158,56 @@ h2 {
   position: relative;
 }
 
+.metadata-info-button.preview-maximize-button {
+  top: 14px;
+  right: 14px;
+  bottom: auto;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  color: #274669;
+  border: none;
+  background: transparent;
+}
+
+.metadata-info-button.preview-maximize-button:hover:not(:disabled) {
+  color: #1f4f9f;
+}
+
+.metadata-info-button.preview-maximize-button:disabled {
+  color: #a5afba;
+}
+
+.preview-canvas-wrap-maximized {
+  position: fixed;
+  z-index: 1200;
+  inset: 12px;
+  border-radius: 16px;
+  border: 1px solid #89a2be;
+  box-shadow: 0 20px 55px #15213066;
+  background:
+    linear-gradient(135deg, #f4f8ff 0%, #edf3fb 100%),
+    repeating-linear-gradient(
+      45deg,
+      #ffffff66 0,
+      #ffffff66 14px,
+      #dce8f533 14px,
+      #dce8f533 28px
+    );
+}
+
+.preview-canvas-wrap-maximized .preview-canvas {
+  height: 100%;
+  aspect-ratio: auto;
+  border: none;
+  border-radius: 16px;
+}
+
+body.preview-maximized-open {
+  overflow: hidden;
+}
+
 .metadata-info-button {
   position: absolute;
   right: 14px;

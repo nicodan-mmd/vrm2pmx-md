@@ -4,6 +4,7 @@ import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
 import { type ChangeEvent, type DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
+import { CiMaximize2 } from "react-icons/ci";
 import { IoCopyOutline } from "react-icons/io5";
 import { MdOutlineSettings } from "react-icons/md";
 import CountUp from "react-countup";
@@ -1314,6 +1315,7 @@ function formatCounterValue(count: number, minDigits: number): string {
 }
 
 export default function App() {
+  const [maximizedPreview, setMaximizedPreview] = useState<"vrm" | "pmx" | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const {
@@ -3205,6 +3207,29 @@ export default function App() {
   }, [isPmxMetadataOpen, isVrmMetadataOpen]);
 
   useEffect(() => {
+    if (!maximizedPreview) {
+      document.body.classList.remove("preview-maximized-open");
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMaximizedPreview(null);
+      }
+    };
+
+    document.body.classList.add("preview-maximized-open");
+    window.dispatchEvent(new Event("resize"));
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.classList.remove("preview-maximized-open");
+      window.dispatchEvent(new Event("resize"));
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [maximizedPreview]);
+
+  useEffect(() => {
     return () => {
       cleanupPreview();
       cleanupPmxPreview();
@@ -3519,14 +3544,33 @@ export default function App() {
                 VRoid Studio
               </a>
             </figcaption>
-            <div className="preview-canvas-wrap" onPointerDown={() => {
+            <div
+              className={`preview-canvas-wrap${maximizedPreview === "vrm" ? " preview-canvas-wrap-maximized" : ""}`}
+              onPointerDown={() => {
               vrmIdleManagerRef.current?.stopRotation();
-            }}>
+              }}
+            >
               <canvas
                 ref={vrmCanvasRef}
                 className="preview-canvas"
                 aria-label="VRM preview canvas"
+                onDoubleClick={() => {
+                  if (!isVrmReady || isPreviewing) {
+                    return;
+                  }
+                  setMaximizedPreview((prev) => (prev === "vrm" ? null : "vrm"));
+                }}
               />
+              <button
+                type="button"
+                className="metadata-info-button preview-maximize-button"
+                aria-label={maximizedPreview === "vrm" ? "Restore VRM preview size" : "Maximize VRM preview"}
+                title={maximizedPreview === "vrm" ? "Restore" : "Maximize"}
+                onClick={() => setMaximizedPreview((prev) => (prev === "vrm" ? null : "vrm"))}
+                disabled={!isVrmReady || isPreviewing}
+              >
+                <CiMaximize2 />
+              </button>
               {isVrmMetadataOpen && (
                 <section className="preview-metadata-popup" aria-label="VRM metadata popup">
                   <header className="preview-metadata-popup-header">
@@ -3623,14 +3667,33 @@ export default function App() {
                 MikuMikuDance
               </a>
             </figcaption>
-            <div className="preview-canvas-wrap" onPointerDown={() => {
+            <div
+              className={`preview-canvas-wrap${maximizedPreview === "pmx" ? " preview-canvas-wrap-maximized" : ""}`}
+              onPointerDown={() => {
               pmxIdleManagerRef.current?.stopRotation();
-            }}>
+              }}
+            >
               <canvas
                 ref={pmxCanvasRef}
                 className="preview-canvas"
                 aria-label="PMX preview canvas"
+                onDoubleClick={() => {
+                  if (!canOpenPmxMetadata) {
+                    return;
+                  }
+                  setMaximizedPreview((prev) => (prev === "pmx" ? null : "pmx"));
+                }}
               />
+              <button
+                type="button"
+                className="metadata-info-button preview-maximize-button"
+                aria-label={maximizedPreview === "pmx" ? "Restore PMX preview size" : "Maximize PMX preview"}
+                title={maximizedPreview === "pmx" ? "Restore" : "Maximize"}
+                onClick={() => setMaximizedPreview((prev) => (prev === "pmx" ? null : "pmx"))}
+                disabled={!canOpenPmxMetadata}
+              >
+                <CiMaximize2 />
+              </button>
               {isPmxMetadataOpen && (
                 <section className="preview-metadata-popup" aria-label="PMX metadata popup">
                   <header className="preview-metadata-popup-header">

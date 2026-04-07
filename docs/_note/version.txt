@@ -25,3 +25,6 @@ Ver 1.5.2
     UI調整、フッターのボタンを整理
     Convert Counter機能実装 (Local, World)
     ZIP内のPMXのファイル名をVRMのファイル名に合わせた
+
+Ver 1.5.3
+    プレビュー最大化
