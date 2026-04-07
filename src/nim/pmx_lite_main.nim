@@ -1,0 +1,374 @@
+import std/[json, os, strutils, uri, tables, sequtils, algorithm]
+import glb_parser, accessor, pmx_writer_lite
+
+const MIKU_METER = 12.5'f32
+
+# BONE_PAIRS: English node name -> PMX bone index (order matches Python's config/default_pairs.py)
+const BONE_PAIRS_EN = [
+  "Root", "Center", "Groove", "J_Bip_C_Hips", "J_Bip_C_Spine",
+  "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck", "J_Bip_C_Head", "J_Adj_FaceEye",
+  "J_Adj_L_FaceEye", "J_Adj_R_FaceEye", "J_Sec_L_Bust1", "J_Sec_L_Bust2", "J_Sec_R_Bust1",
+  "J_Sec_R_Bust2", "shoulderP_L", "J_Bip_L_Shoulder", "shoulderC_L", "J_Bip_L_UpperArm",
+  "arm_twist_L", "arm_twist_L1", "arm_twist_L2", "arm_twist_L3", "J_Bip_L_LowerArm",
+  "wrist_twist_L", "wrist_twist_L1", "wrist_twist_L2", "wrist_twist_L3", "J_Bip_L_Hand",
+  "J_Bip_L_Thumb1", "J_Bip_L_Thumb2", "J_Bip_L_Thumb3", "J_Bip_L_Thumb3_end", "J_Bip_L_Index1",
+  "J_Bip_L_Index2", "J_Bip_L_Index3", "J_Bip_L_Index3_end", "J_Bip_L_Middle1", "J_Bip_L_Middle2",
+  "J_Bip_L_Middle3", "J_Bip_L_Middle3_end", "J_Bip_L_Ring1", "J_Bip_L_Ring2", "J_Bip_L_Ring3",
+  "J_Bip_L_Ring3_end", "J_Bip_L_Little1", "J_Bip_L_Little2", "J_Bip_L_Little3", "J_Bip_L_Little3_end",
+  "shoulderP_R", "J_Bip_R_Shoulder", "shoulderC_R", "J_Bip_R_UpperArm", "arm_twist_R",
+  "arm_twist_R1", "arm_twist_R2", "arm_twist_R3", "J_Bip_R_LowerArm", "wrist_twist_R",
+  "wrist_twist_R1", "wrist_twist_R2", "wrist_twist_R3", "J_Bip_R_Hand", "J_Bip_R_Thumb1",
+  "J_Bip_R_Thumb2", "J_Bip_R_Thumb3", "J_Bip_R_Thumb3_end", "J_Bip_R_Index1", "J_Bip_R_Index2",
+  "J_Bip_R_Index3", "J_Bip_R_Index3_end", "J_Bip_R_Middle1", "J_Bip_R_Middle2", "J_Bip_R_Middle3",
+  "J_Bip_R_Middle3_end", "J_Bip_R_Ring1", "J_Bip_R_Ring2", "J_Bip_R_Ring3", "J_Bip_R_Ring3_end",
+  "J_Bip_R_Little1", "J_Bip_R_Little2", "J_Bip_R_Little3", "J_Bip_R_Little3_end", "leftWaistCancel",
+  "J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_L_Foot", "J_Bip_L_ToeBase_end", "leg_IK_L",
+  "toe_IK_L", "rightWaistCancel", "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot",
+  "J_Bip_R_ToeBase_end", "leg_IK_R", "toe_IK_R", "leg_LD", "knee_LD",
+  "ankle_LD", "J_Bip_L_ToeBase", "leg_RD", "knee_RD", "ankle_RD",
+  "J_Bip_R_ToeBase"
+]
+
+proc buildBonePairsLookup(): Table[string, int] =
+  for i, name in BONE_PAIRS_EN:
+    result[name] = i
+
+proc buildNodeToPmxBoneIndex(jsonData: JsonNode, bonePairsLookup: Table[string, int]): Table[int, int32] =
+  ## Maps GLB node index -> PMX bone index.
+  ## BONE_PAIRS nodes get indices 0..105 (from BONE_PAIRS_EN order).
+  ## Non-BONE_PAIRS nodes get indices starting from len(BONE_PAIRS_EN).
+  if not jsonData.hasKey("nodes"):
+    return
+  let nodes = jsonData["nodes"]
+
+  # DFS traversal to find ordered list of non-BONE_PAIRS nodes
+  var nonBpNodes: seq[int] = @[]
+  var visited = newSeq[bool](nodes.len)
+
+  proc dfsVisit(idx: int) =
+    if idx < 0 or idx >= nodes.len or visited[idx]:
+      return
+    visited[idx] = true
+    let nd = nodes[idx]
+    let name = if nd.hasKey("name"): nd["name"].getStr("") else: ""
+    if name notin bonePairsLookup:
+      nonBpNodes.add(idx)
+    if nd.hasKey("children"):
+      for child in nd["children"]:
+        dfsVisit(child.getInt(-1))
+
+  for i in 0 ..< nodes.len:
+    dfsVisit(i)
+
+  # Assign BONE_PAIRS indices
+  for nidx in 0 ..< nodes.len:
+    let nd = nodes[nidx]
+    let name = if nd.hasKey("name"): nd["name"].getStr("") else: ""
+    if name in bonePairsLookup:
+      result[nidx] = int32(bonePairsLookup[name])
+
+  # Assign non-BONE_PAIRS indices starting from BONE_PAIRS_EN.len
+  let baseIdx = BONE_PAIRS_EN.len
+  for i, nidx in nonBpNodes:
+    result[nidx] = int32(baseIdx + i)
+
+proc buildDeform(
+  joints: (int, int, int, int),
+  weights: (float32, float32, float32, float32),
+  skinJoints: seq[int],
+  nodeToBoneIdx: Table[int, int32],
+): PmxDeformLite =
+  ## Build PMX deform data from JOINTS_0/WEIGHTS_0 for a single vertex.
+  ## Filters joints with weight > 0 and maps joint -> skin_joint node -> PMX bone index.
+  var validBones: seq[int32] = @[]
+  var validWeights: seq[float32] = @[]
+
+  let jArr = [joints[0], joints[1], joints[2], joints[3]]
+  let wArr = [weights[0], weights[1], weights[2], weights[3]]
+
+  for i in 0 .. 3:
+    if wArr[i] <= 0'f32:
+      continue
+    let j = jArr[i]
+    if j < 0 or j >= skinJoints.len:
+      continue
+    let nodeIdx = skinJoints[j]
+    let pmxBone = nodeToBoneIdx.getOrDefault(nodeIdx, int32(0))
+    validBones.add(pmxBone)
+    validWeights.add(wArr[i])
+
+  case validBones.len
+  of 0:
+    return makeBdef1(0)
+  of 1:
+    return makeBdef1(validBones[0])
+  of 2:
+    return makeBdef2(validBones[0], validBones[1], validWeights[0])
+  else:
+    # Bdef4: pad to 4 entries
+    let b0 = validBones[0]
+    let b1 = if validBones.len > 1: validBones[1] else: int32(0)
+    let b2 = if validBones.len > 2: validBones[2] else: int32(0)
+    let b3 = if validBones.len > 3: validBones[3] else: int32(0)
+    let w0 = validWeights[0]
+    let w1 = if validWeights.len > 1: validWeights[1] else: 0'f32
+    let w2 = if validWeights.len > 2: validWeights[2] else: 0'f32
+    let w3 = if validWeights.len > 3: validWeights[3] else: 0'f32
+    return makeBdef4(b0, b1, b2, b3, w0, w1, w2, w3)
+
+proc getSkinJointsForMesh(jsonData: JsonNode, meshIdx: int): seq[int] =
+  ## Returns the skin joints array for the given mesh (node that references this mesh).
+  if not jsonData.hasKey("nodes") or not jsonData.hasKey("skins"):
+    return @[]
+  for nd in jsonData["nodes"]:
+    if nd.hasKey("mesh") and nd["mesh"].getInt(-1) == meshIdx and nd.hasKey("skin"):
+      let skinIdx = nd["skin"].getInt(-1)
+      if skinIdx >= 0 and skinIdx < jsonData["skins"].len:
+        let skin = jsonData["skins"][skinIdx]
+        if skin.hasKey("joints"):
+          for j in skin["joints"]:
+            result.add(j.getInt(-1))
+          return
+  return @[]
+
+proc estimateMorphCount(jsonData: JsonNode): int =
+  if jsonData.kind != JObject or not jsonData.hasKey("extensions"):
+    return 0
+
+  let ext = jsonData["extensions"]
+  if ext.kind == JObject and ext.hasKey("VRMC_vrm"):
+    let vrmc = ext["VRMC_vrm"]
+    if vrmc.kind == JObject and vrmc.hasKey("expressions") and vrmc["expressions"].kind == JObject:
+      return vrmc["expressions"].len
+
+  if ext.kind == JObject and ext.hasKey("VRM"):
+    let vrm = ext["VRM"]
+    if vrm.kind == JObject and vrm.hasKey("blendShapeMaster"):
+      let bsm = vrm["blendShapeMaster"]
+      if bsm.kind == JObject and bsm.hasKey("blendShapeGroups"):
+        return bsm["blendShapeGroups"].len
+
+  return 0
+
+proc estimateRigidbodyCount(jsonData: JsonNode): int =
+  if jsonData.kind != JObject or not jsonData.hasKey("extensions"):
+    return 0
+  let ext = jsonData["extensions"]
+  if ext.kind == JObject and ext.hasKey("VRM"):
+    let vrm = ext["VRM"]
+    if vrm.kind == JObject and vrm.hasKey("secondaryAnimation"):
+      let sec = vrm["secondaryAnimation"]
+      if sec.kind == JObject and sec.hasKey("boneGroups"):
+        return sec["boneGroups"].len
+  return 0
+
+proc parseLicenseComment(otherPermissionUrl: string): string =
+  if otherPermissionUrl.len == 0 or "?" notin otherPermissionUrl:
+    return ""
+
+  let query = otherPermissionUrl.split("?", maxsplit = 1)[1]
+  var valuesByKey = initTable[string, seq[string]]()
+
+  for pair in query.split("&"):
+    if pair.len == 0:
+      continue
+    let parts = pair.split("=", maxsplit = 1)
+    let key = decodeUrl(parts[0])
+    let value = if parts.len > 1: decodeUrl(parts[1]) else: ""
+    if not valuesByKey.hasKey(key):
+      valuesByKey[key] = @[]
+    valuesByKey[key].add(value)
+
+  for key in valuesByKey.keys.toSeq.sorted(system.cmp[string]):
+    result.add("　　" & key & ": " & valuesByKey[key].join(",") & "\r\n")
+
+proc readModelMetadata(jsonData: JsonNode, fallbackName: string): tuple[name, author, licenseName, licenseComment: string] =
+  result = (fallbackName, "", "", "")
+
+  if jsonData.kind != JObject or not jsonData.hasKey("extensions") or jsonData["extensions"].kind != JObject:
+    return
+
+  let ext = jsonData["extensions"]
+  if ext.hasKey("VRM"):
+    let vrm = ext["VRM"]
+    if vrm.kind == JObject and vrm.hasKey("meta") and vrm["meta"].kind == JObject:
+      let meta = vrm["meta"]
+      let title = if meta.hasKey("title"): meta["title"].getStr("") else: ""
+      result.name = if title.len > 0: title else: fallbackName
+      result.author = if meta.hasKey("author"): meta["author"].getStr("") else: ""
+      result.licenseName = if meta.hasKey("licenseName"): meta["licenseName"].getStr("") else: ""
+      if result.licenseName == "Other" and meta.hasKey("otherPermissionUrl"):
+        result.licenseComment = parseLicenseComment(meta["otherPermissionUrl"].getStr(""))
+      return
+
+  if ext.hasKey("VRMC_vrm"):
+    let vrm1 = ext["VRMC_vrm"]
+    if vrm1.kind == JObject and vrm1.hasKey("meta") and vrm1["meta"].kind == JObject:
+      let meta = vrm1["meta"]
+      let title = if meta.hasKey("name"): meta["name"].getStr("") else: ""
+      result.name = if title.len > 0: title else: fallbackName
+      if meta.hasKey("authors") and meta["authors"].kind == JArray:
+        result.author = meta["authors"].elems.mapIt(it.getStr("")).join(", ")
+      result.licenseName = if meta.hasKey("licenseUrl"): meta["licenseUrl"].getStr("") else: ""
+
+proc readVec3(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[Vector3D] =
+  if accessorIdx < 0:
+    return @[]
+  return readAccessor(jsonData, binData, accessorIdx)
+
+proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName: string): PmxModelLite =
+  let meta = readModelMetadata(jsonData, modelName)
+  result.name = meta.name
+  result.englishName = ""
+  result.comment = "モデル名: " & meta.name & "\r\n" &
+    "作者: " & meta.author & "\r\n" &
+    "ライセンス: " & meta.licenseName & "\r\n" &
+    meta.licenseComment & "\r\n" &
+    "変換: VRM to MMD Converter - Version nim-bitperfect-baseline  (@nicodan-mmd)"
+  result.englishComment = ""
+  result.vertices = @[]
+  result.indices = @[]
+  result.textures = @[]
+  result.materials = @[]
+  result.boneCountHint = if jsonData.kind == JObject and jsonData.hasKey("nodes"): jsonData["nodes"].len else: 0
+  result.morphCountHint = estimateMorphCount(jsonData)
+  result.rigidbodyCountHint = estimateRigidbodyCount(jsonData)
+
+  if not jsonData.hasKey("meshes"):
+    return
+
+  # Build bone lookup tables
+  let bonePairsLookup = buildBonePairsLookup()
+  let nodeToBoneIdx = buildNodeToPmxBoneIndex(jsonData, bonePairsLookup)
+
+  # POSITION accessor dedup: accessor_idx -> vertex start index
+  var processedAccessors = initTable[int, int32]()
+
+  # Dedup: also track which JOINTS_0/WEIGHTS_0/NORMAL/TEXCOORD were used per POSITION accessor
+  # to avoid re-reading them. Stored as (joints, weights) lists alongside vertex start.
+  # Per-material index accumulator (ordered by first appearance)
+  var materialIndices = initOrderedTable[int, seq[int32]]()
+
+  for meshIdx, mesh in jsonData["meshes"].elems:
+    if not mesh.hasKey("primitives"):
+      continue
+
+    # Get skin joint array for this mesh (same for all primitives of this mesh)
+    let skinJoints = getSkinJointsForMesh(jsonData, meshIdx)
+
+    for prim in mesh["primitives"]:
+      if not prim.hasKey("attributes"):
+        continue
+      let attrs = prim["attributes"]
+      if not attrs.hasKey("POSITION"):
+        continue
+
+      let posAccessorIdx = attrs["POSITION"].getInt(-1)
+      if posAccessorIdx < 0:
+        continue
+
+      let matIdx = if prim.hasKey("material"): prim["material"].getInt(0) else: 0
+
+      # Ensure the material slot exists in insertion order
+      if matIdx notin materialIndices:
+        materialIndices[matIdx] = @[]
+
+      # Deduplicate: only write vertices once per POSITION accessor
+      var vertexStartIdx: int32
+      if processedAccessors.hasKey(posAccessorIdx):
+        vertexStartIdx = processedAccessors[posAccessorIdx]
+      else:
+        vertexStartIdx = int32(result.vertices.len)
+        processedAccessors[posAccessorIdx] = vertexStartIdx
+
+        let positions = readVec3(jsonData, binData, posAccessorIdx)
+
+        var normals: seq[Vector3D] = @[]
+        if attrs.hasKey("NORMAL"):
+          normals = readVec3(jsonData, binData, attrs["NORMAL"].getInt(-1))
+
+        var uvs: seq[Vector3D] = @[]
+        if attrs.hasKey("TEXCOORD_0"):
+          uvs = readVec3(jsonData, binData, attrs["TEXCOORD_0"].getInt(-1))
+
+        var jointsData: seq[(int, int, int, int)] = @[]
+        if attrs.hasKey("JOINTS_0"):
+          jointsData = readAccessorJoints(jsonData, binData, attrs["JOINTS_0"].getInt(-1))
+
+        var weightsData: seq[(float32, float32, float32, float32)] = @[]
+        if attrs.hasKey("WEIGHTS_0"):
+          weightsData = readAccessorVec4Float(jsonData, binData, attrs["WEIGHTS_0"].getInt(-1))
+
+        for i, p in positions:
+          let n = if i < normals.len: normals[i] else: (x: 0'f32, y: 1'f32, z: 0'f32)
+          let uvRaw = if i < uvs.len: uvs[i] else: (x: 0'f32, y: 0'f32, z: 0'f32)
+
+          # MMD coordinate transform: negate X, scale by MIKU_METER
+          # Build deform data
+          var deform: PmxDeformLite
+          if i < jointsData.len and i < weightsData.len and skinJoints.len > 0:
+            deform = buildDeform(jointsData[i], weightsData[i], skinJoints, nodeToBoneIdx)
+          else:
+            deform = makeBdef1(0)
+
+          result.vertices.add(PmxVertexLite(
+            position: Vec3f(x: -p.x * MIKU_METER, y: p.y * MIKU_METER, z: p.z * MIKU_METER),
+            normal: Vec3f(x: -n.x, y: n.y, z: n.z),
+            uv: Vec2f(x: uvRaw.x, y: uvRaw.y),
+            deform: deform,
+            edgeFactor: 1'f32,
+          ))
+
+      # Collect indices for this material
+      if prim.hasKey("indices"):
+          let localIndices = readIndices(jsonData, binData, prim["indices"].getInt(-1))
+          for idx in localIndices:
+            materialIndices[matIdx].add(vertexStartIdx + int32(idx))
+
+  # Flatten indices per material in insertion order
+  for matIdx, idxList in materialIndices:
+    for idx in idxList:
+      result.indices.add(idx)
+
+  # Build one material per GLB material index (in order of first appearance)
+  let hasMaterials = jsonData.hasKey("materials")
+  for matIdx, idxList in materialIndices:
+    let idxCount = int32(idxList.len)
+    var mat = defaultMaterial(idxCount)
+    if hasMaterials and matIdx < jsonData["materials"].len:
+      let vrmMat = jsonData["materials"][matIdx]
+      let matName = vrmMat["name"].getStr("mat_" & $matIdx)
+      mat.name = matName
+      mat.englishName = matName
+    else:
+      mat.name = "mat_" & $matIdx
+      mat.englishName = "mat_" & $matIdx
+    result.materials.add(mat)
+
+proc main() =
+  let args = commandLineParams()
+  if args.len < 2:
+    echo "Usage: nim_pmx_lite <input.vrm|input.glb> <output.pmx>"
+    quit(1)
+
+  let inputPath = args[0]
+  let outputPath = args[1]
+
+  if not fileExists(inputPath):
+    echo "Error: input not found: " & inputPath
+    quit(1)
+
+  let bytes = cast[seq[uint8]](readFile(inputPath))
+  let glb = parseGlb(bytes)
+  let model = buildModelFromGlb(glb.jsonData, glb.binData, splitFile(inputPath).name)
+  let pmxBytes = buildPmxBinaryLite(model)
+
+  writeFile(outputPath, cast[string](pmxBytes))
+
+  echo "Wrote PMX Lite: " & outputPath
+  echo "  vertices=" & $model.vertices.len
+  echo "  indices=" & $model.indices.len
+  echo "  materials=" & $model.materials.len
+
+when isMainModule:
+  main()

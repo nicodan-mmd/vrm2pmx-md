@@ -56,7 +56,7 @@ proc bytesToInt(data: openArray[uint8], offset: int, componentType: int): int =
   else:
     0
 
-# Read accessor data from binary buffer
+# Read accessor data from binary buffer (VEC2/VEC3/SCALAR -> Vector3D)
 proc readAccessor*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[Vector3D] =
   if accessorIdx < 0 or accessorIdx >= jsonData["accessors"].len:
     return @[]
@@ -84,9 +84,9 @@ proc readAccessor*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: i
   let stride = if bufByteStride > 0: bufByteStride else: compSize * elemCount
   let totalOffset = byteOffset + accessorByteOffset
 
-  var result: seq[Vector3D] = @[]
+  result = @[]
 
-  for i in 0..<count:
+  for i in 0 ..< count:
     let offset = totalOffset + i * stride
 
     if accessorType == "VEC3":
@@ -104,14 +104,11 @@ proc readAccessor*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: i
       let x = bytesToFloat32(binData, offset)
       let y = bytesToFloat32(binData, offset + compSize)
       let z = bytesToFloat32(binData, offset + compSize * 2)
-      let w = bytesToFloat32(binData, offset + compSize * 3)
-      result.add((x, y, z))  # w is discarded for VEC3 tuple
+      result.add((x, y, z))  # w discarded
 
     elif accessorType == "SCALAR":
       let x = bytesToFloat32(binData, offset)
       result.add((x, 0'f32, 0'f32))
-
-  return result
 
 # Read indices (integer accessor)
 proc readIndices*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[uint32] =
@@ -138,9 +135,9 @@ proc readIndices*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: in
   let stride = if bufByteStride > 0: bufByteStride else: compSize
   let totalOffset = byteOffset + accessorByteOffset
 
-  var result: seq[uint32] = @[]
+  result = @[]
 
-  for i in 0..<count:
+  for i in 0 ..< count:
     let offset = totalOffset + i * stride
 
     case componentType
@@ -154,4 +151,57 @@ proc readIndices*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: in
     else:
       result.add(0'u32)
 
-  return result
+# Read VEC4 float accessor (for WEIGHTS_0)
+proc readAccessorVec4Float*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[(float32, float32, float32, float32)] =
+  if accessorIdx < 0 or accessorIdx >= jsonData["accessors"].len:
+    return @[]
+  let accessor = jsonData["accessors"][accessorIdx]
+  let count = getJsonInt(accessor, "count", 0)
+  let bufferViewIdx = getJsonInt(accessor, "bufferView", -1)
+  if bufferViewIdx < 0 or bufferViewIdx >= jsonData["bufferViews"].len:
+    return @[]
+  let bufferView = jsonData["bufferViews"][bufferViewIdx]
+  let byteOffset = getJsonInt(bufferView, "byteOffset", 0)
+  let bufByteStride = getJsonInt(bufferView, "byteStride", 0)
+  let accessorByteOffset = getJsonInt(accessor, "byteOffset", 0)
+  let stride = if bufByteStride > 0: bufByteStride else: 16
+  let totalOffset = byteOffset + accessorByteOffset
+  result = newSeq[(float32, float32, float32, float32)](count)
+  for i in 0 ..< count:
+    let off = totalOffset + i * stride
+    result[i] = (
+      bytesToFloat32(binData, off),
+      bytesToFloat32(binData, off + 4),
+      bytesToFloat32(binData, off + 8),
+      bytesToFloat32(binData, off + 12)
+    )
+
+# Read VEC4 unsigned-int accessor (for JOINTS_0: UNSIGNED_BYTE or UNSIGNED_SHORT)
+proc readAccessorJoints*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[(int, int, int, int)] =
+  if accessorIdx < 0 or accessorIdx >= jsonData["accessors"].len:
+    return @[]
+  let accessor = jsonData["accessors"][accessorIdx]
+  let componentType = getJsonInt(accessor, "componentType", GL_UNSIGNED_BYTE)
+  let count = getJsonInt(accessor, "count", 0)
+  let bufferViewIdx = getJsonInt(accessor, "bufferView", -1)
+  if bufferViewIdx < 0 or bufferViewIdx >= jsonData["bufferViews"].len:
+    return @[]
+  let bufferView = jsonData["bufferViews"][bufferViewIdx]
+  let byteOffset = getJsonInt(bufferView, "byteOffset", 0)
+  let bufByteStride = getJsonInt(bufferView, "byteStride", 0)
+  let accessorByteOffset = getJsonInt(accessor, "byteOffset", 0)
+  let compSize = componentSize(componentType)
+  let stride = if bufByteStride > 0: bufByteStride else: compSize * 4
+  let totalOffset = byteOffset + accessorByteOffset
+  result = newSeq[(int, int, int, int)](count)
+  for i in 0 ..< count:
+    let off = totalOffset + i * stride
+    let c0 = if componentType == GL_UNSIGNED_BYTE: binData[off].int
+              else: readUint16(binData, off).int
+    let c1 = if componentType == GL_UNSIGNED_BYTE: binData[off + compSize].int
+              else: readUint16(binData, off + compSize).int
+    let c2 = if componentType == GL_UNSIGNED_BYTE: binData[off + compSize * 2].int
+              else: readUint16(binData, off + compSize * 2).int
+    let c3 = if componentType == GL_UNSIGNED_BYTE: binData[off + compSize * 3].int
+              else: readUint16(binData, off + compSize * 3).int
+    result[i] = (c0, c1, c2, c3)
