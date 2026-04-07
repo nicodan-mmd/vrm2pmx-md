@@ -23,6 +23,32 @@ const HISTORY: Array<{
   items: Record<HistoryLocale, string>[];
 }> = [
   {
+    version: "v1.5.3",
+    date: "2026-04-07",
+    items: [
+      {
+        ja: "プレビュー最大化機能追加、右上アイコンまたはプレビュー内ダブルクリック",
+        en: "Added preview maximize feature via top-right icon or double-click inside preview",
+        zh: "新增预览最大化功能，可通过右上角图标或在预览区域内双击触发",
+      },
+      {
+        ja: "VRMボーン表示ボタン追加",
+        en: "Added VRM bone display toggle button",
+        zh: "新增 VRM 骨骼显示切换按钮",
+      },
+      {
+        ja: "X、ニコ動リンク追加",
+        en: "Added links to X and NicoNico",
+        zh: "新增 X 与 Niconico 链接",
+      },
+      {
+        ja: "PMX プレビューの白飛び改善",
+        en: "Improved PMX preview overexposure (white clipping)",
+        zh: "改善 PMX 预览过曝（发白）问题",
+      },
+    ],
+  },
+  {
     version: "v1.5.2",
     date: "2026-04-06",
     items: [
