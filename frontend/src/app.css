@@ -186,6 +186,8 @@ h2 {
   border-radius: 16px;
   border: 1px solid #89a2be;
   box-shadow: 0 20px 55px #15213066;
+  transform-origin: center;
+  animation: preview-zoom-in 0.22s ease-out;
   background:
     linear-gradient(135deg, #f4f8ff 0%, #edf3fb 100%),
     repeating-linear-gradient(
@@ -202,6 +204,27 @@ h2 {
   aspect-ratio: auto;
   border: none;
   border-radius: 16px;
+  animation: preview-canvas-focus-in 0.2s ease-out;
+}
+
+@keyframes preview-zoom-in {
+  0% {
+    transform: scale(0.97);
+    opacity: 0.92;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes preview-canvas-focus-in {
+  0% {
+    filter: saturate(0.96) contrast(0.98);
+  }
+  100% {
+    filter: saturate(1) contrast(1);
+  }
 }
 
 body.preview-maximized-open {
@@ -238,13 +261,13 @@ body.preview-maximized-open {
   opacity: 1;
 }
 
-.pmx-bones-button {
+.preview-bones-button {
   left: 14px;
   right: auto;
   color: #7a6a75;
 }
 
-.pmx-bones-button-active {
+.preview-bones-button-active {
   color: #d14f70;
 }
 

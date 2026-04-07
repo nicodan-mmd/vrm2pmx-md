@@ -1375,6 +1375,8 @@ export default function App() {
   const resetCounterCheckboxRef = useRef<HTMLInputElement | null>(null);
   const [isVrmMetadataOpen, setIsVrmMetadataOpen] = useState(false);
   const [isPmxMetadataOpen, setIsPmxMetadataOpen] = useState(false);
+  const [vrmBonesVisible, setVrmBonesVisible] = useState(false);
+  const [hasVrmSkeleton, setHasVrmSkeleton] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
   const [hasPmxSkeleton, setHasPmxSkeleton] = useState(false);
   const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
@@ -1402,6 +1404,7 @@ export default function App() {
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const vrmSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
   const pmxSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
   const previewCleanupRef = useRef<(() => void) | null>(null);
   const pmxPreviewCleanupRef = useRef<(() => void) | null>(null);
@@ -1793,6 +1796,12 @@ export default function App() {
     runtime.ambientLight.intensity = tuned.ambientIntensity;
     runtime.keyLight.intensity = tuned.directionalIntensity;
   }, [pmxBrightnessScale, pmxContrastFactor]);
+
+  useEffect(() => {
+    for (const helper of vrmSkeletonHelpersRef.current) {
+      helper.visible = vrmBonesVisible;
+    }
+  }, [vrmBonesVisible]);
 
   useEffect(() => {
     for (const helper of pmxSkeletonHelpersRef.current) {
@@ -3081,6 +3090,8 @@ export default function App() {
   function cleanupPreview() {
     previewCleanupRef.current?.();
     previewCleanupRef.current = null;
+    vrmSkeletonHelpersRef.current = [];
+    setHasVrmSkeleton(false);
     vrmViewRef.current = null;
     idleAnimationRef.current.vrmState.isRotating = false;
     if (idleAnimationRef.current.vrmState.inactivityTimeoutId) {
@@ -3271,6 +3282,7 @@ export default function App() {
     const timer = new THREE.Timer();
     let frameId = 0;
     let vrm: VRM | null = null;
+    const skeletonHelpers: THREE.SkeletonHelper[] = [];
 
     const fitRendererSize = () => {
       const width = canvas.clientWidth || 320;
@@ -3287,6 +3299,13 @@ export default function App() {
         controls.removeEventListener("change", onVrmOrbitChanged);
       }
       controls.dispose();
+      for (const helper of skeletonHelpers) {
+        scene.remove(helper);
+        helper.dispose();
+      }
+      skeletonHelpers.length = 0;
+      vrmSkeletonHelpersRef.current = [];
+      setHasVrmSkeleton(false);
       if (vrm) {
         scene.remove(vrm.scene);
       }
@@ -3331,6 +3350,17 @@ export default function App() {
 
       scene.add(vrm.scene);
       vrm.scene.rotation.y = previewRootYaw;
+
+      const vrmRootHelper = new THREE.SkeletonHelper(vrm.scene);
+      vrmRootHelper.visible = vrmBonesVisible;
+      vrmRootHelper.setColors(new THREE.Color("#63f5ff"), new THREE.Color("#ff9f4a"));
+      (vrmRootHelper.material as THREE.LineBasicMaterial).depthTest = false;
+      (vrmRootHelper.material as THREE.LineBasicMaterial).transparent = true;
+      (vrmRootHelper.material as THREE.LineBasicMaterial).opacity = 0.95;
+      scene.add(vrmRootHelper);
+      skeletonHelpers.push(vrmRootHelper);
+      vrmSkeletonHelpersRef.current = skeletonHelpers;
+      setHasVrmSkeleton(true);
 
       const humanoid = vrm.humanoid;
       const leftUpperArm =
@@ -3651,6 +3681,16 @@ export default function App() {
               )}
               <button
                 type="button"
+                className={`metadata-info-button preview-bones-button${vrmBonesVisible ? " preview-bones-button-active" : ""}`}
+                aria-label="Toggle VRM bones"
+                title={vrmBonesVisible ? "Hide Bones" : "Show Bones"}
+                onClick={() => setVrmBonesVisible((prev) => !prev)}
+                disabled={!hasVrmSkeleton}
+              >
+                <FaSkullCrossbones />
+              </button>
+              <button
+                type="button"
                 className={`metadata-info-button${isVrmRedistributionOrModificationNG ? " metadata-info-button-alert" : ""}`}
                 aria-label="Show VRM metadata"
                 onClick={() => onOpenMetadata("vrm")}
@@ -3769,7 +3809,7 @@ export default function App() {
               )}
               <button
                 type="button"
-                className={`metadata-info-button pmx-bones-button${pmxBonesVisible ? " pmx-bones-button-active" : ""}`}
+                className={`metadata-info-button preview-bones-button${pmxBonesVisible ? " preview-bones-button-active" : ""}`}
                 aria-label="Toggle PMX bones"
                 title={pmxBonesVisible ? "Hide Bones" : "Show Bones"}
                 onClick={() => setPmxBonesVisible((prev) => !prev)}
