@@ -62,6 +62,29 @@ MIME_TYPE = {
 MIKU_METER = 12.5
 
 
+def linear_to_srgb_color(linear_color: list | tuple) -> list:
+    """
+    Linear 色空間の値を sRGB 色空間に変換
+    VRM (glTF) は Linear 色空間で、PMX/MMD 環境では sRGB で扱うため
+    変換が必要。仕様に従った正確な変換式を使用。
+    """
+    if not linear_color or len(linear_color) < 3:
+        return list(linear_color) if linear_color else [1, 1, 1]
+
+    def channel_linear_to_srgb(c: float) -> float:
+        # glTF 仕様: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#color-space
+        if c <= 0.0031308:
+            return 12.92 * c
+        else:
+            return 1.055 * pow(c, 1.0 / 2.4) - 0.055
+
+    srgb = [channel_linear_to_srgb(linear_color[i]) for i in range(min(3, len(linear_color)))]
+    # アルファチャンネルがあれば保持
+    if len(linear_color) > 3:
+        srgb.append(linear_color[3])
+    return srgb
+
+
 class VrmReader(PmxReader):
     def __init__(self, file_path: str, is_check=True):
         self.file_path = file_path
@@ -767,21 +790,29 @@ class VrmReader(PmxReader):
                                         diffuse_color_data = vrm_material[
                                             "pbrMetallicRoughness"
                                         ]["baseColorFactor"]
-                                        diffuse_color = MVector3D(
-                                            diffuse_color_data[:3]
+                                        # Linear → sRGB ガンマ補正を適用（色の薄さ改善）
+                                        diffuse_color_data_srgb = linear_to_srgb_color(
+                                            diffuse_color_data
                                         )
+                                        # 拡散色は常に（1,1,1）に統一してテクスチャから色を取得
+                                        diffuse_color = MVector3D(1.0, 1.0, 1.0)
                                         # 非透過度
-                                        alpha = diffuse_color_data[3]
-                                        # 反射色
-                                        if "emissiveFactor" in vrm_material:
-                                            specular_color_data = vrm_material[
-                                                "emissiveFactor"
-                                            ]
-                                            specular_color = MVector3D(
-                                                specular_color_data[:3]
-                                            )
+                                        alpha = (
+                                            float(diffuse_color_data[3])
+                                            if len(diffuse_color_data) > 3
+                                            else 1.0
+                                        )
+                                        alpha_mode = str(
+                                            vrm_material.get("alphaMode", "OPAQUE")
+                                        ).upper()
+                                        # glTF OPAQUE / MASK は不透明として扱う
+                                        if alpha_mode in {"OPAQUE", "MASK"}:
+                                            alpha = 1.0
                                         else:
-                                            specular_color = MVector3D()
+                                            alpha = max(0.0, min(1.0, alpha))
+                                        # 反射色
+                                        # 反射色は常に 0 に統一（白飛び防止）
+                                        specular_color = MVector3D(0.0, 0.0, 0.0)
                                         specular_factor = 0
                                         # 環境色
                                         if (
@@ -795,7 +826,7 @@ class VrmReader(PmxReader):
                                                 ][:3]
                                             )
                                         else:
-                                            ambient_color = diffuse_color / 2
+                                            ambient_color = MVector3D(0.5, 0.5, 0.5)
                                         # 0x02:地面影, 0x04:セルフシャドウマップへの描画, 0x08:セルフシャドウの描画
                                         flag = 0x02 | 0x04 | 0x08
                                         if vrm_material["doubleSided"]:
@@ -945,7 +976,7 @@ class VrmReader(PmxReader):
                                                 # 拡散色と環境色は固定
                                                 diffuse_color = MVector3D(1, 1, 1)
                                                 specular_color = MVector3D()
-                                                ambient_color = diffuse_color / 2
+                                                ambient_color = MVector3D(0.5, 0.5, 0.5)
                                         elif (
                                             self._is_vroid_profile(profile_name)
                                             and m is not None

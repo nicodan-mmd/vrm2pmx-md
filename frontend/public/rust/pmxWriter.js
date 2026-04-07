@@ -201,16 +201,17 @@ function resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex) 
     : {};
   const factor = Array.isArray(pbr.baseColorFactor) ? pbr.baseColorFactor : [1, 1, 1, 1];
   const alphaMode = typeof mat.alphaMode === "string" ? mat.alphaMode.toUpperCase() : "OPAQUE";
-  const alpha = alphaMode === "OPAQUE" ? 1.0 : Number(factor[3] ?? 1.0);
-
-  const r = Number(factor[0] ?? 1.0);
-  const g = Number(factor[1] ?? 1.0);
-  const b = Number(factor[2] ?? 1.0);
+  const rawAlpha = Number(factor[3] ?? 1.0);
+  // OPAQUE/MASK は不透明。BLEND のみ baseColorFactor.a を反映。
+  const alpha = alphaMode === "BLEND"
+    ? Math.min(1.0, Math.max(0.0, rawAlpha))
+    : 1.0;
 
   return {
     textureIndex: resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex),
-    diffuse: [r, g, b, alpha],
-    ambient: [r * 0.6, g * 0.6, b * 0.6],
+    // テクスチャ色をそのまま使うため、材質色の乗算は無効化。
+    diffuse: [1.0, 1.0, 1.0, alpha],
+    ambient: [0.5, 0.5, 0.5],
     doubleSided: Boolean(mat.doubleSided),
   };
 }
@@ -703,7 +704,7 @@ function extendBonesWithMmdControls(bones) {
 
     const parent = rootIndex;
     const anklePos = out[ankle] ? out[ankle].pos.slice() : [0, 0, 0];
-    
+
     // \u8db3IK (Python\u7248\u3068\u4e00\u81f4\u3055\u305b\u3066\u3044\u3046\u901f\u5ea6\u3092\u5408\u308f\u305b)
     // - IK\u30ea\u30f3\u30af: \u819d (\u6570\u5f0f: -180\u00b0~-0.5\u00b0\u307e\u305f\u306f\u30e9\u30b8\u30a2\u30f3-\u03c0~-0.0087)
     // - loop=40, limitRadian=1.0 (Python\u7248\u3002Rust\u7248\u304c\u5927\u304d\u3059\u304e\u305f)

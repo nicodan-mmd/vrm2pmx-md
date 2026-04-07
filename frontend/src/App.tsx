@@ -2102,7 +2102,7 @@ export default function App() {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: true,
+      alpha: false,
       // Needed so report snapshots can capture the currently rendered frame reliably.
       preserveDrawingBuffer: true,
     });
@@ -2394,13 +2394,19 @@ export default function App() {
             emissiveMap?: THREE.Texture | null;
             matcap?: THREE.Texture | null;
           };
+          // PMXEditor寄りに、材質の色乗算と発光寄与をリセットして
+          // テクスチャ本来の発色を優先する。
+          m.color.setRGB(1, 1, 1);
+          m.emissive.setRGB(0, 0, 0);
+          m.blending = THREE.NormalBlending;
+          m.toneMapped = false;
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             m.map.needsUpdate = true;
           }
           if (m.emissiveMap) {
-            m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-            m.emissiveMap.needsUpdate = true;
+            // PMXプレビューではemissive寄与が白かぶりに見えやすいため無効化。
+            m.emissiveMap = null;
           }
           if (m.matcap) {
             m.matcap.colorSpace = THREE.SRGBColorSpace;
@@ -2430,19 +2436,23 @@ export default function App() {
           const m = mat as THREE.MeshToonMaterial & {
             map?: (THREE.Texture & { transparent?: boolean }) | null;
             alphaMap?: THREE.Texture | null;
+            premultipliedAlpha?: boolean;
           };
+
           const materialLabel = `${maybeMesh.name || ""} ${m.name || ""}`.toLowerCase();
           const mapTransparent = Boolean(m.map && m.map.transparent);
+          const hasAlphaMap = Boolean(m.alphaMap);
+          const needsCutout = mapTransparent || hasAlphaMap;
           const likelySkinMaterial = /(skin|body|face|head|hair|肌|素体|顔|頭|髪)/.test(materialLabel);
-          if (!mapTransparent || likelySkinMaterial) {
-            continue;
-          }
 
-          // Prefer cutout-style rendering for alpha-textured cloth layers.
-          // This avoids transparent-sort artifacts where a large skirt plane
-          // gets rendered in front of apron/chest details.
+          // PMXエディタ寄りに、半透明ブレンドは原則使わずカットアウト方式へ統一する。
+          // これにより全体が白く霞む(フィルターがかかったように見える)現象を抑える。
           m.transparent = false;
-          m.alphaTest = Math.max(m.alphaTest ?? 0, 0.06);
+          m.opacity = 1;
+          m.premultipliedAlpha = false;
+          m.alphaTest = needsCutout
+            ? Math.max(m.alphaTest ?? 0, likelySkinMaterial ? 0.02 : 0.06)
+            : 0;
           m.depthWrite = true;
           m.depthTest = true;
           m.needsUpdate = true;

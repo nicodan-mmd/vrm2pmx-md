@@ -19,9 +19,18 @@ Sentry.init({
   sendDefaultPii: false,
 });
 
-registerSW({
-  immediate: true,
-});
+if (import.meta.env.DEV) {
+  // Prevent stale PWA cache from serving old preview logic while debugging.
+  void navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      void registration.unregister();
+    }
+  });
+} else {
+  registerSW({
+    immediate: true,
+  });
+}
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
