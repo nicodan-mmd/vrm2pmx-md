@@ -56,6 +56,12 @@ type
     flag*: int16
     tailIndex*: int32
     tailPosition*: Vec3f
+    externalKey*: int32 = -1  # written when flag & 0x2000
+    appendBoneIndex*: int32 = -1  # written when flag & 0x0300 (append rotation/translation)
+    appendRatio*: float32 = 0'f32  # written when flag & 0x0300
+    fixedAxis*: Vec3f  # written when flag & 0x0400
+    localXAxis*: Vec3f  # written when flag & 0x0800
+    localZAxis*: Vec3f  # written when flag & 0x0800
 
   PmxModelLite* = object
     name*: string
@@ -298,6 +304,30 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
       addFloat32LE(result, b.tailPosition.x)
       addFloat32LE(result, b.tailPosition.y)
       addFloat32LE(result, b.tailPosition.z)
+
+    # append rotation/translation (flag & 0x0100 or 0x0200)
+    if (int(b.flag) and 0x0300) != 0:
+      addIntBySizeLE(result, b.appendBoneIndex, boneIdxSize)
+      addFloat32LE(result, b.appendRatio)
+
+    # fixed axis (flag & 0x0400)
+    if (int(b.flag) and 0x0400) != 0:
+      addFloat32LE(result, b.fixedAxis.x)
+      addFloat32LE(result, b.fixedAxis.y)
+      addFloat32LE(result, b.fixedAxis.z)
+
+    # local axis (flag & 0x0800)
+    if (int(b.flag) and 0x0800) != 0:
+      addFloat32LE(result, b.localXAxis.x)
+      addFloat32LE(result, b.localXAxis.y)
+      addFloat32LE(result, b.localXAxis.z)
+      addFloat32LE(result, b.localZAxis.x)
+      addFloat32LE(result, b.localZAxis.y)
+      addFloat32LE(result, b.localZAxis.z)
+
+    # external parent deform key (flag & 0x2000)
+    if (int(b.flag) and 0x2000) != 0:
+      addInt32LE(result, b.externalKey)
 
   # morphs/display/rigidbodies/joints
   addInt32LE(result, 0)

@@ -1,4 +1,4 @@
-import std/[json, os, strutils, uri, tables, sequtils, algorithm]
+import std/[json, os, strutils, uri, tables, sequtils, algorithm, math]
 import glb_parser, accessor, pmx_writer_lite
 
 type Mat4d = array[16, float64]
@@ -247,6 +247,334 @@ proc applySkinningPose(
 
 const MIKU_METER = 12.5'f32
 
+# Standard bone parent/tail/flag tables (106 entries matching BONE_PAIRS order)
+const BONE_PARENT_IDX: array[106, int32] = [
+  int32(-1),  # 0 全ての親
+  int32(0),   # 1 センター
+  int32(1),   # 2 グルーブ
+  int32(2),   # 3 腰
+  int32(3),   # 4 下半身
+  int32(3),   # 5 上半身
+  int32(5),   # 6 上半身2
+  int32(6),   # 7 首
+  int32(7),   # 8 頭
+  int32(8),   # 9 両目
+  int32(8),   # 10 左目
+  int32(8),   # 11 右目
+  int32(6),   # 12 左胸
+  int32(12),  # 13 左胸先
+  int32(6),   # 14 右胸
+  int32(14),  # 15 右胸先
+  int32(6),   # 16 左肩P
+  int32(16),  # 17 左肩
+  int32(17),  # 18 左肩C
+  int32(18),  # 19 左腕
+  int32(19),  # 20 左腕捩
+  int32(19),  # 21 左腕捩1
+  int32(19),  # 22 左腕捩2
+  int32(19),  # 23 左腕捩3
+  int32(20),  # 24 左ひじ
+  int32(24),  # 25 左手捩
+  int32(24),  # 26 左手捩1
+  int32(24),  # 27 左手捩2
+  int32(24),  # 28 左手捩3
+  int32(25),  # 29 左手首
+  int32(29),  # 30 左親指０
+  int32(30),  # 31 左親指１
+  int32(31),  # 32 左親指２
+  int32(32),  # 33 左親指先
+  int32(29),  # 34 左人指１
+  int32(34),  # 35 左人指２
+  int32(35),  # 36 左人指３
+  int32(36),  # 37 左人指先
+  int32(29),  # 38 左中指１
+  int32(38),  # 39 左中指２
+  int32(39),  # 40 左中指３
+  int32(40),  # 41 左中指先
+  int32(29),  # 42 左薬指１
+  int32(42),  # 43 左薬指２
+  int32(43),  # 44 左薬指３
+  int32(44),  # 45 左薬指先
+  int32(29),  # 46 左小指１
+  int32(46),  # 47 左小指２
+  int32(47),  # 48 左小指３
+  int32(48),  # 49 左小指先
+  int32(6),   # 50 右肩P
+  int32(50),  # 51 右肩
+  int32(51),  # 52 右肩C
+  int32(52),  # 53 右腕
+  int32(53),  # 54 右腕捩
+  int32(53),  # 55 右腕捩1
+  int32(53),  # 56 右腕捩2
+  int32(53),  # 57 右腕捩3
+  int32(54),  # 58 右ひじ
+  int32(58),  # 59 右手捩
+  int32(58),  # 60 右手捩1
+  int32(58),  # 61 右手捩2
+  int32(58),  # 62 右手捩3
+  int32(59),  # 63 右手首
+  int32(63),  # 64 右親指０
+  int32(64),  # 65 右親指１
+  int32(65),  # 66 右親指２
+  int32(66),  # 67 右親指先
+  int32(63),  # 68 右人指１
+  int32(68),  # 69 右人指２
+  int32(69),  # 70 右人指３
+  int32(70),  # 71 右人指先
+  int32(63),  # 72 右中指１
+  int32(72),  # 73 右中指２
+  int32(73),  # 74 右中指３
+  int32(74),  # 75 右中指先
+  int32(63),  # 76 右薬指１
+  int32(76),  # 77 右薬指２
+  int32(77),  # 78 右薬指３
+  int32(78),  # 79 右薬指先
+  int32(63),  # 80 右小指１
+  int32(80),  # 81 右小指２
+  int32(81),  # 82 右小指３
+  int32(82),  # 83 右小指先
+  int32(4),   # 84 腰キャンセル左
+  int32(84),  # 85 左足
+  int32(85),  # 86 左ひざ
+  int32(86),  # 87 左足首
+  int32(87),  # 88 左つま先
+  int32(0),   # 89 左足ＩＫ
+  int32(89),  # 90 左つま先ＩＫ
+  int32(4),   # 91 腰キャンセル右
+  int32(91),  # 92 右足
+  int32(92),  # 93 右ひざ
+  int32(93),  # 94 右足首
+  int32(94),  # 95 右つま先
+  int32(0),   # 96 右足ＩＫ
+  int32(96),  # 97 右つま先ＩＫ
+  int32(84),  # 98 左足D
+  int32(98),  # 99 左ひざD
+  int32(99),  # 100 左足首D
+  int32(100), # 101 左足先EX
+  int32(91),  # 102 右足D
+  int32(102), # 103 右ひざD
+  int32(103), # 104 右足首D
+  int32(104), # 105 右足先EX
+]
+
+const BONE_TAIL_IDX: array[106, int32] = [
+  int32(1),   # 0 全ての親→センター
+  int32(-1),  # 1 センター (tail_pos mode; handled specially)
+  int32(-1),  # 2 グルーブ (tail_pos mode; handled specially)
+  int32(-1),  # 3 腰
+  int32(-1),  # 4 下半身
+  int32(6),   # 5 上半身→上半身2
+  int32(7),   # 6 上半身2→首
+  int32(8),   # 7 首→頭
+  int32(-1),  # 8 頭
+  int32(-1),  # 9 両目
+  int32(-1),  # 10 左目
+  int32(-1),  # 11 右目
+  int32(13),  # 12 左胸→左胸先
+  int32(-1),  # 13 左胸先
+  int32(15),  # 14 右胸→右胸先
+  int32(-1),  # 15 右胸先
+  int32(-1),  # 16 左肩P (tail_pos mode)
+  int32(19),  # 17 左肩→左腕
+  int32(-1),  # 18 左肩C (tail_pos mode)
+  int32(24),  # 19 左腕→左ひじ
+  int32(-1),  # 20 左腕捩
+  int32(-1),  # 21 左腕捩1
+  int32(-1),  # 22 左腕捩2
+  int32(-1),  # 23 左腕捩3
+  int32(29),  # 24 左ひじ→左手首
+  int32(-1),  # 25 左手捩
+  int32(-1),  # 26 左手捩1
+  int32(-1),  # 27 左手捩2
+  int32(-1),  # 28 左手捩3
+  int32(-1),  # 29 左手首
+  int32(31),  # 30 左親指０→左親指１
+  int32(32),  # 31 左親指１→左親指２
+  int32(33),  # 32 左親指２→左親指先
+  int32(-1),  # 33 左親指先
+  int32(35),  # 34 左人指１→左人指２
+  int32(36),  # 35 左人指２→左人指３
+  int32(37),  # 36 左人指３→左人指先
+  int32(-1),  # 37 左人指先
+  int32(39),  # 38 左中指１→左中指２
+  int32(40),  # 39 左中指２→左中指３
+  int32(41),  # 40 左中指３→左中指先
+  int32(-1),  # 41 左中指先
+  int32(43),  # 42 左薬指１→左薬指２
+  int32(44),  # 43 左薬指２→左薬指３
+  int32(45),  # 44 左薬指３→左薬指先
+  int32(-1),  # 45 左薬指先
+  int32(47),  # 46 左小指１→左小指２
+  int32(48),  # 47 左小指２→左小指３
+  int32(49),  # 48 左小指３→左小指先
+  int32(-1),  # 49 左小指先
+  int32(-1),  # 50 右肩P (tail_pos mode)
+  int32(53),  # 51 右肩→右腕
+  int32(-1),  # 52 右肩C (tail_pos mode)
+  int32(58),  # 53 右腕→右ひじ
+  int32(-1),  # 54 右腕捩
+  int32(-1),  # 55 右腕捩1
+  int32(-1),  # 56 右腕捩2
+  int32(-1),  # 57 右腕捩3
+  int32(63),  # 58 右ひじ→右手首
+  int32(-1),  # 59 右手捩
+  int32(-1),  # 60 右手捩1
+  int32(-1),  # 61 右手捩2
+  int32(-1),  # 62 右手捩3
+  int32(-1),  # 63 右手首
+  int32(65),  # 64 右親指０→右親指１
+  int32(66),  # 65 右親指１→右親指２
+  int32(67),  # 66 右親指２→右親指先
+  int32(-1),  # 67 右親指先
+  int32(69),  # 68 右人指１→右人指２
+  int32(70),  # 69 右人指２→右人指３
+  int32(71),  # 70 右人指３→右人指先
+  int32(-1),  # 71 右人指先
+  int32(73),  # 72 右中指１→右中指２
+  int32(74),  # 73 右中指２→右中指３
+  int32(75),  # 74 右中指３→右中指先
+  int32(-1),  # 75 右中指先
+  int32(77),  # 76 右薬指１→右薬指２
+  int32(78),  # 77 右薬指２→右薬指３
+  int32(79),  # 78 右薬指３→右薬指先
+  int32(-1),  # 79 右薬指先
+  int32(81),  # 80 右小指１→右小指２
+  int32(82),  # 81 右小指２→右小指３
+  int32(83),  # 82 右小指３→右小指先
+  int32(-1),  # 83 右小指先
+  int32(-1),  # 84 腰キャンセル左
+  int32(86),  # 85 左足→左ひざ
+  int32(87),  # 86 左ひざ→左足首
+  int32(88),  # 87 左足首→左つま先
+  int32(-1),  # 88 左つま先
+  int32(-1),  # 89 左足ＩＫ
+  int32(-1),  # 90 左つま先ＩＫ
+  int32(-1),  # 91 腰キャンセル右
+  int32(93),  # 92 右足→右ひざ
+  int32(94),  # 93 右ひざ→右足首
+  int32(95),  # 94 右足首→右つま先
+  int32(-1),  # 95 右つま先
+  int32(-1),  # 96 右足ＩＫ
+  int32(-1),  # 97 右つま先ＩＫ
+  int32(-1),  # 98 左足D
+  int32(-1),  # 99 左ひざD
+  int32(-1),  # 100 左足首D
+  int32(-1),  # 101 左足先EX
+  int32(-1),  # 102 右足D
+  int32(-1),  # 103 右ひざD
+  int32(-1),  # 104 右足首D
+  int32(-1),  # 105 右足先EX
+]
+
+const BONE_DEFAULT_FLAG: array[106, int16] = [
+  int16(0x001f),  # 0 全ての親
+  int16(0),       # 1 センター (special; set in buildModel)
+  int16(0),       # 2 グルーブ (special; set in buildModel)
+  int16(0x001b),  # 3 腰
+  int16(0x001b),  # 4 下半身
+  int16(0x001b),  # 5 上半身
+  int16(0x001b),  # 6 上半身2
+  int16(0x001b),  # 7 首
+  int16(0x001b),  # 8 頭
+  int16(0x001b),  # 9 両目
+  int16(0x001b),  # 10 左目
+  int16(0x001b),  # 11 右目
+  int16(0x001b),  # 12 左胸
+  int16(0x0003),  # 13 左胸先
+  int16(0x001b),  # 14 右胸
+  int16(0x0003),  # 15 右胸先
+  int16(0x001a),  # 16 左肩P (tail_pos mode)
+  int16(0x001b),  # 17 左肩
+  int16(0x0102),  # 18 左肩C (append rotation)
+  int16(0x001b),  # 19 左腕
+  int16(0x001b),  # 20 左腕捩
+  int16(0x001b),  # 21 左腕捩1
+  int16(0x001b),  # 22 左腕捩2
+  int16(0x001b),  # 23 左腕捩3
+  int16(0x001b),  # 24 左ひじ
+  int16(0x001b),  # 25 左手捩
+  int16(0x001b),  # 26 左手捩1
+  int16(0x001b),  # 27 左手捩2
+  int16(0x001b),  # 28 左手捩3
+  int16(0x001b),  # 29 左手首
+  int16(0x001b),  # 30 左親指０
+  int16(0x001b),  # 31 左親指１
+  int16(0x001b),  # 32 左親指２
+  int16(0x0003),  # 33 左親指先
+  int16(0x001b),  # 34 左人指１
+  int16(0x001b),  # 35 左人指２
+  int16(0x001b),  # 36 左人指３
+  int16(0x0003),  # 37 左人指先
+  int16(0x001b),  # 38 左中指１
+  int16(0x001b),  # 39 左中指２
+  int16(0x001b),  # 40 左中指３
+  int16(0x0003),  # 41 左中指先
+  int16(0x001b),  # 42 左薬指１
+  int16(0x001b),  # 43 左薬指２
+  int16(0x001b),  # 44 左薬指３
+  int16(0x0003),  # 45 左薬指先
+  int16(0x001b),  # 46 左小指１
+  int16(0x001b),  # 47 左小指２
+  int16(0x001b),  # 48 左小指３
+  int16(0x0003),  # 49 左小指先
+  int16(0x001a),  # 50 右肩P (tail_pos mode)
+  int16(0x001b),  # 51 右肩
+  int16(0x0102),  # 52 右肩C (append rotation)
+  int16(0x001b),  # 53 右腕
+  int16(0x001b),  # 54 右腕捩
+  int16(0x001b),  # 55 右腕捩1
+  int16(0x001b),  # 56 右腕捩2
+  int16(0x001b),  # 57 右腕捩3
+  int16(0x001b),  # 58 右ひじ
+  int16(0x001b),  # 59 右手捩
+  int16(0x001b),  # 60 右手捩1
+  int16(0x001b),  # 61 右手捩2
+  int16(0x001b),  # 62 右手捩3
+  int16(0x001b),  # 63 右手首
+  int16(0x001b),  # 64 右親指０
+  int16(0x001b),  # 65 右親指１
+  int16(0x001b),  # 66 右親指２
+  int16(0x0003),  # 67 右親指先
+  int16(0x001b),  # 68 右人指１
+  int16(0x001b),  # 69 右人指２
+  int16(0x001b),  # 70 右人指３
+  int16(0x0003),  # 71 右人指先
+  int16(0x001b),  # 72 右中指１
+  int16(0x001b),  # 73 右中指２
+  int16(0x001b),  # 74 右中指３
+  int16(0x0003),  # 75 右中指先
+  int16(0x001b),  # 76 右薬指１
+  int16(0x001b),  # 77 右薬指２
+  int16(0x001b),  # 78 右薬指３
+  int16(0x0003),  # 79 右薬指先
+  int16(0x001b),  # 80 右小指１
+  int16(0x001b),  # 81 右小指２
+  int16(0x001b),  # 82 右小指３
+  int16(0x0003),  # 83 右小指先
+  int16(0x001b),  # 84 腰キャンセル左
+  int16(0x001b),  # 85 左足
+  int16(0x001b),  # 86 左ひざ
+  int16(0x001b),  # 87 左足首
+  int16(0x0003),  # 88 左つま先
+  int16(0x001b),  # 89 左足ＩＫ
+  int16(0x001b),  # 90 左つま先ＩＫ
+  int16(0x001b),  # 91 腰キャンセル右
+  int16(0x001b),  # 92 右足
+  int16(0x001b),  # 93 右ひざ
+  int16(0x001b),  # 94 右足首
+  int16(0x0003),  # 95 右つま先
+  int16(0x001b),  # 96 右足ＩＫ
+  int16(0x001b),  # 97 右つま先ＩＫ
+  int16(0x001b),  # 98 左足D
+  int16(0x001b),  # 99 左ひざD
+  int16(0x001b),  # 100 左足首D
+  int16(0x001b),  # 101 左足先EX
+  int16(0x001b),  # 102 右足D
+  int16(0x001b),  # 103 右ひざD
+  int16(0x001b),  # 104 右足首D
+  int16(0x001b),  # 105 右足先EX
+]
+
 # BONE_PAIRS: English node name -> PMX bone index (order matches Python's config/default_pairs.py)
 const BONE_PAIRS_EN = [
   "Root", "Center", "Groove", "J_Bip_C_Hips", "J_Bip_C_Spine",
@@ -361,6 +689,97 @@ proc signf(value: float64): int =
   if value < 0.0:
     return -1
   return 0
+
+proc vecSub(a, b: Vec3f): Vec3f =
+  Vec3f(x: a.x - b.x, y: a.y - b.y, z: a.z - b.z)
+
+proc vecAdd(a, b: Vec3f): Vec3f =
+  Vec3f(x: a.x + b.x, y: a.y + b.y, z: a.z + b.z)
+
+proc vecScale(a: Vec3f, s: float32): Vec3f =
+  Vec3f(x: a.x * s, y: a.y * s, z: a.z * s)
+
+proc vecLen(a: Vec3f): float32 =
+  sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
+
+proc vecNormalize(a: Vec3f): Vec3f =
+  let l = vecLen(a)
+  if l <= 1.0e-8'f32:
+    return Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+  Vec3f(x: a.x / l, y: a.y / l, z: a.z / l)
+
+proc vecCross(a, b: Vec3f): Vec3f =
+  Vec3f(
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  )
+
+proc applyArmTwistLayout(bones: var seq[PmxBoneLite], dir: string) =
+  let (shoulderIdx, armIdx, elbowIdx, armTwistIdx, wristIdx, wristTwistIdx) =
+    if dir == "左": (17, 19, 24, 20, 29, 25) else: (51, 53, 58, 54, 63, 59)
+  if bones.len <= wristIdx:
+    return
+
+  let localY = Vec3f(x: 0'f32, y: -1'f32, z: 0'f32)
+
+  # shoulder/arm/elbow/wrist: add local-axis flag and vectors
+  for (idx, fromIdx, toIdx) in [
+    (shoulderIdx, shoulderIdx, armIdx),
+    (armIdx, armIdx, elbowIdx),
+    (elbowIdx, elbowIdx, wristIdx),
+    (wristIdx, elbowIdx, wristIdx),
+  ]:
+    bones[idx].flag = int16(int(bones[idx].flag) or 0x0800)
+    let xAxis = vecNormalize(vecSub(bones[toIdx].position, bones[fromIdx].position))
+    bones[idx].localXAxis = xAxis
+    bones[idx].localZAxis = vecCross(xAxis, localY)
+
+  # arm twist main bone
+  bones[armTwistIdx].position = vecAdd(bones[armIdx].position, vecScale(vecSub(bones[elbowIdx].position, bones[armIdx].position), 0.5'f32))
+  bones[armTwistIdx].parentIndex = int32(armIdx)
+  bones[armTwistIdx].flag = int16(0x0002 or 0x0008 or 0x0010 or 0x0400 or 0x0800)
+  bones[armTwistIdx].tailIndex = int32(-1)
+  bones[armTwistIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+  bones[armTwistIdx].fixedAxis = vecNormalize(vecSub(bones[elbowIdx].position, bones[armIdx].position))
+  bones[armTwistIdx].localXAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
+  bones[armTwistIdx].localZAxis = vecCross(bones[armTwistIdx].localXAxis, localY)
+
+  # arm twist sub bones 1/2/3
+  for (subOffset, factor) in [(1, 0.25'f32), (2, 0.5'f32), (3, 0.75'f32)]:
+    let idx = armTwistIdx + subOffset
+    if idx >= bones.len:
+      continue
+    bones[idx].position = vecAdd(bones[armIdx].position, vecScale(vecSub(bones[elbowIdx].position, bones[armIdx].position), factor))
+    bones[idx].parentIndex = int32(armIdx)
+    bones[idx].flag = int16(0x0002 or 0x0100)
+    bones[idx].tailIndex = int32(-1)
+    bones[idx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+    bones[idx].appendBoneIndex = int32(armTwistIdx)
+    bones[idx].appendRatio = factor
+
+  # wrist twist main bone
+  bones[wristTwistIdx].position = vecAdd(bones[elbowIdx].position, vecScale(vecSub(bones[wristIdx].position, bones[elbowIdx].position), 0.5'f32))
+  bones[wristTwistIdx].parentIndex = int32(elbowIdx)
+  bones[wristTwistIdx].flag = int16(0x0002 or 0x0008 or 0x0010 or 0x0400 or 0x0800)
+  bones[wristTwistIdx].tailIndex = int32(-1)
+  bones[wristTwistIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+  bones[wristTwistIdx].fixedAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
+  bones[wristTwistIdx].localXAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
+  bones[wristTwistIdx].localZAxis = vecCross(bones[wristTwistIdx].localXAxis, localY)
+
+  # wrist twist sub bones 1/2/3
+  for (subOffset, factor) in [(1, 0.25'f32), (2, 0.5'f32), (3, 0.75'f32)]:
+    let idx = wristTwistIdx + subOffset
+    if idx >= bones.len:
+      continue
+    bones[idx].position = vecAdd(bones[elbowIdx].position, vecScale(vecSub(bones[wristIdx].position, bones[elbowIdx].position), factor))
+    bones[idx].parentIndex = int32(elbowIdx)
+    bones[idx].flag = int16(0x0002 or 0x0100)
+    bones[idx].tailIndex = int32(-1)
+    bones[idx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+    bones[idx].appendBoneIndex = int32(wristTwistIdx)
+    bones[idx].appendRatio = factor
 
 proc normalizeZero(value: float32): float32 =
   if value == 0'f32:
@@ -1225,16 +1644,146 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       result.bones[1].parentIndex = int32(0)
       result.bones[2].parentIndex = int32(1)
 
+      # センター position: VRoid = 腰*0.7, generic = avg(leftLeg, leftKnee)
       if isVroidProfile(jsonData, modelName):
         let hipsPos = result.bones[3].position
         result.bones[1].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.7'f32, z: 0'f32)
-        result.bones[2].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.8'f32, z: 0'f32)
       elif result.bones.len > 86:
         let leftLegY = result.bones[85].position.y
         let leftKneeY = result.bones[86].position.y
         let centerY = (leftLegY + leftKneeY) / 2'f32
         result.bones[1].position = Vec3f(x: 0'f32, y: centerY, z: 0'f32)
-        result.bones[2].position = Vec3f(x: 0'f32, y: centerY * 1.025'f32, z: 0'f32)
+
+      # グルーブ position: always センター.y * 1.025
+      # Python processes グルーブ before 腰 is added to bones, so it always uses
+      # the generic formula (センター.y * 1.025) regardless of profile.
+      result.bones[2].position = Vec3f(x: 0'f32, y: result.bones[1].position.y * 1.025'f32, z: 0'f32)
+
+      # センター: flag=0x1e (no tail-index bit = tail_pos mode), tail_pos=(0,-pos.y,0)
+      result.bones[1].flag = int16(0x001e)
+      result.bones[1].tailPosition = Vec3f(x: 0'f32, y: -result.bones[1].position.y, z: 0'f32)
+
+      # グルーブ: flag=0x201e (0x2000=external-parent-deform | 0x1e), tail_pos mode
+      result.bones[2].flag = int16(0x201e)
+      result.bones[2].tailPosition = Vec3f(x: 0'f32, y: result.bones[1].position.y * 0.175'f32, z: 0'f32)
+
+      # Apply standard bone parent/tail/flag from const tables for all 106 canonical bones.
+      # Bones 1 (センター) and 2 (グルーブ) are already handled above; skip them.
+      for b in 0 ..< min(BONE_PARENT_IDX.len, result.bones.len):
+        if b == 1 or b == 2:
+          continue
+        let f = BONE_DEFAULT_FLAG[b]
+        result.bones[b].flag = f
+        result.bones[b].parentIndex = BONE_PARENT_IDX[b]
+        if (int(f) and 0x0001) != 0:
+          result.bones[b].tailIndex = BONE_TAIL_IDX[b]
+          result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+        else:
+          result.bones[b].tailIndex = int32(-1)
+          result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+      # 肩C bones: append rotation from 肩P (flag & 0x0100)
+      if result.bones.len > 52:
+        # 肩P/肩C positions follow 肩 position
+        result.bones[16].position = result.bones[17].position
+        result.bones[18].position = result.bones[17].position
+        result.bones[50].position = result.bones[51].position
+        result.bones[52].position = result.bones[51].position
+
+        result.bones[18].appendBoneIndex = int32(16)  # 左肩C → 左肩P
+        result.bones[18].appendRatio = -1'f32
+        result.bones[52].appendBoneIndex = int32(50)  # 右肩C → 右肩P
+        result.bones[52].appendRatio = -1'f32
+
+      # 下半身: tail_pos mode, tail = 腰 - 下半身
+      if result.bones.len > 4:
+        if result.bones[3].position.x == 0'f32:
+          result.bones[3].position.x = -0'f32
+        result.bones[4].flag = int16(0x001a)
+        result.bones[4].tailIndex = int32(-1)
+        result.bones[4].tailPosition = vecSub(result.bones[3].position, result.bones[4].position)
+
+      # 頭: tail_pos=(0,1,0)
+      if result.bones.len > 8:
+        result.bones[8].flag = int16(0x001a)
+        result.bones[8].tailIndex = int32(-1)
+        result.bones[8].tailPosition = Vec3f(x: 0'f32, y: 1'f32, z: 0'f32)
+
+      # 両目 and 左右目 append behavior
+      if result.bones.len > 11:
+        result.bones[9].flag = int16(0x001a)
+        if isVroidProfile(jsonData, modelName):
+          let leftEye = result.bones[10].position
+          let rightEye = result.bones[11].position
+          if (leftEye.x != 0'f32 or leftEye.y != 0'f32 or leftEye.z != 0'f32 or
+              rightEye.x != 0'f32 or rightEye.y != 0'f32 or rightEye.z != 0'f32):
+            result.bones[9].position = vecAdd(leftEye, vecScale(vecSub(rightEye, leftEye), 0.5'f32))
+          else:
+            result.bones[9].position = Vec3f(
+              x: 0'f32,
+              y: result.bones[8].position.y + (result.bones[8].position.y - result.bones[7].position.y) * 3'f32,
+              z: result.bones[9].position.z * 2'f32,
+            )
+        else:
+          result.bones[9].position = Vec3f(
+            x: 0'f32,
+            y: result.bones[8].position.y + (result.bones[8].position.y - result.bones[7].position.y) * 3'f32,
+            z: result.bones[9].position.z * 2'f32,
+          )
+        result.bones[9].tailIndex = int32(-1)
+        result.bones[9].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: -1'f32)
+
+        for eyeIdx in [10, 11]:
+          result.bones[eyeIdx].flag = int16(0x011a)
+          result.bones[eyeIdx].tailIndex = int32(-1)
+          result.bones[eyeIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: -1'f32)
+          result.bones[eyeIdx].appendBoneIndex = int32(9)
+          result.bones[eyeIdx].appendRatio = 1'f32
+
+      # 腰キャンセル: append from 腰, position matches 足
+      if result.bones.len > 92:
+        result.bones[84].flag = int16(0x0102)
+        result.bones[84].position = result.bones[85].position
+        result.bones[84].tailIndex = int32(-1)
+        result.bones[84].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+        result.bones[84].appendBoneIndex = int32(3)
+        result.bones[84].appendRatio = -1'f32
+
+        result.bones[91].flag = int16(0x0102)
+        result.bones[91].position = result.bones[92].position
+        result.bones[91].tailIndex = int32(-1)
+        result.bones[91].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+        result.bones[91].appendBoneIndex = int32(3)
+        result.bones[91].appendRatio = -1'f32
+
+      # D bones: layer=1, append from parent (without D)
+      if result.bones.len > 105:
+        for (dIdx, parentIdx) in [(98, 85), (99, 86), (100, 87), (102, 92), (103, 93), (104, 94)]:
+          result.bones[dIdx].position = result.bones[parentIdx].position
+          result.bones[dIdx].layer = int32(1)
+          result.bones[dIdx].flag = int16(0x011a)
+          result.bones[dIdx].tailIndex = int32(-1)
+          result.bones[dIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+          result.bones[dIdx].appendBoneIndex = int32(parentIdx)
+          result.bones[dIdx].appendRatio = 1'f32
+
+        # 足先EX: layer=1, tail_pos mode
+        for exIdx in [101, 105]:
+          result.bones[exIdx].layer = int32(1)
+          result.bones[exIdx].flag = int16(0x001a)
+          result.bones[exIdx].tailIndex = int32(-1)
+          result.bones[exIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+      # 手首: tail_pos = normalize(手首 - ひじ)
+      if result.bones.len > 63:
+        for (wristIdx, elbowIdx) in [(29, 24), (63, 58)]:
+          result.bones[wristIdx].flag = int16(0x001a)
+          result.bones[wristIdx].tailIndex = int32(-1)
+          result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
+
+      # Arm/Wrist twist + local/fixed axis metadata
+      applyArmTwistLayout(result.bones, "左")
+      applyArmTwistLayout(result.bones, "右")
 
 proc main() =
   let args = commandLineParams()
