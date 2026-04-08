@@ -691,37 +691,94 @@ proc signf(value: float64): int =
   return 0
 
 proc vecSub(a, b: Vec3f): Vec3f =
-  Vec3f(x: a.x - b.x, y: a.y - b.y, z: a.z - b.z)
+  Vec3f(
+    x: float32(float64(a.x) - float64(b.x)),
+    y: float32(float64(a.y) - float64(b.y)),
+    z: float32(float64(a.z) - float64(b.z)),
+  )
 
 proc vecAdd(a, b: Vec3f): Vec3f =
-  Vec3f(x: a.x + b.x, y: a.y + b.y, z: a.z + b.z)
+  Vec3f(
+    x: float32(float64(a.x) + float64(b.x)),
+    y: float32(float64(a.y) + float64(b.y)),
+    z: float32(float64(a.z) + float64(b.z)),
+  )
 
 proc vecScale(a: Vec3f, s: float32): Vec3f =
-  Vec3f(x: a.x * s, y: a.y * s, z: a.z * s)
+  Vec3f(
+    x: float32(float64(a.x) * float64(s)),
+    y: float32(float64(a.y) * float64(s)),
+    z: float32(float64(a.z) * float64(s)),
+  )
 
 proc vecLen(a: Vec3f): float32 =
-  sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
+  float32(sqrt(float64(a.x) * float64(a.x) + float64(a.y) * float64(a.y) + float64(a.z) * float64(a.z)))
 
 proc vecNormalize(a: Vec3f): Vec3f =
-  let l = vecLen(a)
-  if l <= 1.0e-8'f32:
+  let l64 = sqrt(float64(a.x) * float64(a.x) + float64(a.y) * float64(a.y) + float64(a.z) * float64(a.z))
+  if l64 <= 1.0e-8:
     return Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
-  Vec3f(x: a.x / l, y: a.y / l, z: a.z / l)
+  Vec3f(
+    x: float32(float64(a.x) / l64),
+    y: float32(float64(a.y) / l64),
+    z: float32(float64(a.z) / l64),
+  )
 
 proc vecCross(a, b: Vec3f): Vec3f =
   Vec3f(
+    x: float32(float64(a.y) * float64(b.z) - float64(a.z) * float64(b.y)),
+    y: float32(float64(a.z) * float64(b.x) - float64(a.x) * float64(b.z)),
+    z: float32(float64(a.x) * float64(b.y) - float64(a.y) * float64(b.x)),
+  )
+
+proc vec3dToVec3f(v: Vec3d): Vec3f =
+  Vec3f(x: float32(v.x), y: float32(v.y), z: float32(v.z))
+
+proc vecSubD(a, b: Vec3d): Vec3d =
+  (x: a.x - b.x, y: a.y - b.y, z: a.z - b.z)
+
+proc vecAddD(a, b: Vec3d): Vec3d =
+  (x: a.x + b.x, y: a.y + b.y, z: a.z + b.z)
+
+proc vecScaleD(a: Vec3d, s: float64): Vec3d =
+  (x: a.x * s, y: a.y * s, z: a.z * s)
+
+proc vecNormD(a: Vec3d): Vec3d =
+  let l = sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
+  if l <= 1.0e-12:
+    return (x: 0.0, y: 0.0, z: 0.0)
+  (x: a.x / l, y: a.y / l, z: a.z / l)
+
+proc vecCrossD(a, b: Vec3d): Vec3d =
+  (
     x: a.y * b.z - a.z * b.y,
     y: a.z * b.x - a.x * b.z,
     z: a.x * b.y - a.y * b.x,
   )
 
-proc applyArmTwistLayout(bones: var seq[PmxBoneLite], dir: string) =
+proc applyArmTwistLayout(
+  bones: var seq[PmxBoneLite],
+  dir: string,
+  precisePos: seq[Vec3d],
+  hasPrecisePos: seq[bool],
+) =
   let (shoulderIdx, armIdx, elbowIdx, armTwistIdx, wristIdx, wristTwistIdx) =
     if dir == "左": (17, 19, 24, 20, 29, 25) else: (51, 53, 58, 54, 63, 59)
   if bones.len <= wristIdx:
     return
 
-  let localY = Vec3f(x: 0'f32, y: -1'f32, z: 0'f32)
+  let localYf = Vec3f(x: 0'f32, y: -1'f32, z: 0'f32)
+  let localYd: Vec3d = (x: 0.0, y: -1.0, z: 0.0)
+
+  template p(idx: int): untyped =
+    (if idx >= 0 and idx < precisePos.len and idx < hasPrecisePos.len and hasPrecisePos[idx]:
+      precisePos[idx]
+    else:
+      (
+        x: float64(bones[idx].position.x),
+        y: float64(bones[idx].position.y),
+        z: float64(bones[idx].position.z),
+      ))
 
   # shoulder/arm/elbow/wrist: add local-axis flag and vectors
   for (idx, fromIdx, toIdx) in [
@@ -731,26 +788,31 @@ proc applyArmTwistLayout(bones: var seq[PmxBoneLite], dir: string) =
     (wristIdx, elbowIdx, wristIdx),
   ]:
     bones[idx].flag = int16(int(bones[idx].flag) or 0x0800)
-    let xAxis = vecNormalize(vecSub(bones[toIdx].position, bones[fromIdx].position))
-    bones[idx].localXAxis = xAxis
-    bones[idx].localZAxis = vecCross(xAxis, localY)
+    let xAxisD = vecNormD(vecSubD(p(toIdx), p(fromIdx)))
+    bones[idx].localXAxis = vec3dToVec3f(xAxisD)
+    bones[idx].localZAxis = vec3dToVec3f(vecCrossD(xAxisD, localYd))
 
   # arm twist main bone
-  bones[armTwistIdx].position = vecAdd(bones[armIdx].position, vecScale(vecSub(bones[elbowIdx].position, bones[armIdx].position), 0.5'f32))
+  let armPosD = p(armIdx)
+  let elbowPosD = p(elbowIdx)
+  let wristPosD = p(wristIdx)
+  let armTwistPosD = vecAddD(armPosD, vecScaleD(vecSubD(elbowPosD, armPosD), 0.5))
+  bones[armTwistIdx].position = vec3dToVec3f(armTwistPosD)
   bones[armTwistIdx].parentIndex = int32(armIdx)
   bones[armTwistIdx].flag = int16(0x0002 or 0x0008 or 0x0010 or 0x0400 or 0x0800)
   bones[armTwistIdx].tailIndex = int32(-1)
   bones[armTwistIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
-  bones[armTwistIdx].fixedAxis = vecNormalize(vecSub(bones[elbowIdx].position, bones[armIdx].position))
-  bones[armTwistIdx].localXAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
-  bones[armTwistIdx].localZAxis = vecCross(bones[armTwistIdx].localXAxis, localY)
+  bones[armTwistIdx].fixedAxis = vec3dToVec3f(vecNormD(vecSubD(elbowPosD, armPosD)))
+  let armTwistLocalXD = vecNormD(vecSubD(wristPosD, elbowPosD))
+  bones[armTwistIdx].localXAxis = vec3dToVec3f(armTwistLocalXD)
+  bones[armTwistIdx].localZAxis = vec3dToVec3f(vecCrossD(armTwistLocalXD, localYd))
 
   # arm twist sub bones 1/2/3
   for (subOffset, factor) in [(1, 0.25'f32), (2, 0.5'f32), (3, 0.75'f32)]:
     let idx = armTwistIdx + subOffset
     if idx >= bones.len:
       continue
-    bones[idx].position = vecAdd(bones[armIdx].position, vecScale(vecSub(bones[elbowIdx].position, bones[armIdx].position), factor))
+    bones[idx].position = vec3dToVec3f(vecAddD(armPosD, vecScaleD(vecSubD(elbowPosD, armPosD), float64(factor))))
     bones[idx].parentIndex = int32(armIdx)
     bones[idx].flag = int16(0x0002 or 0x0100)
     bones[idx].tailIndex = int32(-1)
@@ -759,21 +821,22 @@ proc applyArmTwistLayout(bones: var seq[PmxBoneLite], dir: string) =
     bones[idx].appendRatio = factor
 
   # wrist twist main bone
-  bones[wristTwistIdx].position = vecAdd(bones[elbowIdx].position, vecScale(vecSub(bones[wristIdx].position, bones[elbowIdx].position), 0.5'f32))
+  bones[wristTwistIdx].position = vec3dToVec3f(vecAddD(elbowPosD, vecScaleD(vecSubD(wristPosD, elbowPosD), 0.5)))
   bones[wristTwistIdx].parentIndex = int32(elbowIdx)
   bones[wristTwistIdx].flag = int16(0x0002 or 0x0008 or 0x0010 or 0x0400 or 0x0800)
   bones[wristTwistIdx].tailIndex = int32(-1)
   bones[wristTwistIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
-  bones[wristTwistIdx].fixedAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
-  bones[wristTwistIdx].localXAxis = vecNormalize(vecSub(bones[wristIdx].position, bones[elbowIdx].position))
-  bones[wristTwistIdx].localZAxis = vecCross(bones[wristTwistIdx].localXAxis, localY)
+  let wristTwistAxisD = vecNormD(vecSubD(wristPosD, elbowPosD))
+  bones[wristTwistIdx].fixedAxis = vec3dToVec3f(wristTwistAxisD)
+  bones[wristTwistIdx].localXAxis = vec3dToVec3f(wristTwistAxisD)
+  bones[wristTwistIdx].localZAxis = vec3dToVec3f(vecCrossD(wristTwistAxisD, localYd))
 
   # wrist twist sub bones 1/2/3
   for (subOffset, factor) in [(1, 0.25'f32), (2, 0.5'f32), (3, 0.75'f32)]:
     let idx = wristTwistIdx + subOffset
     if idx >= bones.len:
       continue
-    bones[idx].position = vecAdd(bones[elbowIdx].position, vecScale(vecSub(bones[wristIdx].position, bones[elbowIdx].position), factor))
+    bones[idx].position = vec3dToVec3f(vecAddD(elbowPosD, vecScaleD(vecSubD(wristPosD, elbowPosD), float64(factor))))
     bones[idx].parentIndex = int32(elbowIdx)
     bones[idx].flag = int16(0x0002 or 0x0100)
     bones[idx].tailIndex = int32(-1)
@@ -1408,6 +1471,20 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   let nodeParents = buildNodeParents(jsonData)
   let boneWorldXs = buildBoneWorldXs(jsonData, nodeToBoneIdx)
   result.boneCountHint = estimateBoneCountHint(nodeToBoneIdx)
+  var precisePos = newSeq[Vec3d](max(0, result.boneCountHint))
+  var hasPrecisePos = newSeq[bool](max(0, result.boneCountHint))
+  for nodeIdx, boneIdx in nodeToBoneIdx:
+    let b = int(boneIdx)
+    if b < 0 or b >= precisePos.len:
+      continue
+    if nodeIdx >= 0 and nodeIdx < nodeWorldMatrices.len:
+      let wm = nodeWorldMatrices[nodeIdx]
+      precisePos[b] = (
+        x: -wm[3 * 4 + 0] * float64(MIKU_METER),
+        y: wm[3 * 4 + 1] * float64(MIKU_METER),
+        z: wm[3 * 4 + 2] * float64(MIKU_METER),
+      )
+      hasPrecisePos[b] = true
   result.morphCountHint = estimateMorphCount(jsonData)
   result.rigidbodyCountHint = estimateRigidbodyCount(jsonData)
 
@@ -1701,7 +1778,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[3].position.x = -0'f32
         result.bones[4].flag = int16(0x001a)
         result.bones[4].tailIndex = int32(-1)
-        result.bones[4].tailPosition = vecSub(result.bones[3].position, result.bones[4].position)
+        if hasPrecisePos.len > 4 and hasPrecisePos[3] and hasPrecisePos[4]:
+          result.bones[4].tailPosition = vec3dToVec3f(vecSubD(precisePos[3], precisePos[4]))
+        else:
+          result.bones[4].tailPosition = vecSub(result.bones[3].position, result.bones[4].position)
 
       # 頭: tail_pos=(0,1,0)
       if result.bones.len > 8:
@@ -1711,24 +1791,34 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
       # 両目 and 左右目 append behavior
       if result.bones.len > 11:
+        template bp(i: int): Vec3d =
+          (if i >= 0 and i < hasPrecisePos.len and hasPrecisePos[i]: precisePos[i]
+           else: (x: float64(result.bones[i].position.x), y: float64(result.bones[i].position.y), z: float64(result.bones[i].position.z)))
+
         result.bones[9].flag = int16(0x001a)
         if isVroidProfile(jsonData, modelName):
-          let leftEye = result.bones[10].position
-          let rightEye = result.bones[11].position
-          if (leftEye.x != 0'f32 or leftEye.y != 0'f32 or leftEye.z != 0'f32 or
-              rightEye.x != 0'f32 or rightEye.y != 0'f32 or rightEye.z != 0'f32):
-            result.bones[9].position = vecAdd(leftEye, vecScale(vecSub(rightEye, leftEye), 0.5'f32))
+          let leftEye = bp(10)
+          let rightEye = bp(11)
+          if (leftEye.x != 0.0 or leftEye.y != 0.0 or leftEye.z != 0.0 or
+              rightEye.x != 0.0 or rightEye.y != 0.0 or rightEye.z != 0.0):
+            result.bones[9].position = vec3dToVec3f(vecAddD(leftEye, vecScaleD(vecSubD(rightEye, leftEye), 0.5)))
           else:
+            let head = bp(8)
+            let neck = bp(7)
+            let both = bp(9)
             result.bones[9].position = Vec3f(
               x: 0'f32,
-              y: result.bones[8].position.y + (result.bones[8].position.y - result.bones[7].position.y) * 3'f32,
-              z: result.bones[9].position.z * 2'f32,
+              y: float32(head.y + (head.y - neck.y) * 3.0),
+              z: float32(both.z * 2.0),
             )
         else:
+          let head = bp(8)
+          let neck = bp(7)
+          let both = bp(9)
           result.bones[9].position = Vec3f(
             x: 0'f32,
-            y: result.bones[8].position.y + (result.bones[8].position.y - result.bones[7].position.y) * 3'f32,
-            z: result.bones[9].position.z * 2'f32,
+            y: float32(head.y + (head.y - neck.y) * 3.0),
+            z: float32(both.z * 2.0),
           )
         result.bones[9].tailIndex = int32(-1)
         result.bones[9].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: -1'f32)
@@ -1756,6 +1846,19 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[91].appendBoneIndex = int32(3)
         result.bones[91].appendRatio = -1'f32
 
+      # 指先 bones: flag=0x0002, tail_pos=(0,0,0), and fallback position when missing.
+      if result.bones.len > 83:
+        for tipIdx in [33, 37, 41, 45, 49, 67, 71, 75, 79, 83]:
+          result.bones[tipIdx].flag = int16(0x0002)
+          result.bones[tipIdx].tailIndex = int32(-1)
+          result.bones[tipIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+          if result.bones[tipIdx].position == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
+            let parentIdx = int(BONE_PARENT_IDX[tipIdx])
+            if parentIdx >= 0 and parentIdx < result.bones.len:
+              let p = result.bones[parentIdx].position
+              let sx = if p.x > 0'f32: 1'f32 elif p.x < 0'f32: -1'f32 else: 0'f32
+              result.bones[tipIdx].position = Vec3f(x: p.x + sx, y: p.y, z: p.z)
+
       # D bones: layer=1, append from parent (without D)
       if result.bones.len > 105:
         for (dIdx, parentIdx) in [(98, 85), (99, 86), (100, 87), (102, 92), (103, 93), (104, 94)]:
@@ -1782,8 +1885,20 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
 
       # Arm/Wrist twist + local/fixed axis metadata
-      applyArmTwistLayout(result.bones, "左")
-      applyArmTwistLayout(result.bones, "右")
+      applyArmTwistLayout(result.bones, "左", precisePos, hasPrecisePos)
+      applyArmTwistLayout(result.bones, "右", precisePos, hasPrecisePos)
+
+      # Python final wrist rule overrides local-axis addition from twist setup.
+      if result.bones.len > 63:
+        for (wristIdx, elbowIdx) in [(29, 24), (63, 58)]:
+          result.bones[wristIdx].flag = int16(0x001a)
+          result.bones[wristIdx].tailIndex = int32(-1)
+          if wristIdx < hasPrecisePos.len and elbowIdx < hasPrecisePos.len and hasPrecisePos[wristIdx] and hasPrecisePos[elbowIdx]:
+            result.bones[wristIdx].tailPosition = vec3dToVec3f(vecNormD(vecSubD(precisePos[wristIdx], precisePos[elbowIdx])))
+          else:
+            result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
+          result.bones[wristIdx].localXAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+          result.bones[wristIdx].localZAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
 proc main() =
   let args = commandLineParams()
