@@ -1221,6 +1221,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
     # Match Python center/groove placement.
     # default_pairs index: 1=センター, 2=グルーブ, 3=腰, 85=左足, 86=左ひざ
     if result.bones.len > 3:
+      # default_pairs: センター(parent=全ての親), グルーブ(parent=センター)
+      result.bones[1].parentIndex = int32(0)
+      result.bones[2].parentIndex = int32(1)
+
       if isVroidProfile(jsonData, modelName):
         let hipsPos = result.bones[3].position
         result.bones[1].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.7'f32, z: 0'f32)
