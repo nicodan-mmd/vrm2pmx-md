@@ -273,6 +273,31 @@ const BONE_PAIRS_EN = [
   "J_Bip_R_ToeBase"
 ]
 
+const BONE_PAIRS_JA = [
+  "全ての親", "センター", "グルーブ", "腰", "下半身",
+  "上半身", "上半身2", "首", "頭", "両目",
+  "左目", "右目", "左胸", "左胸先", "右胸",
+  "右胸先", "左肩P", "左肩", "左肩C", "左腕",
+  "左腕捩", "左腕捩1", "左腕捩2", "左腕捩3", "左ひじ",
+  "左手捩", "左手捩1", "左手捩2", "左手捩3", "左手首",
+  "左親指０", "左親指１", "左親指２", "左親指先", "左人指１",
+  "左人指２", "左人指３", "左人指先", "左中指１", "左中指２",
+  "左中指３", "左中指先", "左薬指１", "左薬指２", "左薬指３",
+  "左薬指先", "左小指１", "左小指２", "左小指３", "左小指先",
+  "右肩P", "右肩", "右肩C", "右腕", "右腕捩",
+  "右腕捩1", "右腕捩2", "右腕捩3", "右ひじ", "右手捩",
+  "右手捩1", "右手捩2", "右手捩3", "右手首", "右親指０",
+  "右親指１", "右親指２", "右親指先", "右人指１", "右人指２",
+  "右人指３", "右人指先", "右中指１", "右中指２", "右中指３",
+  "右中指先", "右薬指１", "右薬指２", "右薬指３", "右薬指先",
+  "右小指１", "右小指２", "右小指３", "右小指先", "腰キャンセル左",
+  "左足", "左ひざ", "左足首", "左つま先", "左足ＩＫ",
+  "左つま先ＩＫ", "腰キャンセル右", "右足", "右ひざ", "右足首",
+  "右つま先", "右足ＩＫ", "右つま先ＩＫ", "左足D", "左ひざD",
+  "左足首D", "左足先EX", "右足D", "右ひざD", "右足首D",
+  "右足先EX"
+]
+
 proc buildBonePairsLookup(): Table[string, int] =
   for i, name in BONE_PAIRS_EN:
     result[name] = i
@@ -928,6 +953,16 @@ proc getSphereAddIndex(jsonData: JsonNode, materialNode: JsonNode, pmxTextureCou
         return (int32(candidate), int8(2))
   return (int32(-1), int8(0))
 
+proc isVroidProfile(jsonData: JsonNode, modelName: string): bool =
+  let lowerName = modelName.toLowerAscii()
+  var generator = ""
+  if jsonData.hasKey("asset") and jsonData["asset"].kind == JObject and jsonData["asset"].hasKey("generator"):
+    generator = jsonData["asset"]["generator"].getStr("").toLowerAscii()
+  let hasVroidHint = lowerName.contains("vroid") or generator.contains("vroid")
+  let hasVrm0 = jsonData.hasKey("extensions") and jsonData["extensions"].kind == JObject and jsonData["extensions"].hasKey("VRM")
+  let hasVrm1 = jsonData.hasKey("extensions") and jsonData["extensions"].kind == JObject and jsonData["extensions"].hasKey("VRMC_vrm")
+  return hasVroidHint and (hasVrm0 or hasVrm1)
+
 proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName: string): PmxModelLite =
   let meta = readModelMetadata(jsonData, modelName)
   result.name = meta.name
@@ -1121,6 +1156,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       let node = jsonData["nodes"][nodeIdx]
       var boneName = if node.hasKey("name"): node["name"].getStr("bone_" & $b) else: "bone_" & $b
       var boneEnglishName = boneName
+      if b >= 0 and b < BONE_PAIRS_JA.len:
+        boneName = BONE_PAIRS_JA[b]
+        boneEnglishName = BONE_PAIRS_EN[b]
       if b == 0:
         boneName = "全ての親"
         boneEnglishName = "Root"
@@ -1148,6 +1186,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             tailIndex = nodeToBoneIdx[cNode]
             break
 
+      # Match Python baseline root bone connection: "全ての親" -> "センター" (index 1)
+      if b == 0 and result.bones.len > 1:
+        tailIndex = int32(1)
+
       result.bones[b] = PmxBoneLite(
         name: boneName,
         englishName: boneEnglishName,
@@ -1163,9 +1205,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
     for i in 0 ..< result.bones.len:
       if initialized[i]:
         continue
+      let fallbackJa = if i < BONE_PAIRS_JA.len: BONE_PAIRS_JA[i] else: "bone_" & $i
+      let fallbackEn = if i < BONE_PAIRS_EN.len: BONE_PAIRS_EN[i] else: "bone_" & $i
       result.bones[i] = PmxBoneLite(
-        name: "bone_" & $i,
-        englishName: "bone_" & $i,
+        name: fallbackJa,
+        englishName: fallbackEn,
         position: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
         parentIndex: int32(-1),
         layer: int32(0),
@@ -1173,6 +1217,20 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         tailIndex: int32(-1),
         tailPosition: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
       )
+
+    # Match Python center/groove placement.
+    # default_pairs index: 1=センター, 2=グルーブ, 3=腰, 85=左足, 86=左ひざ
+    if result.bones.len > 3:
+      if isVroidProfile(jsonData, modelName):
+        let hipsPos = result.bones[3].position
+        result.bones[1].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.7'f32, z: 0'f32)
+        result.bones[2].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.8'f32, z: 0'f32)
+      elif result.bones.len > 86:
+        let leftLegY = result.bones[85].position.y
+        let leftKneeY = result.bones[86].position.y
+        let centerY = (leftLegY + leftKneeY) / 2'f32
+        result.bones[1].position = Vec3f(x: 0'f32, y: centerY, z: 0'f32)
+        result.bones[2].position = Vec3f(x: 0'f32, y: centerY * 1.025'f32, z: 0'f32)
 
 proc main() =
   let args = commandLineParams()
