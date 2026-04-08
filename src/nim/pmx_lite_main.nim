@@ -159,6 +159,20 @@ proc buildNodeWorldMatrices(jsonData: JsonNode): seq[Mat4d] =
     discard resolveWorld(i)
   result = worldMats
 
+proc buildNodeParents(jsonData: JsonNode): seq[int] =
+  if not jsonData.hasKey("nodes"):
+    return @[]
+  let nodes = jsonData["nodes"]
+  result = newSeq[int](nodes.len)
+  for i in 0 ..< nodes.len:
+    result[i] = -1
+  for parentIdx, node in nodes.elems:
+    if node.hasKey("children") and node["children"].kind == JArray:
+      for child in node["children"]:
+        let childIdx = child.getInt(-1)
+        if childIdx >= 0 and childIdx < result.len:
+          result[childIdx] = parentIdx
+
 proc getSkinIndexForMesh(jsonData: JsonNode, meshIdx: int): int =
   if not jsonData.hasKey("nodes"):
     return -1
@@ -322,6 +336,11 @@ proc signf(value: float64): int =
   if value < 0.0:
     return -1
   return 0
+
+proc normalizeZero(value: float32): float32 =
+  if value == 0'f32:
+    return 0'f32
+  return value
 
 proc containsBone(bones: seq[int32], target: int32): bool =
   for bone in bones:
@@ -923,6 +942,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.indices = @[]
   result.textures = buildPmxTextureList(jsonData)
   result.materials = @[]
+  result.bones = @[]
 
   if not jsonData.hasKey("meshes"):
     return
@@ -931,6 +951,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   let bonePairsLookup = buildBonePairsLookup()
   let nodeToBoneIdx = buildNodeToPmxBoneIndex(jsonData, bonePairsLookup)
   let nodeWorldMatrices = buildNodeWorldMatrices(jsonData)
+  let nodeParents = buildNodeParents(jsonData)
   let boneWorldXs = buildBoneWorldXs(jsonData, nodeToBoneIdx)
   result.boneCountHint = estimateBoneCountHint(nodeToBoneIdx)
   result.morphCountHint = estimateMorphCount(jsonData)
@@ -1086,6 +1107,72 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       mat.toonTextureIndex = int32(1)
 
     result.materials.add(mat)
+
+  # Build minimal bones from mapped glTF nodes.
+  if result.boneCountHint > 0:
+    result.bones = newSeq[PmxBoneLite](result.boneCountHint)
+    var initialized = newSeq[bool](result.boneCountHint)
+
+    for nodeIdx, boneIdx in nodeToBoneIdx:
+      let b = int(boneIdx)
+      if b < 0 or b >= result.bones.len:
+        continue
+
+      let node = jsonData["nodes"][nodeIdx]
+      var boneName = if node.hasKey("name"): node["name"].getStr("bone_" & $b) else: "bone_" & $b
+      var boneEnglishName = boneName
+      if b == 0:
+        boneName = "全ての親"
+        boneEnglishName = "Root"
+
+      var bonePos = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+      if nodeIdx >= 0 and nodeIdx < nodeWorldMatrices.len:
+        let wm = nodeWorldMatrices[nodeIdx]
+        bonePos = Vec3f(
+          x: normalizeZero(float32(-wm[3 * 4 + 0] * float64(MIKU_METER))),
+          y: normalizeZero(float32(wm[3 * 4 + 1] * float64(MIKU_METER))),
+          z: normalizeZero(float32(wm[3 * 4 + 2] * float64(MIKU_METER))),
+        )
+
+      var parentIndex = int32(-1)
+      if nodeIdx >= 0 and nodeIdx < nodeParents.len:
+        let pNode = nodeParents[nodeIdx]
+        if pNode >= 0 and nodeToBoneIdx.hasKey(pNode):
+          parentIndex = nodeToBoneIdx[pNode]
+
+      var tailIndex = int32(-1)
+      if node.hasKey("children") and node["children"].kind == JArray:
+        for child in node["children"]:
+          let cNode = child.getInt(-1)
+          if cNode >= 0 and nodeToBoneIdx.hasKey(cNode):
+            tailIndex = nodeToBoneIdx[cNode]
+            break
+
+      result.bones[b] = PmxBoneLite(
+        name: boneName,
+        englishName: boneEnglishName,
+        position: bonePos,
+        parentIndex: parentIndex,
+        layer: int32(0),
+        flag: int16(0x0001 or 0x0002 or 0x0004 or 0x0008 or 0x0010),
+        tailIndex: tailIndex,
+        tailPosition: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      )
+      initialized[b] = true
+
+    for i in 0 ..< result.bones.len:
+      if initialized[i]:
+        continue
+      result.bones[i] = PmxBoneLite(
+        name: "bone_" & $i,
+        englishName: "bone_" & $i,
+        position: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+        parentIndex: int32(-1),
+        layer: int32(0),
+        flag: int16(0x0001 or 0x0002 or 0x0004 or 0x0008 or 0x0010),
+        tailIndex: int32(-1),
+        tailPosition: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      )
 
 proc main() =
   let args = commandLineParams()

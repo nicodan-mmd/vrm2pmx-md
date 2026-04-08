@@ -17,7 +17,7 @@ type
     w*: float32
 
   PmxDeformLite* = object
-    ## kind: 0=Bdef1, 1=Bdef2, 3=Bdef4
+    ## kind: 0=Bdef1, 1=Bdef2, 2=Bdef4
     kind*: int
     bones*: array[4, int32]
     weights*: array[4, float32]
@@ -47,6 +47,16 @@ type
     comment*: string
     vertexCount*: int32
 
+  PmxBoneLite* = object
+    name*: string
+    englishName*: string
+    position*: Vec3f
+    parentIndex*: int32
+    layer*: int32
+    flag*: int16
+    tailIndex*: int32
+    tailPosition*: Vec3f
+
   PmxModelLite* = object
     name*: string
     englishName*: string
@@ -56,6 +66,7 @@ type
     indices*: seq[int32]
     textures*: seq[string]
     materials*: seq[PmxMaterialLite]
+    bones*: seq[PmxBoneLite]
     boneCountHint*: int
     morphCountHint*: int
     rigidbodyCountHint*: int
@@ -131,7 +142,7 @@ proc makeBdef2*(bone0, bone1: int32, weight0: float32): PmxDeformLite =
   result.weights[0] = weight0
 
 proc makeBdef4*(bone0, bone1, bone2, bone3: int32; w0, w1, w2, w3: float32): PmxDeformLite =
-  result.kind = 3
+  result.kind = 2
   result.bones[0] = bone0
   result.bones[1] = bone1
   result.bones[2] = bone2
@@ -148,7 +159,7 @@ proc defaultMaterial*(vertexCount: int32): PmxMaterialLite =
   result.specular = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
   result.specularFactor = 0'f32
   result.ambient = Vec3f(x: 0.5'f32, y: 0.5'f32, z: 0.5'f32)
-  result.flag = int8(0)
+  result.flag = int8(0x02 or 0x04 or 0x08)
   result.edgeColor = Vec4f(x: 0'f32, y: 0'f32, z: 0'f32, w: 1'f32)
   result.edgeSize = 1'f32
   result.textureIndex = int32(-1)
@@ -165,7 +176,7 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
   let vertexIdxSize = defineIndexSize(model.vertices.len)
   let textureIdxSize = defineIndexSize(model.textures.len)
   let materialIdxSize = defineIndexSize(model.materials.len)
-  let boneIdxSize = defineIndexSize(model.boneCountHint)
+  let boneIdxSize = defineIndexSize(model.bones.len)
   let morphIdxSize = defineIndexSize(model.morphCountHint)
   let rigidbodyIdxSize = defineIndexSize(model.rigidbodyCountHint)
 
@@ -205,8 +216,8 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
       addIntBySizeLE(result, v.deform.bones[0], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[1], boneIdxSize)
       addFloat32LE(result, v.deform.weights[0])
-    of 3:  # Bdef4
-      addByte(result, 3)
+    of 2:  # Bdef4
+      addByte(result, 2)
       addIntBySizeLE(result, v.deform.bones[0], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[1], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[2], boneIdxSize)
@@ -267,8 +278,28 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
     writeText(result, m.comment)
     addInt32LE(result, m.vertexCount)
 
-  # bones/morphs/display/rigidbodies/joints
-  addInt32LE(result, 0)
+  # bones
+  addInt32LE(result, int32(model.bones.len))
+  for b in model.bones:
+    writeText(result, b.name)
+    writeText(result, b.englishName)
+
+    addFloat32LE(result, b.position.x)
+    addFloat32LE(result, b.position.y)
+    addFloat32LE(result, b.position.z)
+
+    addIntBySizeLE(result, b.parentIndex, boneIdxSize)
+    addInt32LE(result, b.layer)
+    addInt16LE(result, int(b.flag))
+
+    if (int(b.flag) and 0x0001) != 0:
+      addIntBySizeLE(result, b.tailIndex, boneIdxSize)
+    else:
+      addFloat32LE(result, b.tailPosition.x)
+      addFloat32LE(result, b.tailPosition.y)
+      addFloat32LE(result, b.tailPosition.z)
+
+  # morphs/display/rigidbodies/joints
   addInt32LE(result, 0)
   addInt32LE(result, 0)
   addInt32LE(result, 0)
