@@ -756,6 +756,337 @@ proc vecCrossD(a, b: Vec3d): Vec3d =
     z: a.x * b.y - a.y * b.x,
   )
 
+type QuatD = object
+  w, x, y, z: float64
+
+proc vecToD(v: Vec3f): Vec3d =
+  (x: float64(v.x), y: float64(v.y), z: float64(v.z))
+
+proc vecDotD(a, b: Vec3d): float64 =
+  a.x * b.x + a.y * b.y + a.z * b.z
+
+proc vecLenD(a: Vec3d): float64 =
+  sqrt(vecDotD(a, a))
+
+proc vecAbs(v: Vec3f): Vec3f =
+  Vec3f(x: abs(v.x), y: abs(v.y), z: abs(v.z))
+
+proc vecMul(v: Vec3f, s: float32): Vec3f =
+  Vec3f(x: v.x * s, y: v.y * s, z: v.z * s)
+
+proc vecMid(a, b: Vec3f): Vec3f =
+  Vec3f(
+    x: float32((float64(a.x) + float64(b.x)) * 0.5),
+    y: float32((float64(a.y) + float64(b.y)) * 0.5),
+    z: float32((float64(a.z) + float64(b.z)) * 0.5),
+  )
+
+proc maxComponent(v: Vec3f): float32 =
+  max(v.x, max(v.y, v.z))
+
+proc argmaxAbs(v: Vec3f): int =
+  let ax = abs(v.x)
+  let ay = abs(v.y)
+  let az = abs(v.z)
+  if ax >= ay and ax >= az:
+    return 0
+  if ay >= az:
+    return 1
+  return 2
+
+proc medianValue(values: seq[float32]): float32 =
+  if values.len == 0:
+    return 0'f32
+  var sortedValues = values
+  sort(sortedValues)
+  let mid = sortedValues.len div 2
+  if (sortedValues.len mod 2) == 1:
+    return sortedValues[mid]
+  return (sortedValues[mid - 1] + sortedValues[mid]) * 0.5'f32
+
+proc medianValueD(values: seq[float64]): float64 =
+  if values.len == 0:
+    return 0.0
+  var sortedValues = values
+  sort(sortedValues)
+  let mid = sortedValues.len div 2
+  if (sortedValues.len mod 2) == 1:
+    return sortedValues[mid]
+  return (sortedValues[mid - 1] + sortedValues[mid]) * 0.5
+
+proc vecAbsD(v: Vec3d): Vec3d =
+  (x: abs(v.x), y: abs(v.y), z: abs(v.z))
+
+proc vecMidD(a, b: Vec3d): Vec3d =
+  (x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5, z: (a.z + b.z) * 0.5)
+
+proc argmaxAbsD(v: Vec3d): int =
+  let ax = abs(v.x)
+  let ay = abs(v.y)
+  let az = abs(v.z)
+  if ax >= ay and ax >= az:
+    return 0
+  if ay >= az:
+    return 1
+  return 2
+
+proc quatNormalize(q: QuatD): QuatD =
+  let l = sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z)
+  if l <= 1.0e-12:
+    return QuatD(w: 1.0, x: 0.0, y: 0.0, z: 0.0)
+  QuatD(w: q.w/l, x: q.x/l, y: q.y/l, z: q.z/l)
+
+proc quatMul(a, b: QuatD): QuatD =
+  QuatD(
+    w: a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z,
+    x: a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
+    y: a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x,
+    z: a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w,
+  )
+
+proc quatRotationTo(fromVec, toVec: Vec3d): QuatD =
+  let f = vecNormD(fromVec)
+  let t = vecNormD(toVec)
+  let d = vecDotD(f, t)
+  if d >= 1.0 - 1.0e-10:
+    return QuatD(w: 1.0, x: 0.0, y: 0.0, z: 0.0)
+  if d <= -1.0 + 1.0e-10:
+    var axis = vecCrossD((x: 1.0, y: 0.0, z: 0.0), f)
+    if vecLenD(axis) <= 1.0e-10:
+      axis = vecCrossD((x: 0.0, y: 1.0, z: 0.0), f)
+    axis = vecNormD(axis)
+    return QuatD(w: 0.0, x: axis.x, y: axis.y, z: axis.z)
+  let c = vecCrossD(f, t)
+  let s = sqrt((1.0 + d) * 2.0)
+  let invS = 1.0 / s
+  quatNormalize(QuatD(w: s * 0.5, x: c.x * invS, y: c.y * invS, z: c.z * invS))
+
+proc quatToEulerRad(qIn: QuatD): Vec3f =
+  let q = quatNormalize(qIn)
+  let xp = q.x
+  let yp = q.y
+  let zp = q.z
+  let wp = q.w
+
+  var xx = xp * xp
+  var xy = xp * yp
+  var xz = xp * zp
+  var xw = xp * wp
+  var yy = yp * yp
+  var yz = yp * zp
+  var yw = yp * wp
+  var zz = zp * zp
+  var zw = zp * wp
+  let lengthSquared = xx + yy + zz + wp * wp
+
+  if abs(lengthSquared - 1.0) > 1.0e-12 and abs(lengthSquared) > 1.0e-12:
+    xx /= lengthSquared
+    xy /= lengthSquared
+    xz /= lengthSquared
+    xw /= lengthSquared
+    yy /= lengthSquared
+    yz /= lengthSquared
+    yw /= lengthSquared
+    zz /= lengthSquared
+    zw /= lengthSquared
+
+  let pitch = arcsin(max(-1.0, min(1.0, -2.0 * (yz - xw))))
+  var yaw = 0.0
+  var roll = 0.0
+
+  if pitch < (PI / 2.0):
+    if pitch > -(PI / 2.0):
+      yaw = arctan2(2.0 * (xz + yw), 1.0 - 2.0 * (xx + yy))
+      roll = arctan2(2.0 * (xy + zw), 1.0 - 2.0 * (xx + zz))
+    else:
+      roll = 0.0
+      yaw = -arctan2(-2.0 * (xy - zw), 1.0 - 2.0 * (yy + zz))
+  else:
+    roll = 0.0
+    yaw = arctan2(-2.0 * (xy - zw), 1.0 - 2.0 * (yy + zz))
+
+  Vec3f(x: pitch.float32, y: yaw.float32, z: roll.float32)
+
+proc vertexBoneIdxList(v: PmxVertexLite, threshold: float32): seq[int32] =
+  case v.deform.kind
+  of 0:
+    result.add(v.deform.bones[0])
+  of 1:
+    if v.deform.weights[0] >= threshold:
+      result.add(v.deform.bones[0])
+    if 1.0'f32 - v.deform.weights[0] >= threshold:
+      result.add(v.deform.bones[1])
+  of 2:
+    for wi in 0..3:
+      if v.deform.weights[wi] >= threshold:
+        result.add(v.deform.bones[wi])
+  else:
+    discard
+
+proc computeRigidbodyGeometry(
+  model: PmxModelLite,
+  boneIndexByName: Table[string, int32],
+  boneVertices: Table[int32, seq[int]],
+  boneIdx: int32,
+  shapeType: int8,
+  rigidbodyFactor: float32,
+  isBody: bool,
+): tuple[shapeSize, shapePos, shapeRot: Vec3f] =
+  let bone = model.bones[int(boneIdx)]
+  template preciseBonePos(idx: int32): Vec3d =
+    (if idx >= 0 and idx < model.preciseBonePositions.len.int32 and idx < model.hasPreciseBonePositions.len.int32 and model.hasPreciseBonePositions[int(idx)]:
+      let p = model.preciseBonePositions[int(idx)]
+      (x: p.x, y: p.y, z: p.z)
+    else:
+      vecToD(model.bones[int(idx)].position))
+  template preciseTailPos(idx: int32): Vec3d =
+    (if idx >= 0 and idx < model.preciseTailPositions.len.int32 and idx < model.hasPreciseTailPositions.len.int32 and model.hasPreciseTailPositions[int(idx)]:
+      let p = model.preciseTailPositions[int(idx)]
+      (x: p.x, y: p.y, z: p.z)
+    else:
+      vecToD(model.bones[int(idx)].tailPosition))
+
+  if boneIdx notin boneVertices or boneVertices[boneIdx].len == 0:
+    return (
+      Vec3f(x: 0.01'f32, y: 0.01'f32, z: 0.01'f32),
+      bone.position,
+      Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+    )
+
+  template preciseVertexPos(idx: int): Vec3d =
+    (if idx >= 0 and idx < model.preciseVertexPositions.len:
+      let p = model.preciseVertexPositions[idx]
+      (x: p.x, y: p.y, z: p.z)
+    else:
+      vecToD(model.vertices[idx].position))
+
+  var xs, ys, zs: seq[float64] = @[]
+  var strongXs, strongYs, strongZs: seq[float64] = @[]
+  var meanX = 0.0
+  var meanY = 0.0
+  var meanZ = 0.0
+
+  for vertexIdx in boneVertices[boneIdx]:
+    let v = model.vertices[vertexIdx]
+    let preciseV = preciseVertexPos(vertexIdx)
+    xs.add(preciseV.x)
+    ys.add(preciseV.y)
+    zs.add(preciseV.z)
+    meanX += preciseV.x
+    meanY += preciseV.y
+    meanZ += preciseV.z
+
+    var isStrong = false
+    for strongBoneIdx in vertexBoneIdxList(v, 0.4'f32):
+      if strongBoneIdx == boneIdx:
+        isStrong = true
+        break
+    if isStrong:
+      strongXs.add(preciseV.x)
+      strongYs.add(preciseV.y)
+      strongZs.add(preciseV.z)
+
+  let vertexCount = float64(xs.len)
+  let meanNormal: Vec3d = (x: meanX / vertexCount, y: meanY / vertexCount, z: meanZ / vertexCount)
+
+  let minVertex: Vec3d = (x: min(xs), y: min(ys), z: min(zs))
+  let maxVertex: Vec3d = (x: max(xs), y: max(ys), z: max(zs))
+  var centerVertex: Vec3d = (x: medianValueD(xs), y: medianValueD(ys), z: medianValueD(zs))
+
+  let strongMinVertex = if strongXs.len > 0:
+      (x: min(strongXs), y: min(strongYs), z: min(strongZs))
+    else:
+      (x: 0.0, y: 0.0, z: 0.0)
+  let strongMaxVertex = if strongXs.len > 0:
+      (x: max(strongXs), y: max(strongYs), z: max(strongZs))
+    else:
+      (x: 0.0, y: 0.0, z: 0.0)
+
+  var tailBoneExists = false
+  var tailBoneIsEnd = false
+  let bonePosD = preciseBonePos(boneIdx)
+  var tailPosition = bonePosD
+  if bone.tailIndex > 0 and int(bone.tailIndex) < model.bones.len:
+    let tailBone = model.bones[int(bone.tailIndex)]
+    tailPosition = preciseBonePos(bone.tailIndex)
+    tailBoneExists = true
+    tailBoneIsEnd = tailBone.tailIndex == int32(-1)
+  else:
+    if boneIdx == int32(4) and model.preciseBonePositions.len > 4 and model.hasPreciseBonePositions.len > 4 and model.hasPreciseBonePositions[3] and model.hasPreciseBonePositions[4]:
+      tailPosition = preciseBonePos(int32(3))
+    else:
+      tailPosition = vecAddD(bonePosD, preciseTailPos(boneIdx))
+
+  let diffSize = if strongXs.len == 0 or isBody:
+      vecAbsD(vecSubD(maxVertex, minVertex))
+    else:
+      vecAbsD(vecSubD(strongMaxVertex, strongMinVertex))
+
+  var shapeSize = Vec3f(x: 0.01'f32, y: 0.01'f32, z: 0.01'f32)
+  var shapeRotation = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+  if shapeType == int8(0):
+    if bone.name == "頭" and "右目" in boneIndexByName and "左目" in boneIndexByName:
+      let rightEye = vecToD(model.bones[int(boneIndexByName["右目"])].position)
+      let leftEye = vecToD(model.bones[int(boneIndexByName["左目"])].position)
+      let eyeLength = vecLenD(vecSubD(rightEye, leftEye)) * 2.0
+      centerVertex.x = bonePosD.x
+      centerVertex.y = minVertex.y + (maxVertex.y - minVertex.y) * 0.5
+      centerVertex.z = bonePosD.z
+      shapeSize = vec3dToVec3f((x: eyeLength * float64(rigidbodyFactor), y: eyeLength * float64(rigidbodyFactor), z: eyeLength * float64(rigidbodyFactor)))
+    else:
+      let maxSize = max(diffSize.x, max(diffSize.y, diffSize.z)) * 0.5 * float64(rigidbodyFactor)
+      shapeSize = vec3dToVec3f((x: maxSize, y: maxSize, z: maxSize))
+  else:
+    let axisVec = vecSubD(tailPosition, bonePosD)
+    let tailPos = vecNormD(axisVec)
+    let diffVec = vecNormD(diffSize)
+    let toVec = vecNormD(vecCrossD(meanNormal, tailPos))
+
+    var rotValue = QuatD(w: 1.0, x: 0.0, y: 0.0, z: 0.0)
+    if shapeType == int8(1):
+      let yAxis: Vec3d = (x: 0.0, y: float64(signf(tailPos.y)), z: 0.0)
+      let xAxis: Vec3d = (x: float64(signf(tailPos.x)), y: 0.0, z: 0.0)
+      rotValue = quatMul(
+        quatRotationTo(yAxis, tailPos),
+        quatRotationTo(xAxis, toVec),
+      )
+    else:
+      rotValue = quatRotationTo((x: 0.0, y: 1.0, z: 0.0), tailPos)
+    shapeRotation = quatToEulerRad(rotValue)
+
+    let tailVecIdx = argmaxAbsD(diffVec)
+    if shapeType == int8(1):
+      if tailBoneExists and tailBoneIsEnd:
+        shapeSize = vec3dToVec3f((
+          x: diffSize.x * 0.7 * float64(rigidbodyFactor),
+          y: diffSize.y * 0.7 * float64(rigidbodyFactor),
+          z: diffSize.z * 0.15 * float64(rigidbodyFactor),
+        ))
+      else:
+        shapeSize = vec3dToVec3f((
+          x: diffSize.x * 0.7 * float64(rigidbodyFactor),
+          y: (bonePosD.y - tailPosition.y) * 0.7 * float64(rigidbodyFactor),
+          z: diffSize.z * 0.15 * float64(rigidbodyFactor),
+        ))
+        centerVertex = vecMidD(bonePosD, tailPosition)
+    else:
+      if tailVecIdx == 0:
+        shapeSize = vec3dToVec3f((
+          x: diffSize.y * (if isBody: 0.5 else: 0.3) * float64(rigidbodyFactor),
+          y: abs(axisVec.x * 1.1) * float64(rigidbodyFactor),
+          z: diffSize.z * float64(rigidbodyFactor),
+        ))
+      else:
+        shapeSize = vec3dToVec3f((
+          x: diffSize.x * (if isBody: 0.5 else: 0.3) * float64(rigidbodyFactor),
+          y: abs(axisVec.y * 1.1) * float64(rigidbodyFactor),
+          z: diffSize.z * float64(rigidbodyFactor),
+        ))
+      centerVertex = vecMidD(bonePosD, tailPosition)
+
+  (shapeSize, vec3dToVec3f(centerVertex), shapeRotation)
+
 proc applyArmTwistLayout(
   bones: var seq[PmxBoneLite],
   dir: string,
@@ -1327,6 +1658,18 @@ proc makeNoCollisionMask(excludedGroups: openArray[int]): int16 =
 
 proc buildStandardPhysics(model: var PmxModelLite) =
   type StdRigidDef = tuple[name: string, shapeType: int8, mode: int8, group: int8]
+  type OptionalPhysicsConfig = object
+    matchedPattern: bool
+    shapeType: int8
+    collisionGroup: int8
+    noCollisionGroup: int16
+    rigidbodyFactor: float32
+    paramFrom: array[5, float64]
+    paramTo: array[5, float64]
+    jointRotationLimitMin: Vec3f
+    jointRotationLimitMax: Vec3f
+    jointSpringTranslation: Vec3f
+    jointSpringRotation: Vec3f
   let defs: seq[StdRigidDef] = @[
     ("下半身", int8(2), int8(0), int8(0)),
     ("上半身", int8(2), int8(0), int8(0)),
@@ -1354,51 +1697,89 @@ proc buildStandardPhysics(model: var PmxModelLite) =
   ]
 
   var boneIndexByName = initTable[string, int32]()
+  var boneEnglishByName = initTable[string, string]()
   for i, bone in model.bones:
     boneIndexByName[bone.name] = int32(i)
+  for i, jaName in BONE_PAIRS_JA:
+    if i < BONE_PAIRS_EN.len:
+      boneEnglishByName[jaName] = BONE_PAIRS_EN[i]
 
-  # Build set of bone indices that have at least one vertex with weight >= 0.4
-  # (mirrors Python's bone_vertices: only bones in this set get rigidbodies)
+  var boneVertices = initTable[int32, seq[int]]()
   var bonesWithVertices = initHashSet[int32]()
-  for v in model.vertices:
-    case v.deform.kind
-    of 0:  # Bdef1 – implied weight 1.0
-      bonesWithVertices.incl(v.deform.bones[0])
-    of 1:  # Bdef2
-      if v.deform.weights[0] >= 0.4'f32:
-        bonesWithVertices.incl(v.deform.bones[0])
-      if 1.0'f32 - v.deform.weights[0] >= 0.4'f32:
-        bonesWithVertices.incl(v.deform.bones[1])
-    of 2:  # Bdef4
-      for wi in 0..3:
-        if v.deform.weights[wi] >= 0.4'f32:
-          bonesWithVertices.incl(v.deform.bones[wi])
-    else: discard
-
-  # Propagate vertices to effect parents, mirroring Python's bone_vertices logic:
-  #   - 捩ボーン → propagate to parent
-  #   - flag 0x0100 (rotation inherit / D-bones) → propagate to appendBoneIndex
-  var extra = initHashSet[int32]()
-  for boneIdx in bonesWithVertices:
-    let bIdx = int(boneIdx)
-    if bIdx < 0 or bIdx >= model.bones.len:
-      continue
-    let b = model.bones[bIdx]
-    if "捩" in b.name and b.parentIndex >= 0:
-      extra.incl(b.parentIndex)
-    if (b.flag and 0x0100) != 0 and b.appendBoneIndex >= 0:
-      extra.incl(b.appendBoneIndex)
-  for bi in extra:
-    bonesWithVertices.incl(bi)
+  for vertexIdx, v in model.vertices:
+    for boneIdx in vertexBoneIdxList(v, 0.4'f32):
+      boneVertices.mgetOrPut(boneIdx, @[]).add(vertexIdx)
+      bonesWithVertices.incl(boneIdx)
+      let bIdx = int(boneIdx)
+      if bIdx < 0 or bIdx >= model.bones.len:
+        continue
+      let b = model.bones[bIdx]
+      if "捩" in b.name and b.parentIndex >= 0:
+        boneVertices.mgetOrPut(b.parentIndex, @[]).add(vertexIdx)
+        bonesWithVertices.incl(b.parentIndex)
+      elif (b.flag and 0x0100) != 0 and b.appendBoneIndex >= 0:
+        boneVertices.mgetOrPut(b.appendBoneIndex, @[]).add(vertexIdx)
+        bonesWithVertices.incl(b.appendBoneIndex)
 
   model.rigidbodies = @[]
   model.joints = @[]
 
   let noCollisionMask = makeNoCollisionMask([0, 1, 2])
   var rigidIndexByBone = initTable[string, int32]()
+  var optionalPhysicsByBone = initTable[string, OptionalPhysicsConfig]()
   var bonePairsJaSet = initHashSet[string]()
   for n in BONE_PAIRS_JA:
     bonePairsJaSet.incl(n)
+
+  proc resolveOptionalPhysicsConfig(boneName: string): OptionalPhysicsConfig =
+    result = OptionalPhysicsConfig(
+      matchedPattern: false,
+      shapeType: int8(2),
+      collisionGroup: int8(9),
+      noCollisionGroup: makeNoCollisionMask([9]),
+      rigidbodyFactor: 1'f32,
+      paramFrom: [2.0, 0.9, 0.9, 0.0, 0.5],
+      paramTo: [0.5, 0.9999, 0.9999, 0.0, 0.5],
+      jointRotationLimitMin: Vec3f(
+        x: degToRad(-15'f32),
+        y: degToRad(-2'f32),
+        z: degToRad(-25'f32),
+      ),
+      jointRotationLimitMax: Vec3f(
+        x: degToRad(135'f32),
+        y: degToRad(2'f32),
+        z: degToRad(25'f32),
+      ),
+      jointSpringTranslation: Vec3f(x: 10'f32, y: 10'f32, z: 10'f32),
+      jointSpringRotation: Vec3f(x: 50'f32, y: 50'f32, z: 50'f32),
+    )
+    if "髪" in boneName:
+      result.matchedPattern = true
+      result.collisionGroup = int8(3)
+      result.noCollisionGroup = makeNoCollisionMask([3])
+      result.paramFrom = [1.0, 0.7, 0.7, 0.0, 0.0]
+      result.paramTo = [0.1, 0.999, 0.999, 0.0, 0.0]
+      result.jointRotationLimitMin = Vec3f(
+        x: degToRad(-80'f32),
+        y: degToRad(-5'f32),
+        z: degToRad(-80'f32),
+      )
+      result.jointRotationLimitMax = Vec3f(
+        x: degToRad(80'f32),
+        y: degToRad(5'f32),
+        z: degToRad(10'f32),
+      )
+      result.jointSpringTranslation = Vec3f(x: 1'f32, y: 1'f32, z: 1'f32)
+      result.jointSpringRotation = Vec3f(x: 10'f32, y: 10'f32, z: 10'f32)
+    elif "Sleeve" in boneName:
+      result.matchedPattern = true
+      result.collisionGroup = int8(4)
+      result.noCollisionGroup = makeNoCollisionMask([1, 4])
+    elif "Skirt" in boneName:
+      result.matchedPattern = true
+      result.shapeType = int8(1)
+      result.collisionGroup = int8(4)
+      result.noCollisionGroup = makeNoCollisionMask([4])
 
   for d in defs:
     if d.name notin boneIndexByName:
@@ -1408,42 +1789,26 @@ proc buildStandardPhysics(model: var PmxModelLite) =
       continue
     let boneIdx = int(boneIdx32)
     let bone = model.bones[boneIdx]
-    var tailPos = bone.position
-    if bone.tailIndex >= 0 and int(bone.tailIndex) < model.bones.len:
-      tailPos = model.bones[int(bone.tailIndex)].position
-    else:
-      tailPos = Vec3f(
-        x: bone.position.x + bone.tailPosition.x,
-        y: bone.position.y + bone.tailPosition.y,
-        z: bone.position.z + bone.tailPosition.z,
-      )
-
-    let dx = tailPos.x - bone.position.x
-    let dy = tailPos.y - bone.position.y
-    let dz = tailPos.z - bone.position.z
-    let length = max(0.01'f32, sqrt(dx * dx + dy * dy + dz * dz))
-    let radius = max(0.01'f32, length * 0.25'f32)
-
-    var shapeSize = Vec3f(x: radius, y: radius, z: radius)
-    var shapePos = bone.position
-    if d.shapeType != int8(0):
-      shapeSize = Vec3f(x: radius, y: length, z: 0'f32)
-      shapePos = Vec3f(
-        x: (bone.position.x + tailPos.x) * 0.5'f32,
-        y: (bone.position.y + tailPos.y) * 0.5'f32,
-        z: (bone.position.z + tailPos.z) * 0.5'f32,
-      )
+    let (shapeSize, shapePos, shapeRot) = computeRigidbodyGeometry(
+      model,
+      boneIndexByName,
+      boneVertices,
+      boneIdx32,
+      d.shapeType,
+      1'f32,
+      true,
+    )
 
     let rb = PmxRigidbodyLite(
       name: d.name,
-      englishName: d.name,
+      englishName: boneEnglishByName.getOrDefault(d.name, d.name),
       boneIndex: int32(boneIdx),
       collisionGroup: d.group,
       noCollisionGroup: noCollisionMask,
       shapeType: d.shapeType,
       shapeSize: shapeSize,
       shapePosition: shapePos,
-      shapeRotation: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      shapeRotation: shapeRot,
       paramMass: 1'f32,
       paramMoveAttenuation: 0.5'f32,
       paramRotationAttenuation: 0.5'f32,
@@ -1455,7 +1820,7 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     model.rigidbodies.add(rb)
 
   # Optional (non-standard) rigidbodies: mirror Python's candidate conditions
-  # and use RIGIDBODY_PAIRS defaults for now.
+  # and parameter interpolation rules from RIGIDBODY_PAIRS.
   for boneIdx, bone in model.bones:
     if bone.name in rigidIndexByBone:
       continue
@@ -1468,66 +1833,67 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     if bone.name in bonePairsJaSet:
       continue
 
-    var collisionGroup = int8(9)
-    var shapeType = int8(2)
-    var paramMass = 2'f32
-    var paramMoveAttenuation = 0.9'f32
-    var paramRotationAttenuation = 0.9'f32
-    var paramRepulsion = 0'f32
-    var paramFriction = 0.5'f32
-    var noCollisionExtra = makeNoCollisionMask([9])
+    let cfg = resolveOptionalPhysicsConfig(bone.name)
 
-    if "Skirt" in bone.name:
-      collisionGroup = int8(4)
-      shapeType = int8(1)
-      noCollisionExtra = makeNoCollisionMask([4])
-    elif "Sleeve" in bone.name:
-      collisionGroup = int8(4)
-      noCollisionExtra = makeNoCollisionMask([1, 4])
-    elif "髪" in bone.name:
-      collisionGroup = int8(3)
-      noCollisionExtra = makeNoCollisionMask([3])
-      paramMass = 1'f32
-      paramMoveAttenuation = 0.7'f32
-      paramRotationAttenuation = 0.7'f32
-      paramFriction = 0'f32
+    var parentCnt = 0
+    let parentIdx = bone.parentIndex
+    let hasParent = parentIdx >= 0 and int(parentIdx) < model.bones.len
+    let parentBone = if hasParent: model.bones[int(parentIdx)] else: bone
+    let endsWithDigit = bone.name.len > 0 and bone.name[^1].isDigit
+    let endsWithEarlyDigit = endsWithDigit and (bone.name[^1] == '0' or bone.name[^1] == '1')
+    if hasParent and parentBone.name in rigidIndexByBone and not (model.rigidbodies[int(rigidIndexByBone[parentBone.name])].mode == int8(0) and (not endsWithDigit or endsWithEarlyDigit)):
+      var targetBoneIdx = boneIdx
+      while model.bones[targetBoneIdx].parentIndex > -1:
+        inc(parentCnt)
+        let nextParentIdx = int(model.bones[targetBoneIdx].parentIndex)
+        if nextParentIdx < 0 or nextParentIdx >= model.bones.len:
+          break
+        let nextParentName = model.bones[nextParentIdx].name
+        if nextParentName notin rigidIndexByBone:
+          break
+        targetBoneIdx = nextParentIdx
 
-    var tailPos = bone.position
-    if bone.tailIndex >= 0 and int(bone.tailIndex) < model.bones.len:
-      tailPos = model.bones[int(bone.tailIndex)].position
-    else:
-      tailPos = Vec3f(
-        x: bone.position.x + bone.tailPosition.x,
-        y: bone.position.y + bone.tailPosition.y,
-        z: bone.position.z + bone.tailPosition.z,
-      )
+    var childCnt = 0
+    if bone.tailIndex >= 0:
+      var targetBoneIdx = boneIdx
+      while model.bones[targetBoneIdx].tailIndex > -1:
+        inc(childCnt)
+        let childIdx = int(model.bones[targetBoneIdx].tailIndex)
+        if childIdx < 0 or childIdx >= model.bones.len:
+          break
+        targetBoneIdx = childIdx
 
-    let dx = tailPos.x - bone.position.x
-    let dy = tailPos.y - bone.position.y
-    let dz = tailPos.z - bone.position.z
-    let length = max(0.01'f32, sqrt(dx * dx + dy * dy + dz * dz))
-    let radius = max(0.01'f32, length * 0.25'f32)
+    if parentCnt + childCnt <= 0:
+      continue
 
-    var shapeSize = Vec3f(x: radius, y: radius, z: radius)
-    var shapePos = bone.position
-    if shapeType != int8(0):
-      shapeSize = Vec3f(x: radius, y: length, z: 0'f32)
-      shapePos = Vec3f(
-        x: (bone.position.x + tailPos.x) * 0.5'f32,
-        y: (bone.position.y + tailPos.y) * 0.5'f32,
-        z: (bone.position.z + tailPos.z) * 0.5'f32,
-      )
+    let attenuationT = cfg.paramFrom[1] + ((cfg.paramTo[1] - cfg.paramFrom[1]) * (float64(parentCnt) / float64(parentCnt + childCnt)))
+    let attenuationR = cfg.paramFrom[2] + ((cfg.paramTo[2] - cfg.paramFrom[2]) * (float64(parentCnt) / float64(parentCnt + childCnt)))
+    let paramMass = float32(cfg.paramTo[0] * float64(childCnt * childCnt))
+    let paramMoveAttenuation = float32(attenuationT)
+    let paramRotationAttenuation = float32(attenuationR)
+    let paramRepulsion = float32(cfg.paramFrom[3])
+    let paramFriction = float32(cfg.paramFrom[4])
+
+    let (shapeSize, shapePos, shapeRot) = computeRigidbodyGeometry(
+      model,
+      boneIndexByName,
+      boneVertices,
+      int32(boneIdx),
+      cfg.shapeType,
+      cfg.rigidbodyFactor,
+      false,
+    )
 
     model.rigidbodies.add(PmxRigidbodyLite(
       name: bone.name,
-      englishName: bone.name,
+      englishName: bone.englishName,
       boneIndex: int32(boneIdx),
-      collisionGroup: collisionGroup,
-      noCollisionGroup: noCollisionExtra,
-      shapeType: shapeType,
+      collisionGroup: cfg.collisionGroup,
+      noCollisionGroup: cfg.noCollisionGroup,
+      shapeType: cfg.shapeType,
       shapeSize: shapeSize,
       shapePosition: shapePos,
-      shapeRotation: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      shapeRotation: shapeRot,
       paramMass: paramMass,
       paramMoveAttenuation: paramMoveAttenuation,
       paramRotationAttenuation: paramRotationAttenuation,
@@ -1536,6 +1902,63 @@ proc buildStandardPhysics(model: var PmxModelLite) =
       mode: int8(1),
     ))
     rigidIndexByBone[bone.name] = int32(model.rigidbodies.len - 1)
+    optionalPhysicsByBone[bone.name] = cfg
+
+  for boneIdx, bone in model.bones:
+    if bone.name in bonePairsJaSet:
+      continue
+    if bone.name notin rigidIndexByBone:
+      continue
+
+    var parentRigid = int32(-1)
+    var current = bone.parentIndex
+    while current >= 0:
+      let parentName = model.bones[int(current)].name
+      if parentName in rigidIndexByBone:
+        parentRigid = rigidIndexByBone[parentName]
+        break
+      current = model.bones[int(current)].parentIndex
+
+    if parentRigid < 0:
+      continue
+
+    var translationLimitMin = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+    var translationLimitMax = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+    var rotationLimitMin = Vec3f(
+      x: degToRad(-10'f32),
+      y: degToRad(-1'f32),
+      z: degToRad(-5'f32),
+    )
+    var rotationLimitMax = Vec3f(
+      x: degToRad(10'f32),
+      y: degToRad(1'f32),
+      z: degToRad(20'f32),
+    )
+    var springConstantTranslation = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+    var springConstantRotation = Vec3f(x: 7'f32, y: 7'f32, z: 7'f32)
+    if bone.name in optionalPhysicsByBone and optionalPhysicsByBone[bone.name].matchedPattern:
+      let cfg = optionalPhysicsByBone[bone.name]
+      rotationLimitMin = cfg.jointRotationLimitMin
+      rotationLimitMax = cfg.jointRotationLimitMax
+      springConstantTranslation = cfg.jointSpringTranslation
+      springConstantRotation = cfg.jointSpringRotation
+
+    let rigidIndex = rigidIndexByBone[bone.name]
+    model.joints.add(PmxJointLite(
+      name: bone.name,
+      englishName: bone.englishName,
+      jointType: int8(0),
+      rigidbodyIndexA: parentRigid,
+      rigidbodyIndexB: rigidIndex,
+      position: bone.position,
+      rotation: model.rigidbodies[int(rigidIndex)].shapeRotation,
+      translationLimitMin: translationLimitMin,
+      translationLimitMax: translationLimitMax,
+      rotationLimitMin: rotationLimitMin,
+      rotationLimitMax: rotationLimitMax,
+      springConstantTranslation: springConstantTranslation,
+      springConstantRotation: springConstantRotation,
+    ))
 
   for d in defs:
     if d.mode notin [int8(1), int8(2)] or d.name notin rigidIndexByBone or d.name notin boneIndexByName:
@@ -1559,7 +1982,7 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     let spring = if d.name.endsWith("胸先"): 100000'f32 else: 7'f32
     model.joints.add(PmxJointLite(
       name: d.name,
-      englishName: d.name,
+      englishName: boneEnglishByName.getOrDefault(d.name, d.name),
       jointType: int8(0),
       rigidbodyIndexA: parentRigid,
       rigidbodyIndexB: rigidIndexByBone[d.name],
@@ -1910,6 +2333,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.displaySlots = @[]
   result.rigidbodies = @[]
   result.joints = @[]
+  result.preciseBonePositions = @[]
+  result.hasPreciseBonePositions = @[]
+  result.preciseTailPositions = @[]
+  result.hasPreciseTailPositions = @[]
+  result.preciseVertexPositions = @[]
 
   if not jsonData.hasKey("meshes"):
     return
@@ -1924,6 +2352,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.boneCountHint = estimateBoneCountHint(nodeToBoneIdx)
   var precisePos = newSeq[Vec3d](max(0, result.boneCountHint))
   var hasPrecisePos = newSeq[bool](max(0, result.boneCountHint))
+  var preciseTailPos = newSeq[Vec3d](max(0, result.boneCountHint))
+  var hasPreciseTailPos = newSeq[bool](max(0, result.boneCountHint))
   for nodeIdx, boneIdx in nodeToBoneIdx:
     let b = int(boneIdx)
     if b < 0 or b >= precisePos.len:
@@ -1936,6 +2366,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         z: wm[3 * 4 + 2] * float64(MIKU_METER),
       )
       hasPrecisePos[b] = true
+  result.preciseBonePositions = precisePos
+  result.hasPreciseBonePositions = hasPrecisePos
+  result.preciseTailPositions = preciseTailPos
+  result.hasPreciseTailPositions = hasPreciseTailPos
   result.morphCountHint = estimateMorphCount(jsonData)
   result.rigidbodyCountHint = estimateRigidbodyCount(jsonData)
 
@@ -2051,6 +2485,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             uv: Vec2f(x: uvRaw.x, y: uvRaw.y),
             deform: deform,
             edgeFactor: 1'f32,
+          ))
+          result.preciseVertexPositions.add((
+            x: -posed.x * float64(MIKU_METER),
+            y: posed.y * float64(MIKU_METER),
+            z: posed.z * float64(MIKU_METER),
           ))
 
       # Collect indices for this material
@@ -2344,7 +2783,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[4].flag = int16(0x001a)
         result.bones[4].tailIndex = int32(-1)
         if hasPrecisePos.len > 4 and hasPrecisePos[3] and hasPrecisePos[4]:
-          result.bones[4].tailPosition = vec3dToVec3f(vecSubD(precisePos[3], precisePos[4]))
+          let preciseTail = vecSubD(precisePos[3], precisePos[4])
+          result.bones[4].tailPosition = vec3dToVec3f(preciseTail)
+          preciseTailPos[4] = preciseTail
+          hasPreciseTailPos[4] = true
         else:
           result.bones[4].tailPosition = vecSub(result.bones[3].position, result.bones[4].position)
 
@@ -2547,12 +2989,17 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[wristIdx].flag = int16(0x001a)
           result.bones[wristIdx].tailIndex = int32(-1)
           if wristIdx < hasPrecisePos.len and elbowIdx < hasPrecisePos.len and hasPrecisePos[wristIdx] and hasPrecisePos[elbowIdx]:
-            result.bones[wristIdx].tailPosition = vec3dToVec3f(vecNormD(vecSubD(precisePos[wristIdx], precisePos[elbowIdx])))
+            let preciseTail = vecNormD(vecSubD(precisePos[wristIdx], precisePos[elbowIdx]))
+            result.bones[wristIdx].tailPosition = vec3dToVec3f(preciseTail)
+            preciseTailPos[wristIdx] = preciseTail
+            hasPreciseTailPos[wristIdx] = true
           else:
             result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
           result.bones[wristIdx].localXAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
           result.bones[wristIdx].localZAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
+      result.preciseTailPositions = preciseTailPos
+      result.hasPreciseTailPositions = hasPreciseTailPos
       buildDisplaySlots(result)
       buildStandardPhysics(result)
 

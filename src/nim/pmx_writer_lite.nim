@@ -152,6 +152,11 @@ type
     boneCountHint*: int
     morphCountHint*: int
     rigidbodyCountHint*: int
+    preciseBonePositions*: seq[tuple[x, y, z: float64]]
+    hasPreciseBonePositions*: seq[bool]
+    preciseTailPositions*: seq[tuple[x, y, z: float64]]
+    hasPreciseTailPositions*: seq[bool]
+    preciseVertexPositions*: seq[tuple[x, y, z: float64]]
 
 proc addByte(bytes: var seq[uint8], value: int) =
   bytes.add(uint8(value and 0xFF))
