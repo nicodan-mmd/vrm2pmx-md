@@ -5,7 +5,6 @@ Test VrmCounterService against known baselines.
 """
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # Add src to path

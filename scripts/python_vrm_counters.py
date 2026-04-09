@@ -4,10 +4,9 @@
 Validate VRM conversion using actual Vrm2PmxExportService (Python backend).
 Measures conversion time and output counts.
 """
-import json
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -169,7 +168,7 @@ def main():
         if idx + 1 < len(sys.argv):
             num_runs = int(sys.argv[idx + 1])
 
-    print(f"VRM Conversion Counter (Python Backend)")
+    print("VRM Conversion Counter (Python Backend)")
     print(f"File: {vrm_path}")
     print(f"Runs: {num_runs}")
     print()
@@ -194,7 +193,7 @@ def main():
         print(f"  Joints: {run.counts.get('joints', 0)}")
         print()
 
-    print(f"Summary:")
+    print("Summary:")
     print(f"  Counts Stable: {result.summary['counts_stable']}")
     elapsed = result.summary['elapsed_ms']
     print(f"  Elapsed Time: {elapsed['min']}ms ~ {elapsed['max']}ms (mean={elapsed['mean']:.1f}ms)")

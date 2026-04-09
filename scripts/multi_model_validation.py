@@ -6,15 +6,13 @@ Automatically discovers VRM files and measures conversion metrics.
 """
 import json
 import sys
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "frontend" / "public" / "py_src"))
 
-from python_vrm_counters import run_python_conversion, extract_pmx_counts
+from python_vrm_counters import run_python_conversion
 
 
 def find_vrm_files(search_path: str, max_count: int = 10) -> list[str]:
@@ -84,7 +82,7 @@ def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None
 
     # Summary
     successful = [r for r in results.values() if r["status"] == "ok"]
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Total models: {len(vrm_paths)}")
     print(f"Successful:   {len(successful)}")
     print(f"Failed:       {len(results) - len(successful)}")
@@ -112,7 +110,7 @@ def main():
         if idx + 1 < len(sys.argv):
             max_count = int(sys.argv[idx + 1])
 
-    print(f"VRM Multi-Model Validation")
+    print("VRM Multi-Model Validation")
     print(f"Search: {search_path}")
     print(f"Max count: {max_count}")
     print()
