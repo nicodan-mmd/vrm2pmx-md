@@ -8,12 +8,75 @@ import json
 import struct
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nim_bitperfect_validation import build_report, run_python_baseline
+
+
+def write_markdown_summary(output_md: Path, payload: dict[str, Any]) -> None:
+    summary = payload["summary"]
+    results = payload["results"]
+
+    lines: list[str] = [
+        f"# VRoid Multi-Model Bitperfect Probe Summary ({datetime.now().strftime('%Y-%m-%d')})",
+        "",
+        f"- Search path: {payload['search_path']}",
+        f"- Nim exe: {payload['nim_exe']}",
+        f"- Total: {summary['total']}",
+        f"- OK: {summary['ok']}",
+        f"- Bit-perfect: {summary['bit_perfect']}",
+        f"- Non bit-perfect: {summary['non_bit_perfect']}",
+        f"- Errors: {summary['errors']}",
+        f"- Bit-perfect ratio: {summary['bit_perfect_ratio_percent']}%",
+        "",
+    ]
+
+    error_rows = [item for item in results if "error" in item]
+    if error_rows:
+        lines += ["## Errors", ""]
+        for item in error_rows:
+            lines.append(f"- {item['model']}: {item['path']} / {item['error']}")
+        lines.append("")
+
+    lines += [
+        "## Per Model Results",
+        "",
+        "| Model | RelativePath | Status | BitPerfect | first_diff | size_delta | section |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+
+    search_root = Path(payload["search_path"])
+    for item in results:
+        full_path = Path(item["path"])
+        try:
+            relative_path = str(full_path.relative_to(search_root))
+        except ValueError:
+            relative_path = str(full_path)
+
+        if "error" in item:
+            lines.append(f"| {item['model']} | {relative_path} | error | | | | error |")
+            continue
+
+        comparison = item.get("nim_comparison", {})
+        first_diff = comparison.get("first_diff_offset", "")
+        size_delta = ""
+        if comparison.get("status") == "ok":
+            size_delta = int(comparison.get("nim_size_bytes", 0)) - int(comparison.get("baseline_size_bytes", 0))
+
+        location = item.get("first_diff_location", {})
+        section = location.get("section", "")
+        bit_perfect = "yes" if comparison.get("bit_perfect") else "no"
+        status = str(comparison.get("status", "unknown"))
+
+        lines.append(
+            f"| {item['model']} | {relative_path} | {status} | {bit_perfect} | {first_diff} | {size_delta} | {section} |"
+        )
+
+    output_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def find_vrm_files(search_root: Path, max_count: int) -> list[Path]:
@@ -180,13 +243,18 @@ def main() -> int:
         default="tmp/multi_model_validation/nim_firstdiff_probe.json",
         help="Where to write JSON output",
     )
+    parser.add_argument(
+        "--output-md",
+        default=None,
+        help="Optional markdown summary path",
+    )
     args = parser.parse_args()
 
     search_root = Path(args.search_path)
     nim_exe = Path(args.nim_exe)
     output_json = Path(args.output_json)
     output_json.parent.mkdir(parents=True, exist_ok=True)
-    work_dir = output_json.parent / "nim_probe_pmz"
+    work_dir = Path("tmp") / "multi_model_validation" / "nim_probe_pmz"
     work_dir.mkdir(parents=True, exist_ok=True)
 
     vrm_paths = find_vrm_files(search_root, args.max_count)
@@ -211,6 +279,19 @@ def main() -> int:
     summary = {
         "total": len(results),
         "ok": sum(1 for item in results if "nim_comparison" in item),
+        "bit_perfect": sum(
+            1
+            for item in results
+            if item.get("nim_comparison", {}).get("status") == "ok"
+            and item.get("nim_comparison", {}).get("bit_perfect")
+        ),
+        "non_bit_perfect": sum(
+            1
+            for item in results
+            if item.get("nim_comparison", {}).get("status") == "ok"
+            and not item.get("nim_comparison", {}).get("bit_perfect")
+        ),
+        "errors": sum(1 for item in results if "error" in item),
         "vertex_weight0": sum(
             1
             for item in results
@@ -218,6 +299,10 @@ def main() -> int:
             and item.get("first_diff_location", {}).get("field") == "weight0"
         ),
     }
+    if summary["ok"] > 0:
+        summary["bit_perfect_ratio_percent"] = round(summary["bit_perfect"] / summary["ok"] * 100, 1)
+    else:
+        summary["bit_perfect_ratio_percent"] = 0.0
 
     payload = {
         "search_path": str(search_root),
@@ -226,7 +311,13 @@ def main() -> int:
         "results": results,
     }
     output_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.output_md:
+        output_md = Path(args.output_md)
+        output_md.parent.mkdir(parents=True, exist_ok=True)
+        write_markdown_summary(output_md, payload)
     print(f"Saved: {output_json}")
+    if args.output_md:
+        print(f"Saved: {args.output_md}")
     print(json.dumps(summary, ensure_ascii=False))
     return 0
 

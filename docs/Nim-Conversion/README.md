@@ -17,6 +17,18 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 - 03-Frontend-Toggle.md: Nim チェックボックス導入方針
 - Comparisons/README.md: 比較記録の保存ルール
 
+## 最新計測
+
+- フロントエンド 3 レーン速度比較 (2026-04-09): [Comparisons/20260409_170901_timing_comparison.md](Comparisons/20260409_170901_timing_comparison.md)
+  - JSON: [Comparisons/20260409_170901_timing_comparison.json](Comparisons/20260409_170901_timing_comparison.json)
+  - 要約: 26 モデル平均で Python 7249 ms / Nim-exe 524 ms / Wasm 168 ms、Wasm は Python 比 43.1x
+- Python 版との差分・bit-perfect 再計測 (2026-04-09): [Comparisons/20260409_1716_bitperfect_probe.md](Comparisons/20260409_1716_bitperfect_probe.md)
+  - JSON: [Comparisons/20260409_1716_bitperfect_probe.json](Comparisons/20260409_1716_bitperfect_probe.json)
+  - 要約: 26 モデル中 ok=21 / bit-perfect=0 / errors=5、現状 bit-perfect 率は 0.0%
+  - 傾向: first diff は after_vertex 側が多く、vertex 差分も一部残る
+
+次の目標は、multi-model bit-perfect 率を 80% 超まで引き上げること。
+
 ## 参考メモ
 
 - プロジェクト外メモ: D:\Users\maedashingo\Documents\_MyDocument\Dev\_MyWork\vrm2pmx-md\Material\Note\Nim-Convertion.txt
