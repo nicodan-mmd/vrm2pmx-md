@@ -4,6 +4,154 @@
 
 ## 構成
 
+### `dump_pmx_header_bytes.py`
+
+PMX ファイルの先頭バイト列を 16 進ダンプするデバッグ用スクリプトです。
+
+**用途：**
+
+- PMX ヘッダー（シグネチャ、バージョン、ヘッダーブロック）の確認
+- Nim 出力と Python ベースラインの差分箇所を目視確認
+
+**使用方法：**
+
+```bash
+python scripts/dump_pmx_header_bytes.py <pmx_path> [--bytes 96]
+```
+
+**出力例：**
+
+```text
+path=tmp/nim/out/avatar_nim.pmx
+size=123456
+00000000: 50 4d 58 20 ...
+```
+
+---
+
+### `python_vrm_counters.py`
+
+Python バックエンドによる VRM 変換の実行・カウント取得ライブラリです。
+`multi_model_validation.py` や他スクリプトから共通ユーティリティとして `import` して使います。
+
+**主要関数：**
+
+- `run_python_conversion(vrm_path, num_runs)` → `ValidationRun` (頂点・面・ボーン・モーフ等のカウントを含む)
+- `extract_pmx_counts(pmx_bytes)` → `dict` (PMX バイナリから各種カウントを抽出)
+
+**直接実行：**
+
+```bash
+python scripts/python_vrm_counters.py <vrm_file> [--runs 3] [--output-dir tmp/]
+```
+
+---
+
+### `test_vrm_counter.py`
+
+`VrmCounterService` を直接呼び出し、既知ベースラインと照合するテスト用スクリプトです。
+
+**用途：**
+
+- VRM ファイルの頂点・面・ボーン・モーフ・材質数を素早く確認
+- JSON ベースラインファイルと比較して回帰チェック
+
+**使用方法：**
+
+```bash
+python scripts/test_vrm_counter.py <vrm_file> [--baseline-json <file>]
+```
+
+---
+
+### `multi_model_validation.py`
+
+ディレクトリを再帰的にスキャンして複数 VRM ファイルを一括変換・検証するスクリプトです。
+`python_vrm_counters.py` を内部で使用します。
+
+**用途：**
+
+- 複数モデルに対して Python バックエンド変換を一括実行
+- 変換時間・モデル統計を JSON レポート（タイムスタンプ付き）として保存
+
+**使用方法：**
+
+```bash
+python scripts/multi_model_validation.py <vrm_dir> [--max 10] [--output-dir tmp/multi_model_validation]
+```
+
+**出力：**
+
+- `tmp/multi_model_validation/validation_YYYYMMDD_HHMMSS.json`
+
+---
+
+### `nim_bitperfect_validation.py`
+
+Nim 変換器のバイト一致検証用スクリプト。Python を確定的ベースラインとして PMX を生成し、Nim 出力と byte-by-byte で比較します。
+
+**用途：**
+
+- Python ベースライン PMX を生成・保存（SHA256 付き）
+- Nim バイナリが出力した PMX との最初の差分オフセットを特定
+- 差分オフセットを PMX セクション（ボーン/モーフ/剛体等）に位置付けて報告
+
+**使用方法：**
+
+```bash
+# Python ベースラインのみ生成
+python scripts/nim_bitperfect_validation.py <vrm_file> --output-dir tmp/nim/out
+
+# Nim 出力と比較
+python scripts/nim_bitperfect_validation.py <vrm_file> --nim-exe tmp/nim/pmx_lite_main.exe --output-dir tmp/nim/out
+```
+
+**出力：**
+
+- `<output_dir>/<vrm_stem>_py_baseline.pmx`
+- コンソールに差分サマリー JSON
+
+---
+
+### `nim_multi_bitperfect_probe.py`
+
+`nim_bitperfect_validation.py` をベースに、ディレクトリ内の複数 VRM ファイルを一括してバイト一致プローブするスクリプトです。
+
+**用途：**
+
+- 複数モデルに対して Python ベースライン生成 → Nim 比較を自動化
+- どのセクションで最初の差分が発生するかを全モデル横断で確認
+
+**使用方法：**
+
+```bash
+python scripts/nim_multi_bitperfect_probe.py <vrm_dir> --nim-exe tmp/nim/pmx_lite_main.exe [--max 5]
+```
+
+**出力：**
+
+- `tmp/nim/probe_YYYYMMDD_HHMMSS.json`
+
+---
+
+### `nim_comparison_runner.py`
+
+Python バックエンドの変換時間・出力カウントを記録するパフォーマンス比較ランナーです。
+（Nim 変換器との速度比較のベースライン収集用）
+
+**用途：**
+
+- Python バックエンドの変換を複数回実行して elapsed_ms を計測
+- 頂点・面・ボーン・モーフ・材質・テクスチャ・剛体・ジョイント数を収集
+
+**使用方法：**
+
+```bash
+python scripts/nim_comparison_runner.py <vrm_file> [--runs 3]
+```
+
+---
+
 ### `sentry/`
 
 Sentry イベント収集・分析スクリプト。
@@ -51,30 +199,10 @@ Rust移行の比較記録用に、backend基準の変換時間と出力ZIP情報
 python scripts/rust_compare_backend.py --input "D:/path/to/model.vrm" --sample linlin --warmup 1 --runs 3
 ```
 
-**出力例：**
+**出力：**
 
-```text
-Quality Signal Events: 8
-
---- By Signal Code ---
-  THREE_CLOCK_DEPRECATED: 4
-  THREE_TIMER_MIGRATION_WARNING: 4
-
---- By Signal Source ---
-  user_reported: 4
-  auto_detected: 4
-
---- Signal Code x Signal Source Matrix ---
-  THREE_CLOCK_DEPRECATED:
-    auto_detected: 2
-    user_reported: 2
-```
-
-**将来の拡張：**
-
-- GitHub Actions での定期実行（日次/週次）
-- Sentry Discover との統合
-- レポートの可視化（HTML ダッシュボード）
+- `docs/Rust-Conversion/Comparisons/records/<sample>_YYYYMMDD_HHMMSS.json`
+- `docs/Rust-Conversion/Comparisons/artifacts/<sample>_YYYYMMDD_HHMMSS.zip`
 
 ---
 
@@ -121,8 +249,6 @@ python scripts/compare_pmx_materials.py baseline_vroid2pmx.pmx web_output.pmx tm
 
 ## Notes
 
-- すべてのスクリプトは Python 3.10+
-
-  で実行される想定です。
-
+- すべての Python スクリプトは Python 3.10+ で実行される想定です。
 - 認証トークンは `.gitignore` で保護されたローカル設定使用推奨
+- `run_socket_scan.ps1`（PowerShell）: Socket.dev CLI を使ってプロジェクト依存関係のセキュリティスキャンをローカル実行します。`-ApiKey <key>` でAPIキーを渡します（省略時は `SOCKET_API_KEY` 環境変数を参照）。

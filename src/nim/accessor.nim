@@ -205,3 +205,37 @@ proc readAccessorJoints*(jsonData: JsonNode, binData: openArray[uint8], accessor
     let c3 = if componentType == GL_UNSIGNED_BYTE: binData[off + compSize * 3].int
               else: readUint16(binData, off + compSize * 3).int
     result[i] = (c0, c1, c2, c3)
+
+# Read MAT4 float accessor (for inverseBindMatrices)
+proc readAccessorMat4*(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): seq[Matrix4x4] =
+  if accessorIdx < 0 or accessorIdx >= jsonData["accessors"].len:
+    return @[]
+
+  let accessor = jsonData["accessors"][accessorIdx]
+  if getJsonString(accessor, "type", "") != "MAT4":
+    return @[]
+
+  let componentType = getJsonInt(accessor, "componentType", GL_FLOAT)
+  if componentType != GL_FLOAT:
+    return @[]
+
+  let count = getJsonInt(accessor, "count", 0)
+  let bufferViewIdx = getJsonInt(accessor, "bufferView", -1)
+  if bufferViewIdx < 0 or bufferViewIdx >= jsonData["bufferViews"].len or count <= 0:
+    return @[]
+
+  let bufferView = jsonData["bufferViews"][bufferViewIdx]
+  let viewOffset = getJsonInt(bufferView, "byteOffset", 0)
+  let accessorOffset = getJsonInt(accessor, "byteOffset", 0)
+  let bs = getJsonInt(bufferView, "byteStride", 0)
+  let stride = if bs > 0: bs else: 64
+
+  let startOffset = viewOffset + accessorOffset
+  result = newSeq[Matrix4x4](count)
+
+  for i in 0 ..< count:
+    let off = startOffset + i * stride
+    var m: Matrix4x4
+    for j in 0 ..< 16:
+      m[j] = bytesToFloat32(binData, off + j * 4)
+    result[i] = m

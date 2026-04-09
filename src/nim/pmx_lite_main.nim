@@ -1216,6 +1216,288 @@ proc estimateRigidbodyCount(jsonData: JsonNode): int =
         return sec["boneGroups"].len
   return 0
 
+proc normalizeMorphWeight(weight: JsonNode): float32 =
+  let rawWeight =
+    case weight.kind
+    of JInt:
+      float64(weight.getInt(0))
+    of JFloat:
+      weight.getFloat(0.0)
+    else:
+      0.0
+  if rawWeight > 1.0:
+    return float32(rawWeight / 100.0)
+  return float32(rawWeight)
+
+proc mapExpressionMorph(name: string): (string, int8) =
+  case name
+  of "Neutral": ("ニュートラル", int8(4))
+  of "A": ("あ", int8(3))
+  of "I": ("い", int8(3))
+  of "U": ("う", int8(3))
+  of "E": ("え", int8(3))
+  of "O": ("お", int8(3))
+  of "Blink": ("まばたき", int8(2))
+  of "Blink_L": ("ウィンク２左", int8(2))
+  of "Blink_R": ("ウィンク２右", int8(2))
+  of "Angry": ("怒", int8(4))
+  of "Fun": ("楽", int8(4))
+  of "Joy": ("喜", int8(4))
+  of "Sorrow": ("哀", int8(4))
+  of "Surprised": ("驚", int8(4))
+  else: (name, int8(4))
+
+proc standardDisplaySlotNameByBoneIndex(boneIdx: int): string =
+  case boneIdx
+  of 1, 2:
+    "センター"
+  of 3, 4, 5, 6, 7, 8:
+    "体幹"
+  of 9, 10, 11:
+    "顔"
+  of 12, 14:
+    "胸"
+  of 16, 17, 19, 20, 24, 25, 29:
+    "左手"
+  of 30, 31, 32, 34, 35, 36, 38, 39, 40, 42, 43, 44, 46, 47, 48:
+    "左指"
+  of 50, 51, 53, 54, 58, 59, 63:
+    "右手"
+  of 64, 65, 66, 68, 69, 70, 72, 73, 74, 76, 77, 78, 80, 81, 82:
+    "右指"
+  of 85, 86, 87, 89, 90, 98, 99, 100, 101:
+    "左足"
+  of 92, 93, 94, 96, 97, 102, 103, 104, 105:
+    "右足"
+  else:
+    ""
+
+proc addDisplaySlot(slots: var seq[PmxDisplaySlotLite], slotIndexByName: var Table[string, int], name, englishName: string, specialFlag, displayType: int8): int =
+  if name in slotIndexByName:
+    return slotIndexByName[name]
+  let idx = slots.len
+  slots.add(PmxDisplaySlotLite(
+    name: name,
+    englishName: englishName,
+    specialFlag: specialFlag,
+    displayType: displayType,
+  ))
+  slotIndexByName[name] = idx
+  return idx
+
+proc buildDisplaySlots(model: var PmxModelLite) =
+  var slots: seq[PmxDisplaySlotLite] = @[]
+  var slotIndexByName = initTable[string, int]()
+
+  let rootIdx = addDisplaySlot(slots, slotIndexByName, "Root", "Root", int8(1), int8(1))
+  slots[rootIdx].references.add(PmxDisplayRefLite(targetType: int8(1), index: int32(0)))
+
+  let expIdx = addDisplaySlot(slots, slotIndexByName, "表情", "Exp", int8(1), int8(1))
+  for i, morph in model.morphs:
+    if morph.morphType == int8(0):
+      slots[expIdx].references.add(PmxDisplayRefLite(targetType: int8(1), index: int32(i)))
+
+  for boneIdx, bone in model.bones:
+    if bone.name == "全ての親":
+      continue
+
+    let stdSlot = standardDisplaySlotNameByBoneIndex(boneIdx)
+    if stdSlot.len > 0:
+      let idx = addDisplaySlot(slots, slotIndexByName, stdSlot, stdSlot, int8(0), int8(0))
+      slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
+      continue
+
+    if "髪" in bone.name and (int(bone.flag) and 0x0010) != 0:
+      let idx = addDisplaySlot(slots, slotIndexByName, "髪", "髪", int8(0), int8(0))
+      slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
+      continue
+
+    if (int(bone.flag) and 0x0010) != 0:
+      let idx = addDisplaySlot(slots, slotIndexByName, "その他", "その他", int8(0), int8(0))
+      slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
+
+  model.displaySlots = slots
+
+proc makeNoCollisionMask(excludedGroups: openArray[int]): int16 =
+  var mask = 0
+  for grp in 0 .. 15:
+    if grp notin excludedGroups:
+      mask = mask or (1 shl grp)
+  return int16(mask)
+
+proc buildStandardPhysics(model: var PmxModelLite) =
+  type StdRigidDef = tuple[name: string, shapeType: int8, mode: int8, group: int8]
+  let defs: seq[StdRigidDef] = @[
+    ("下半身", int8(2), int8(0), int8(0)),
+    ("上半身", int8(2), int8(0), int8(0)),
+    ("上半身2", int8(2), int8(0), int8(0)),
+    ("首", int8(2), int8(0), int8(0)),
+    ("頭", int8(0), int8(0), int8(0)),
+    ("左胸", int8(0), int8(0), int8(0)),
+    ("左胸先", int8(0), int8(2), int8(0)),
+    ("右胸", int8(0), int8(0), int8(0)),
+    ("右胸先", int8(0), int8(2), int8(0)),
+    ("左肩", int8(2), int8(0), int8(1)),
+    ("左腕", int8(2), int8(0), int8(1)),
+    ("左ひじ", int8(2), int8(0), int8(1)),
+    ("左手首", int8(2), int8(0), int8(1)),
+    ("右肩", int8(2), int8(0), int8(1)),
+    ("右腕", int8(2), int8(0), int8(1)),
+    ("右ひじ", int8(2), int8(0), int8(1)),
+    ("右手首", int8(2), int8(0), int8(1)),
+    ("左足", int8(2), int8(0), int8(2)),
+    ("左ひざ", int8(2), int8(0), int8(2)),
+    ("左足首", int8(2), int8(0), int8(2)),
+    ("右足", int8(2), int8(0), int8(2)),
+    ("右ひざ", int8(2), int8(0), int8(2)),
+    ("右足首", int8(2), int8(0), int8(2)),
+  ]
+
+  var boneIndexByName = initTable[string, int32]()
+  for i, bone in model.bones:
+    boneIndexByName[bone.name] = int32(i)
+
+  model.rigidbodies = @[]
+  model.joints = @[]
+
+  let noCollisionMask = makeNoCollisionMask([0, 1, 2])
+  var rigidIndexByBone = initTable[string, int32]()
+
+  for d in defs:
+    if d.name notin boneIndexByName:
+      continue
+    let boneIdx = int(boneIndexByName[d.name])
+    let bone = model.bones[boneIdx]
+    var tailPos = bone.position
+    if bone.tailIndex >= 0 and int(bone.tailIndex) < model.bones.len:
+      tailPos = model.bones[int(bone.tailIndex)].position
+    else:
+      tailPos = Vec3f(
+        x: bone.position.x + bone.tailPosition.x,
+        y: bone.position.y + bone.tailPosition.y,
+        z: bone.position.z + bone.tailPosition.z,
+      )
+
+    let dx = tailPos.x - bone.position.x
+    let dy = tailPos.y - bone.position.y
+    let dz = tailPos.z - bone.position.z
+    let length = max(0.01'f32, sqrt(dx * dx + dy * dy + dz * dz))
+    let radius = max(0.01'f32, length * 0.25'f32)
+
+    var shapeSize = Vec3f(x: radius, y: radius, z: radius)
+    var shapePos = bone.position
+    if d.shapeType != int8(0):
+      shapeSize = Vec3f(x: radius, y: length, z: 0'f32)
+      shapePos = Vec3f(
+        x: (bone.position.x + tailPos.x) * 0.5'f32,
+        y: (bone.position.y + tailPos.y) * 0.5'f32,
+        z: (bone.position.z + tailPos.z) * 0.5'f32,
+      )
+
+    let rb = PmxRigidbodyLite(
+      name: d.name,
+      englishName: d.name,
+      boneIndex: int32(boneIdx),
+      collisionGroup: d.group,
+      noCollisionGroup: noCollisionMask,
+      shapeType: d.shapeType,
+      shapeSize: shapeSize,
+      shapePosition: shapePos,
+      shapeRotation: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      paramMass: 1'f32,
+      paramMoveAttenuation: 0.5'f32,
+      paramRotationAttenuation: 0.5'f32,
+      paramRepulsion: 0'f32,
+      paramFriction: 0.5'f32,
+      mode: d.mode,
+    )
+    rigidIndexByBone[d.name] = int32(model.rigidbodies.len)
+    model.rigidbodies.add(rb)
+
+  for d in defs:
+    if d.mode notin [int8(1), int8(2)] or d.name notin rigidIndexByBone or d.name notin boneIndexByName:
+      continue
+    var current = int(boneIndexByName[d.name])
+    var parentRigid = int32(-1)
+    while current >= 0:
+      let parentIdx = model.bones[current].parentIndex
+      if parentIdx < 0:
+        break
+      let parentName = model.bones[int(parentIdx)].name
+      if parentName in rigidIndexByBone:
+        parentRigid = rigidIndexByBone[parentName]
+        break
+      current = int(parentIdx)
+
+    if parentRigid < 0:
+      continue
+
+    let bidx = int(boneIndexByName[d.name])
+    let spring = if d.name.endsWith("胸先"): 100000'f32 else: 7'f32
+    model.joints.add(PmxJointLite(
+      name: d.name,
+      englishName: d.name,
+      jointType: int8(0),
+      rigidbodyIndexA: parentRigid,
+      rigidbodyIndexB: rigidIndexByBone[d.name],
+      position: model.bones[bidx].position,
+      rotation: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      translationLimitMin: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      translationLimitMax: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      rotationLimitMin: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      rotationLimitMax: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      springConstantTranslation: Vec3f(x: spring, y: spring, z: spring),
+      springConstantRotation: Vec3f(x: spring, y: spring, z: spring),
+    ))
+
+proc iterExpressionGroups(jsonData: JsonNode): seq[(string, seq[(int, float32)])] =
+  if jsonData.kind != JObject or not jsonData.hasKey("extensions"):
+    return @[]
+
+  let ext = jsonData["extensions"]
+  if ext.kind == JObject and ext.hasKey("VRM"):
+    let vrm = ext["VRM"]
+    if vrm.kind == JObject and vrm.hasKey("blendShapeMaster"):
+      let bsm = vrm["blendShapeMaster"]
+      if bsm.kind == JObject and bsm.hasKey("blendShapeGroups") and bsm["blendShapeGroups"].kind == JArray:
+        for group in bsm["blendShapeGroups"]:
+          if group.kind != JObject:
+            continue
+          let groupName = if group.hasKey("name"): group["name"].getStr("") else: ""
+          var binds: seq[(int, float32)] = @[]
+          if group.hasKey("binds") and group["binds"].kind == JArray:
+            for morphBind in group["binds"]:
+              if morphBind.kind != JObject:
+                continue
+              binds.add((
+                morphBind.getOrDefault("index").getInt(-1),
+                normalizeMorphWeight(morphBind.getOrDefault("weight")),
+              ))
+          result.add((groupName, binds))
+        return
+
+  if ext.kind == JObject and ext.hasKey("VRMC_vrm"):
+    let vrmc = ext["VRMC_vrm"]
+    if vrmc.kind == JObject and vrmc.hasKey("expressions"):
+      let expressions = vrmc["expressions"]
+      if expressions.kind == JObject:
+        for kind in ["preset", "custom"]:
+          if not expressions.hasKey(kind) or expressions[kind].kind != JObject:
+            continue
+          for exprName, exprValue in expressions[kind]:
+            if exprValue.kind != JObject:
+              continue
+            var binds: seq[(int, float32)] = @[]
+            if exprValue.hasKey("morphTargetBinds") and exprValue["morphTargetBinds"].kind == JArray:
+              for morphBind in exprValue["morphTargetBinds"]:
+                if morphBind.kind != JObject:
+                  continue
+                binds.add((
+                  morphBind.getOrDefault("index").getInt(-1),
+                  normalizeMorphWeight(morphBind.getOrDefault("weight")),
+                ))
+            result.add((exprName, binds))
+
 proc parseLicenseComment(otherPermissionUrl: string): string =
   if otherPermissionUrl.len == 0 or "?" notin otherPermissionUrl:
     return ""
@@ -1445,6 +1727,47 @@ proc isVroidProfile(jsonData: JsonNode, modelName: string): bool =
   let hasVrm1 = jsonData.hasKey("extensions") and jsonData["extensions"].kind == JObject and jsonData["extensions"].hasKey("VRMC_vrm")
   return hasVroidHint and (hasVrm0 or hasVrm1)
 
+proc collectHumanBoneNodes(jsonData: JsonNode): Table[int, bool] =
+  result = initTable[int, bool]()
+  if jsonData.kind != JObject or not jsonData.hasKey("extensions") or jsonData["extensions"].kind != JObject:
+    return
+
+  let ext = jsonData["extensions"]
+  if ext.hasKey("VRM") and ext["VRM"].kind == JObject:
+    let vrm0 = ext["VRM"]
+    if vrm0.hasKey("humanoid") and vrm0["humanoid"].kind == JObject:
+      let humanoid = vrm0["humanoid"]
+      if humanoid.hasKey("humanBones") and humanoid["humanBones"].kind == JArray:
+        for bone in humanoid["humanBones"].elems:
+          if bone.kind == JObject and bone.hasKey("node"):
+            let nodeIdx = bone["node"].getInt(-1)
+            if nodeIdx >= 0:
+              result[nodeIdx] = true
+
+  if ext.hasKey("VRMC_vrm") and ext["VRMC_vrm"].kind == JObject:
+    let vrm1 = ext["VRMC_vrm"]
+    if vrm1.hasKey("humanoid") and vrm1["humanoid"].kind == JObject:
+      let humanoid = vrm1["humanoid"]
+      if humanoid.hasKey("humanBones") and humanoid["humanBones"].kind == JObject:
+        for _, bone in humanoid["humanBones"]:
+          if bone.kind == JObject and bone.hasKey("node"):
+            let nodeIdx = bone["node"].getInt(-1)
+            if nodeIdx >= 0:
+              result[nodeIdx] = true
+
+proc pythonInitialBoneFlag(node: JsonNode, bonePairsLookup: Table[string, int], nodeName, jpBoneName: string, isHumanNode: bool): int16 =
+  if nodeName in bonePairsLookup:
+    if jpBoneName.endsWith("先"):
+      return int16(0x0003)
+    if jpBoneName == "全ての親" or jpBoneName == "センター" or jpBoneName == "グルーブ":
+      return int16(0x001f)
+    return int16(0x001b)
+
+  if isHumanNode or (node.kind == JObject and node.hasKey("mesh")):
+    return int16(0x0003)
+
+  return int16(0x001b)
+
 proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName: string): PmxModelLite =
   let meta = readModelMetadata(jsonData, modelName)
   result.name = meta.name
@@ -1460,6 +1783,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.textures = buildPmxTextureList(jsonData)
   result.materials = @[]
   result.bones = @[]
+  result.morphs = @[]
+  result.displaySlots = @[]
+  result.rigidbodies = @[]
+  result.joints = @[]
 
   if not jsonData.hasKey("meshes"):
     return
@@ -1469,6 +1796,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   let nodeToBoneIdx = buildNodeToPmxBoneIndex(jsonData, bonePairsLookup)
   let nodeWorldMatrices = buildNodeWorldMatrices(jsonData)
   let nodeParents = buildNodeParents(jsonData)
+  let humanBoneNodes = collectHumanBoneNodes(jsonData)
   let boneWorldXs = buildBoneWorldXs(jsonData, nodeToBoneIdx)
   result.boneCountHint = estimateBoneCountHint(nodeToBoneIdx)
   var precisePos = newSeq[Vec3d](max(0, result.boneCountHint))
@@ -1495,6 +1823,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   # to avoid re-reading them. Stored as (joints, weights) lists alongside vertex start.
   # Per-material index accumulator (ordered by first appearance)
   var materialIndices = initOrderedTable[int, seq[int32]]()
+  var vertexMorphs = initOrderedTable[int, PmxMorphLite]()
 
   for meshIdx, mesh in jsonData["meshes"].elems:
     if not mesh.hasKey("primitives"):
@@ -1547,6 +1876,32 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         if attrs.hasKey("WEIGHTS_0"):
           weightsData = readAccessorVec4Float(jsonData, binData, attrs["WEIGHTS_0"].getInt(-1))
 
+        if prim.hasKey("extras") and prim["extras"].kind == JObject and prim["extras"].hasKey("targetNames") and prim["extras"]["targetNames"].kind == JArray and prim.hasKey("targets") and prim["targets"].kind == JArray:
+          let targetNames = prim["extras"]["targetNames"]
+          let targets = prim["targets"]
+          for morphIdx in 0 ..< min(targetNames.len, targets.len):
+            let targetName = targetNames[morphIdx].getStr("")
+            let target = targets[morphIdx]
+            if target.kind != JObject or not target.hasKey("POSITION"):
+              continue
+            let extraPositions = readVec3(jsonData, binData, target["POSITION"].getInt(-1))
+            var morph = PmxMorphLite(
+              name: targetName,
+              englishName: targetName,
+              panel: int8(1),
+              morphType: int8(1),
+            )
+            for vidx, eposition in extraPositions:
+              morph.vertexOffsets.add(PmxVertexMorphOffsetLite(
+                vertexIndex: vertexStartIdx + int32(vidx),
+                positionOffset: Vec3f(
+                  x: float32(-float64(eposition.x) * float64(MIKU_METER)),
+                  y: float32(float64(eposition.y) * float64(MIKU_METER)),
+                  z: float32(float64(eposition.z) * float64(MIKU_METER)),
+                ),
+              ))
+            vertexMorphs[morphIdx] = morph
+
         for i, p in positions:
           let n = if i < normals.len: normals[i] else: (x: 0'f32, y: 1'f32, z: 0'f32)
           let uvRaw = if i < uvs.len: uvs[i] else: (x: 0'f32, y: 0'f32, z: 0'f32)
@@ -1593,6 +1948,71 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   for matIdx, idxList in materialIndices:
     for idx in idxList:
       result.indices.add(idx)
+
+  var vertexMorphIndexMap = initTable[int, int32]()
+  for sourceMorphIdx, morph in vertexMorphs:
+    vertexMorphIndexMap[sourceMorphIdx] = int32(result.morphs.len)
+    result.morphs.add(morph)
+
+  let expressionGroups = iterExpressionGroups(jsonData)
+  var namedMorphIndexMap = initTable[string, int32]()
+  for (expressionName, binds) in expressionGroups:
+    if binds.len == 0:
+      continue
+    let (mappedName, panel) = mapExpressionMorph(expressionName)
+    var morph = PmxMorphLite(
+      name: mappedName,
+      englishName: expressionName,
+      panel: panel,
+      morphType: int8(0),
+    )
+    for (bindIdx, bindWeight) in binds:
+      if bindIdx notin vertexMorphIndexMap:
+        continue
+      morph.groupOffsets.add(PmxGroupMorphOffsetLite(
+        morphIndex: vertexMorphIndexMap[bindIdx],
+        value: bindWeight,
+      ))
+    if morph.groupOffsets.len > 0:
+      namedMorphIndexMap[morph.name] = int32(result.morphs.len)
+      result.morphs.add(morph)
+
+  for (syntheticName, syntheticPanel, bindNames) in @[
+    ("眉下", int8(1), @["眉下左", "眉下右"]),
+    ("眉笑", int8(1), @["眉笑左", "眉笑右"]),
+    ("にやり", int8(3), @["にやり左", "にやり右"]),
+    ("目頭下", int8(3), @["目頭下左", "目頭下右"]),
+    ("目尻狭", int8(3), @["目尻狭左", "目尻狭右"]),
+    ("目頭狭", int8(3), @["目頭狭左", "目頭狭右"]),
+    ("目上", int8(3), @["目上左", "目上右"]),
+    ("笑い", int8(3), @["笑い左", "笑い右"]),
+    ("驚き", int8(3), @["驚き左", "驚き右"]),
+    ("口引", int8(3), @["口引左", "口引右"]),
+    ("口下", int8(3), @["口下左", "口下右"]),
+    ("にこ", int8(3), @["にこ左", "にこ右"]),
+    ("にこり2", int8(3), @["にこり2左", "にこり2右"]),
+    ("にやり2", int8(3), @["にやり2上", "にやり2下"]),
+    ("むっ", int8(3), @["むっ上", "むっ下"]),
+    ("にっこり", int8(3), @["にっこり右", "にっこり左"]),
+    ("むー", int8(3), @["むー右", "むー左"]),
+    ("いー", int8(3), @["いー右", "いー左"]),
+    ("鼻しかめる", int8(3), @["鼻しかめる右", "鼻しかめる左"]),
+  ]:
+    var morph = PmxMorphLite(
+      name: syntheticName,
+      englishName: syntheticName,
+      panel: syntheticPanel,
+      morphType: int8(0),
+    )
+    for bindName in bindNames:
+      if bindName notin namedMorphIndexMap:
+        continue
+      let bindMorph = result.morphs[namedMorphIndexMap[bindName]]
+      for groupOffset in bindMorph.groupOffsets:
+        morph.groupOffsets.add(groupOffset)
+    namedMorphIndexMap[morph.name] = int32(result.morphs.len)
+    result.morphs.add(morph)
+  result.morphCountHint = result.morphs.len
 
   # Build one material per GLB material index (in order of first appearance)
   let hasMaterials = jsonData.hasKey("materials")
@@ -1643,6 +2063,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   if result.boneCountHint > 0:
     result.bones = newSeq[PmxBoneLite](result.boneCountHint)
     var initialized = newSeq[bool](result.boneCountHint)
+    var isStandardMapped = newSeq[bool](result.boneCountHint)
 
     for nodeIdx, boneIdx in nodeToBoneIdx:
       let b = int(boneIdx)
@@ -1650,7 +2071,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         continue
 
       let node = jsonData["nodes"][nodeIdx]
-      var boneName = if node.hasKey("name"): node["name"].getStr("bone_" & $b) else: "bone_" & $b
+      let nodeName = if node.hasKey("name"): node["name"].getStr("bone_" & $b) else: "bone_" & $b
+      var boneName = nodeName
       var boneEnglishName = boneName
       if b >= 0 and b < BONE_PAIRS_JA.len:
         boneName = BONE_PAIRS_JA[b]
@@ -1663,9 +2085,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       if nodeIdx >= 0 and nodeIdx < nodeWorldMatrices.len:
         let wm = nodeWorldMatrices[nodeIdx]
         bonePos = Vec3f(
-          x: normalizeZero(float32(-wm[3 * 4 + 0] * float64(MIKU_METER))),
-          y: normalizeZero(float32(wm[3 * 4 + 1] * float64(MIKU_METER))),
-          z: normalizeZero(float32(wm[3 * 4 + 2] * float64(MIKU_METER))),
+          x: float32(-wm[3 * 4 + 0] * float64(MIKU_METER)),
+          y: float32(wm[3 * 4 + 1] * float64(MIKU_METER)),
+          z: float32(wm[3 * 4 + 2] * float64(MIKU_METER)),
         )
 
       var parentIndex = int32(-1)
@@ -1686,17 +2108,20 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       if b == 0 and result.bones.len > 1:
         tailIndex = int32(1)
 
+      let initialFlag = pythonInitialBoneFlag(node, bonePairsLookup, nodeName, boneName, humanBoneNodes.getOrDefault(nodeIdx, false))
+
       result.bones[b] = PmxBoneLite(
         name: boneName,
         englishName: boneEnglishName,
         position: bonePos,
         parentIndex: parentIndex,
         layer: int32(0),
-        flag: int16(0x0001 or 0x0002 or 0x0004 or 0x0008 or 0x0010),
+        flag: initialFlag,
         tailIndex: tailIndex,
         tailPosition: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
       )
       initialized[b] = true
+      isStandardMapped[b] = nodeName in bonePairsLookup or b == 0
 
     for i in 0 ..< result.bones.len:
       if initialized[i]:
@@ -1717,6 +2142,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
     # Match Python center/groove placement.
     # default_pairs index: 1=センター, 2=グルーブ, 3=腰, 85=左足, 86=左ひざ
     if result.bones.len > 3:
+      result.bones[0].position = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
       # default_pairs: センター(parent=全ての親), グルーブ(parent=センター)
       result.bones[1].parentIndex = int32(0)
       result.bones[2].parentIndex = int32(1)
@@ -1750,7 +2177,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         if b == 1 or b == 2:
           continue
         let f = BONE_DEFAULT_FLAG[b]
-        result.bones[b].flag = f
+        if b == 0 or initialized[b]:
+          result.bones[b].flag = f
+        else:
+          # Python keeps placeholder standard bones at rotation-only until a later special-case override.
+          result.bones[b].flag = int16(0x0002)
         result.bones[b].parentIndex = BONE_PARENT_IDX[b]
         if (int(f) and 0x0001) != 0:
           result.bones[b].tailIndex = BONE_TAIL_IDX[b]
@@ -1766,6 +2197,17 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[18].position = result.bones[17].position
         result.bones[50].position = result.bones[51].position
         result.bones[52].position = result.bones[51].position
+
+        # Python custom_bones post-processes these placeholders explicitly.
+        for shoulderPIdx in [16, 50]:
+          result.bones[shoulderPIdx].flag = int16(0x001a)
+          result.bones[shoulderPIdx].tailIndex = int32(-1)
+          result.bones[shoulderPIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+        for shoulderCIdx in [18, 52]:
+          result.bones[shoulderCIdx].flag = int16(0x0102)
+          result.bones[shoulderCIdx].tailIndex = int32(-1)
+          result.bones[shoulderCIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
         result.bones[18].appendBoneIndex = int32(16)  # 左肩C → 左肩P
         result.bones[18].appendRatio = -1'f32
@@ -1855,9 +2297,97 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           if result.bones[tipIdx].position == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
             let parentIdx = int(BONE_PARENT_IDX[tipIdx])
             if parentIdx >= 0 and parentIdx < result.bones.len:
-              let p = result.bones[parentIdx].position
-              let sx = if p.x > 0'f32: 1'f32 elif p.x < 0'f32: -1'f32 else: 0'f32
-              result.bones[tipIdx].position = Vec3f(x: p.x + sx, y: p.y, z: p.z)
+              let parentPrecise =
+                if parentIdx < hasPrecisePos.len and hasPrecisePos[parentIdx]:
+                  precisePos[parentIdx]
+                else:
+                  (x: float64(result.bones[parentIdx].position.x), y: float64(result.bones[parentIdx].position.y), z: float64(result.bones[parentIdx].position.z))
+              let sx = if parentPrecise.x > 0.0: 1.0 elif parentPrecise.x < 0.0: -1.0 else: 0.0
+              result.bones[tipIdx].position = Vec3f(
+                x: float32(parentPrecise.x + sx),
+                y: float32(parentPrecise.y),
+                z: float32(parentPrecise.z),
+              )
+
+      # Python renames HairJoint chains after bone construction.
+      var hairIdx = 1
+      for boneIdx in 0 ..< result.bones.len:
+        let currentEnglishName = result.bones[boneIdx].englishName
+        if "HairJoint" notin currentEnglishName:
+          continue
+        if result.bones[boneIdx].parentIndex == int32(8):
+          result.bones[boneIdx].name = "髪_" & align($hairIdx, 2, '0') & "_01"
+          inc hairIdx
+        elif result.bones[boneIdx].parentIndex >= 0:
+          let parentIdx = int(result.bones[boneIdx].parentIndex)
+          if parentIdx >= 0 and parentIdx < result.bones.len:
+            let parentName = result.bones[parentIdx].name
+            let parentParts = parentName.split("_")
+            if parentParts.len >= 3 and parentParts[0] == "髪":
+              try:
+                let parentSuffix = parseInt(parentParts[^1])
+                result.bones[boneIdx].name = "髪_" & parentParts[1] & "_" & align($(parentSuffix + 1), 2, '0')
+              except ValueError:
+                discard
+
+      # Python finalize step for non-standard bones: tail-less endpoints become rotate-only.
+      for i in 0 ..< result.bones.len:
+        if not initialized[i] or isStandardMapped[i]:
+          continue
+        if result.bones[i].tailIndex == int32(-1) and result.bones[i].tailPosition == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
+          result.bones[i].flag = int16(0x0003)
+
+      # 足IK / つま先IK: Python create_bone_leg_ik と同じ動的上書き
+      if result.bones.len > 97:
+        for (legIdx, kneeIdx, ankleIdx, toeIdx, legIkIdx, toeIkIdx) in [
+          (85, 86, 87, 88, 89, 90),
+          (92, 93, 94, 95, 96, 97),
+        ]:
+          result.bones[legIkIdx].parentIndex = int32(0)
+          result.bones[legIkIdx].layer = int32(0)
+          result.bones[legIkIdx].position = result.bones[ankleIdx].position
+          result.bones[legIkIdx].flag = int16(0x003e)
+          result.bones[legIkIdx].tailIndex = int32(-1)
+          result.bones[legIkIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 1'f32)
+          result.bones[legIkIdx].ik = PmxIkLite(
+            targetIndex: int32(ankleIdx),
+            loopCount: int32(40),
+            limitRadian: 1'f32,
+            links: @[
+              PmxIkLinkLite(
+                boneIndex: int32(kneeIdx),
+                limitAngle: int8(1),
+                limitMin: Vec3f(x: -PI.float32, y: 0'f32, z: 0'f32),
+                limitMax: Vec3f(x: degToRad(-0.5).float32, y: 0'f32, z: 0'f32),
+              ),
+              PmxIkLinkLite(
+                boneIndex: int32(legIdx),
+                limitAngle: int8(0),
+                limitMin: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+                limitMax: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+              ),
+            ],
+          )
+
+          result.bones[toeIkIdx].parentIndex = int32(legIkIdx)
+          result.bones[toeIkIdx].layer = int32(0)
+          result.bones[toeIkIdx].position = result.bones[toeIdx].position
+          result.bones[toeIkIdx].flag = int16(0x003e)
+          result.bones[toeIkIdx].tailIndex = int32(-1)
+          result.bones[toeIkIdx].tailPosition = Vec3f(x: 0'f32, y: -1'f32, z: 0'f32)
+          result.bones[toeIkIdx].ik = PmxIkLite(
+            targetIndex: int32(toeIdx),
+            loopCount: int32(40),
+            limitRadian: 1'f32,
+            links: @[
+              PmxIkLinkLite(
+                boneIndex: int32(ankleIdx),
+                limitAngle: int8(0),
+                limitMin: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+                limitMax: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+              ),
+            ],
+          )
 
       # D bones: layer=1, append from parent (without D)
       if result.bones.len > 105:
@@ -1899,6 +2429,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
           result.bones[wristIdx].localXAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
           result.bones[wristIdx].localZAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+      buildDisplaySlots(result)
+      buildStandardPhysics(result)
 
 proc main() =
   let args = commandLineParams()

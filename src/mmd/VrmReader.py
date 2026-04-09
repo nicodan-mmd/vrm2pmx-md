@@ -48,6 +48,43 @@ from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__, level=1)
 
+
+def _debug_vertex_targets() -> set[int]:
+    raw = os.getenv("VRM_DEBUG_VERTEX_INDICES", "")
+    result: set[int] = set()
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            result.add(int(token))
+        except ValueError:
+            continue
+    return result
+
+
+def _should_debug_vertex(vertex_idx: int) -> bool:
+    return vertex_idx in _debug_vertex_targets()
+
+
+def _f32_hex(value: Any) -> str:
+    return "0x" + struct.pack("<f", float(value)).hex()
+
+
+def _f64_hex(value: Any) -> str:
+    return "0x" + struct.pack("<d", float(value)).hex()
+
+
+def _debug_weight_state(vertex_idx: int, stage: str, bones: list[int], weights: list[Any]) -> None:
+    if not _should_debug_vertex(vertex_idx):
+        return
+    print(f"[py][vertex={vertex_idx}][{stage}] count={len(bones)}")
+    for idx, (bone, weight) in enumerate(zip(bones, weights, strict=False)):
+        print(
+            f"  [{idx}] bone={bone} weight64={float(weight)} {_f64_hex(weight)} "
+            f"weight32={np.float32(weight)} {_f32_hex(np.float32(weight))}"
+        )
+
 MIME_TYPE = {
     "image/png": "png",
     "image/jpeg": "jpg",
@@ -2189,6 +2226,15 @@ class VrmReader(PmxReader):
         org_weights = weight_data[valiable_joints]
         # ジョイント添え字からジョイントINDEXを取得
         org_joint_idxs = joint_data[valiable_joints]
+        if _should_debug_vertex(vertex_idx):
+            print(
+                f"[py][vertex={vertex_idx}][raw_input] vertex_pos=({vertex_pos.x()}, {vertex_pos.y()}, {vertex_pos.z()})"
+            )
+            for idx in range(4):
+                print(
+                    f"  [{idx}] joint={int(joint_data[idx])} weight32={np.float32(weight_data[idx])} "
+                    f"{_f32_hex(np.float32(weight_data[idx]))} weight64={float(weight_data[idx])} {_f64_hex(weight_data[idx])}"
+                )
         # 現行ボーンINDEXに置き換えたINDEX
         dest_joint_list = []
         for jidx in org_joint_idxs.tolist():
@@ -2207,6 +2253,13 @@ class VrmReader(PmxReader):
             return [0], [1]
 
         dest_joints = np.array(dest_joint_list)
+
+        _debug_weight_state(
+            vertex_idx,
+            "mapped",
+            dest_joints.tolist(),
+            org_weights.tolist(),
+        )
 
         # 尻は下半身に統合
         if "腰" in pmx.bones and "下半身" in pmx.bones:
@@ -2329,6 +2382,13 @@ class VrmReader(PmxReader):
                                         org_weights,
                                     )
 
+        _debug_weight_state(
+            vertex_idx,
+            "post_twist",
+            dest_joints.tolist(),
+            org_weights.tolist(),
+        )
+
         # 載せ替えた事で、ジョイントが重複している場合があるので、調整する
         joint_weights = {}
         for j, w in zip(dest_joints, org_weights, strict=False):
@@ -2338,18 +2398,30 @@ class VrmReader(PmxReader):
 
         # 対象となるウェイト値
         joint_values = list(joint_weights.keys())
+        _debug_weight_state(
+            vertex_idx,
+            "merged_raw",
+            joint_values,
+            list(joint_weights.values()),
+        )
         # 正規化(合計して1になるように)
         total_weights = np.array(list(joint_weights.values()))
         weight_values = (
             total_weights / total_weights.sum(axis=0, keepdims=True)
         ).tolist()
 
+        _debug_weight_state(vertex_idx, "merged_normalized", joint_values, weight_values)
+
         if len(joint_values) == 3:
             # 3つの場合、0を入れ込む
+            if _should_debug_vertex(vertex_idx):
+                print(f"[py][vertex={vertex_idx}][pad_zero] adding zero slot")
             return joint_values + [0], weight_values + [0]
         elif len(joint_values) > 4:
             # 4より多い場合、一番小さいのを捨てる（大体誤差）
             remove_idx = np.argmin(np.array(weight_values)).T
+            if _should_debug_vertex(vertex_idx):
+                print(f"[py][vertex={vertex_idx}][trim] removed_index={int(remove_idx)}")
             del valiable_joints[remove_idx]
             del joint_values[remove_idx]
             del weight_values[remove_idx]
@@ -2359,6 +2431,15 @@ class VrmReader(PmxReader):
             weight_values = (
                 total_weights / total_weights.sum(axis=0, keepdims=True)
             ).tolist()
+
+            _debug_weight_state(
+                vertex_idx,
+                "post_trim_normalized",
+                joint_values,
+                weight_values,
+            )
+
+        _debug_weight_state(vertex_idx, "final_valid", joint_values, weight_values)
 
         return joint_values, weight_values
 
