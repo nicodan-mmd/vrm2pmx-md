@@ -1234,6 +1234,37 @@ async function waitForMeshColorTextures(root: THREE.Object3D, timeoutMs: number)
   await Promise.all([...uniqueTextures].map((texture) => waitForTextureReady(texture, timeoutMs)));
 }
 
+function detachUnresolvedColorTextures(root: THREE.Object3D): number {
+  let detachedCount = 0;
+
+  root.traverse((object) => {
+    const maybeMesh = object as THREE.Mesh;
+    if (!maybeMesh.isMesh) {
+      return;
+    }
+
+    const materials = Array.isArray(maybeMesh.material)
+      ? maybeMesh.material
+      : [maybeMesh.material];
+    for (const material of materials) {
+      if (!material) {
+        continue;
+      }
+
+      const withMap = material as THREE.Material & {
+        map?: THREE.Texture | null;
+      };
+      if (withMap.map && !hasTextureImageData(withMap.map)) {
+        withMap.map = null;
+        withMap.needsUpdate = true;
+        detachedCount += 1;
+      }
+    }
+  });
+
+  return detachedCount;
+}
+
 async function captureCanvasSnapshotDataUrl(
   canvas: HTMLCanvasElement | null,
   width: number,
@@ -2485,6 +2516,11 @@ export default function App() {
           const m = mat as THREE.MeshToonMaterial & {
             emissiveMap?: THREE.Texture | null;
             matcap?: THREE.Texture | null;
+            gradientMap?: THREE.Texture | null;
+            normalMap?: THREE.Texture | null;
+            bumpMap?: THREE.Texture | null;
+            aoMap?: THREE.Texture | null;
+            lightMap?: THREE.Texture | null;
           };
           // PMXEditor寄りに、材質の色乗算と発光寄与をリセットして
           // テクスチャ本来の発色を優先する。
@@ -2501,14 +2537,31 @@ export default function App() {
             m.emissiveMap = null;
           }
           if (m.matcap) {
-            m.matcap.colorSpace = THREE.SRGBColorSpace;
-            m.matcap.needsUpdate = true;
+            // PMX の sphere/matcap 表現は VRM プレビューとの差が大きく、
+            // 特定モデルで髪色や角に色被りを起こしやすいため preview では切る。
+            m.matcap = null;
           }
+          if (m.gradientMap) {
+            // three の gradientMap は MMD toon texture と表現差が大きいため無効化。
+            m.gradientMap = null;
+          }
+          // 法線/補助マップは PMX プレビューで色転びを起こしやすいため無効化。
+          m.normalMap = null;
+          m.bumpMap = null;
+          m.aoMap = null;
+          m.lightMap = null;
           m.needsUpdate = true;
         }
       });
 
       await waitForMeshColorTextures(mesh, 1200);
+      const detachedColorTextureCount = detachUnresolvedColorTextures(mesh);
+      if (detachedColorTextureCount > 0) {
+        runtimeQualitySignalsRef.current.add("pmx-unresolved-texture-detached");
+        appendConsoleLine([
+          `[WARN] PMX preview: detached ${detachedColorTextureCount} unresolved texture map(s) to avoid black rendering.`,
+        ], "warn");
+      }
 
       // MMDLoader may mark texture-side transparency (map.transparent) but leave
       // material.transparent as false. Syncing them prevents masked cloth parts

@@ -2064,8 +2064,8 @@ proc parseLicenseComment(otherPermissionUrl: string): string =
   for key in valuesByKey.keys.toSeq.sorted(system.cmp[string]):
     result.add("　　" & key & ": " & valuesByKey[key].join(",") & "\r\n")
 
-proc readModelMetadata(jsonData: JsonNode, fallbackName: string): tuple[name, author, licenseName, licenseComment: string] =
-  result = (fallbackName, "", "", "")
+proc readModelMetadata(jsonData: JsonNode, fallbackName: string): tuple[name, title, author, licenseName, licenseComment: string] =
+  result = (fallbackName, "", "", "", "")
 
   if jsonData.kind != JObject or not jsonData.hasKey("extensions") or jsonData["extensions"].kind != JObject:
     return
@@ -2076,6 +2076,7 @@ proc readModelMetadata(jsonData: JsonNode, fallbackName: string): tuple[name, au
     if vrm.kind == JObject and vrm.hasKey("meta") and vrm["meta"].kind == JObject:
       let meta = vrm["meta"]
       let title = if meta.hasKey("title"): meta["title"].getStr("") else: ""
+      result.title = title
       result.name = if title.len > 0: title else: fallbackName
       result.author = if meta.hasKey("author"): meta["author"].getStr("") else: ""
       result.licenseName = if meta.hasKey("licenseName"): meta["licenseName"].getStr("") else: ""
@@ -2088,6 +2089,7 @@ proc readModelMetadata(jsonData: JsonNode, fallbackName: string): tuple[name, au
     if vrm1.kind == JObject and vrm1.hasKey("meta") and vrm1["meta"].kind == JObject:
       let meta = vrm1["meta"]
       let title = if meta.hasKey("name"): meta["name"].getStr("") else: ""
+      result.title = title
       result.name = if title.len > 0: title else: fallbackName
       if meta.hasKey("authors") and meta["authors"].kind == JArray:
         result.author = meta["authors"].elems.mapIt(it.getStr("")).join(", ")
@@ -2318,7 +2320,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   let meta = readModelMetadata(jsonData, modelName)
   result.name = meta.name
   result.englishName = ""
-  result.comment = "モデル名: " & meta.name & "\r\n" &
+  result.comment = "モデル名: " & meta.title & "\r\n" &
     "作者: " & meta.author & "\r\n" &
     "ライセンス: " & meta.licenseName & "\r\n" &
     meta.licenseComment & "\r\n" &
@@ -2733,6 +2735,13 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       result.bones[2].flag = int16(0x201e)
       result.bones[2].tailPosition = Vec3f(x: 0'f32, y: result.bones[1].position.y * 0.175'f32, z: 0'f32)
 
+      for b in 0 ..< result.bones.len:
+        if result.bones[b].name == "Hairs":
+          result.bones[b].flag = int16(0x0003)
+          result.bones[b].tailIndex = int32(-1)
+          result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+          break
+
       # Apply standard bone parent/tail/flag from const tables for all 106 canonical bones.
       # Bones 1 (センター) and 2 (グルーブ) are already handled above; skip them.
       for b in 0 ..< min(BONE_PARENT_IDX.len, result.bones.len):
@@ -2749,6 +2758,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[b].tailIndex = BONE_TAIL_IDX[b]
           result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
         else:
+          result.bones[b].tailIndex = int32(-1)
+          result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+        if result.bones[b].name.endsWith("先"):
+          result.bones[b].flag = int16(0x0003)
           result.bones[b].tailIndex = int32(-1)
           result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
@@ -3018,7 +3032,7 @@ proc main() =
 
   let bytes = cast[seq[uint8]](readFile(inputPath))
   let glb = parseGlb(bytes)
-  let model = buildModelFromGlb(glb.jsonData, glb.binData, splitFile(inputPath).name)
+  let model = buildModelFromGlb(glb.jsonData, glb.binData, "source")
   let pmxBytes = buildPmxBinaryLite(model)
 
   writeFile(outputPath, cast[string](pmxBytes))
