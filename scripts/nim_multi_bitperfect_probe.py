@@ -96,6 +96,11 @@ def read_idx(data: bytes, offset: int, size: int) -> tuple[int, int]:
     return struct.unpack_from("<i", data, offset)[0], offset + 4
 
 
+def read_text(data: bytes, offset: int) -> tuple[int, int]:
+    text_len = struct.unpack_from("<i", data, offset)[0]
+    return text_len, offset + 4 + text_len
+
+
 def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     if first_diff < 0:
         return {"section": "none"}
@@ -114,10 +119,15 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     if offset <= first_diff < offset + header_size:
         return {"section": "header_bytes", "header_offset": first_diff - offset}
     offset += header_size
-    if len(header) < 6:
+    if len(header) < 8:
         return {"section": "unknown", "reason": "header_too_short"}
 
-    bone_index_size = header[5]
+    additional_uv_count = int(header[1])
+    vertex_index_size = int(header[2])
+    texture_index_size = int(header[3])
+    bone_index_size = int(header[5])
+    morph_index_size = int(header[6])
+    rigidbody_index_size = int(header[7])
 
     text_fields = ["model_name_ja", "model_name_en", "comment_ja", "comment_en"]
     for field_name in text_fields:
@@ -143,6 +153,8 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
         offset += 12
         uv_offset = offset
         offset += 8
+        if additional_uv_count > 0:
+            offset += 16 * additional_uv_count
         deform_type_offset = offset
         deform_type = data[offset]
         offset += 1
@@ -209,7 +221,310 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
 
     if vertex_start <= first_diff < offset:
         return {"section": "vertex", "field": "unresolved"}
-    return {"section": "after_vertex", "offset": first_diff}
+
+    if first_diff < offset + 4:
+        return {"section": "index_count"}
+    index_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    index_region_end = offset + (index_count * vertex_index_size)
+    if offset <= first_diff < index_region_end:
+        rel = first_diff - offset
+        return {
+            "section": "index",
+            "index_size": vertex_index_size,
+            "index_pos": rel // max(1, vertex_index_size),
+        }
+    offset = index_region_end
+
+    if first_diff < offset + 4:
+        return {"section": "texture_count"}
+    texture_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for texture_idx in range(texture_count):
+        if first_diff < offset + 4:
+            return {"section": "texture", "texture_index": texture_idx, "field": "length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "texture", "texture_index": texture_idx, "field": "path"}
+        offset = next_offset
+
+    if first_diff < offset + 4:
+        return {"section": "material_count"}
+    material_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for material_idx in range(material_count):
+        if first_diff < offset + 4:
+            return {"section": "material", "material_index": material_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "material", "material_index": material_idx, "field": "name"}
+        offset = next_offset
+
+        if first_diff < offset + 4:
+            return {"section": "material", "material_index": material_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "material", "material_index": material_idx, "field": "english_name"}
+        offset = next_offset
+
+        fixed_len = 65
+        if offset <= first_diff < offset + fixed_len:
+            rel = first_diff - offset
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "fixed_block",
+                "fixed_rel_offset": rel,
+            }
+        offset += fixed_len
+
+        if first_diff < offset + texture_index_size:
+            return {"section": "material", "material_index": material_idx, "field": "texture_index"}
+        offset += texture_index_size
+        if first_diff < offset + texture_index_size:
+            return {"section": "material", "material_index": material_idx, "field": "sphere_texture_index"}
+        offset += texture_index_size
+        if first_diff < offset + 1:
+            return {"section": "material", "material_index": material_idx, "field": "sphere_mode"}
+        sphere_mode = data[offset]
+        offset += 1
+        if first_diff < offset + 1:
+            return {"section": "material", "material_index": material_idx, "field": "toon_sharing_flag"}
+        toon_flag = data[offset]
+        offset += 1
+
+        toon_size = texture_index_size if toon_flag == 0 else 1
+        if first_diff < offset + toon_size:
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "toon_texture_index",
+                "toon_sharing_flag": toon_flag,
+                "sphere_mode": sphere_mode,
+            }
+        offset += toon_size
+
+        if first_diff < offset + 4:
+            return {"section": "material", "material_index": material_idx, "field": "comment_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "material", "material_index": material_idx, "field": "comment"}
+        offset = next_offset
+
+        if first_diff < offset + 4:
+            return {"section": "material", "material_index": material_idx, "field": "vertex_count"}
+        offset += 4
+
+    if first_diff < offset + 4:
+        return {"section": "bone_count"}
+    bone_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for bone_idx in range(bone_count):
+        if first_diff < offset + 4:
+            return {"section": "bone", "bone_index": bone_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "bone", "bone_index": bone_idx, "field": "name"}
+        offset = next_offset
+
+        if first_diff < offset + 4:
+            return {"section": "bone", "bone_index": bone_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "bone", "bone_index": bone_idx, "field": "english_name"}
+        offset = next_offset
+
+        if offset <= first_diff < offset + 12:
+            return {"section": "bone", "bone_index": bone_idx, "field": "position"}
+        offset += 12
+        if offset <= first_diff < offset + bone_index_size:
+            return {"section": "bone", "bone_index": bone_idx, "field": "parent_index"}
+        _, offset = read_idx(data, offset, bone_index_size)
+        if offset <= first_diff < offset + 4:
+            return {"section": "bone", "bone_index": bone_idx, "field": "layer"}
+        offset += 4
+        if offset <= first_diff < offset + 2:
+            return {"section": "bone", "bone_index": bone_idx, "field": "flag"}
+        flag = struct.unpack_from("<h", data, offset)[0]
+        offset += 2
+
+        if (flag & 0x0001) != 0:
+            if offset <= first_diff < offset + bone_index_size:
+                return {"section": "bone", "bone_index": bone_idx, "field": "tail_index"}
+            _, offset = read_idx(data, offset, bone_index_size)
+        else:
+            if offset <= first_diff < offset + 12:
+                return {"section": "bone", "bone_index": bone_idx, "field": "tail_position"}
+            offset += 12
+
+        if (flag & 0x0300) != 0:
+            if offset <= first_diff < offset + bone_index_size:
+                return {"section": "bone", "bone_index": bone_idx, "field": "append_bone_index"}
+            _, offset = read_idx(data, offset, bone_index_size)
+            if offset <= first_diff < offset + 4:
+                return {"section": "bone", "bone_index": bone_idx, "field": "append_ratio"}
+            offset += 4
+
+        if (flag & 0x0400) != 0:
+            if offset <= first_diff < offset + 12:
+                return {"section": "bone", "bone_index": bone_idx, "field": "fixed_axis"}
+            offset += 12
+
+        if (flag & 0x0800) != 0:
+            if offset <= first_diff < offset + 24:
+                return {"section": "bone", "bone_index": bone_idx, "field": "local_axis"}
+            offset += 24
+
+        if (flag & 0x2000) != 0:
+            if offset <= first_diff < offset + 4:
+                return {"section": "bone", "bone_index": bone_idx, "field": "external_key"}
+            offset += 4
+
+        if (flag & 0x0020) != 0:
+            if offset <= first_diff < offset + bone_index_size:
+                return {"section": "bone", "bone_index": bone_idx, "field": "ik_target_index"}
+            _, offset = read_idx(data, offset, bone_index_size)
+            if offset <= first_diff < offset + 4:
+                return {"section": "bone", "bone_index": bone_idx, "field": "ik_loop_count"}
+            offset += 4
+            if offset <= first_diff < offset + 4:
+                return {"section": "bone", "bone_index": bone_idx, "field": "ik_limit_radian"}
+            offset += 4
+            if offset <= first_diff < offset + 4:
+                return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_count"}
+            ik_link_count = struct.unpack_from("<i", data, offset)[0]
+            offset += 4
+            for link_idx in range(ik_link_count):
+                if offset <= first_diff < offset + bone_index_size:
+                    return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_bone_index", "ik_link": link_idx}
+                _, offset = read_idx(data, offset, bone_index_size)
+                if offset <= first_diff < offset + 1:
+                    return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_limit_angle", "ik_link": link_idx}
+                limit_angle = data[offset]
+                offset += 1
+                if limit_angle != 0:
+                    if offset <= first_diff < offset + 24:
+                        return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_limit", "ik_link": link_idx}
+                    offset += 24
+
+    if first_diff < offset + 4:
+        return {"section": "morph_count"}
+    morph_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for morph_idx in range(morph_count):
+        if first_diff < offset + 4:
+            return {"section": "morph", "morph_index": morph_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "morph", "morph_index": morph_idx, "field": "name"}
+        offset = next_offset
+        if first_diff < offset + 4:
+            return {"section": "morph", "morph_index": morph_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "morph", "morph_index": morph_idx, "field": "english_name"}
+        offset = next_offset
+        if offset <= first_diff < offset + 2:
+            return {"section": "morph", "morph_index": morph_idx, "field": "panel_or_type"}
+        panel = data[offset]
+        morph_type = data[offset + 1]
+        offset += 2
+        if offset <= first_diff < offset + 4:
+            return {"section": "morph", "morph_index": morph_idx, "field": "offset_count"}
+        morph_offset_count = struct.unpack_from("<i", data, offset)[0]
+        offset += 4
+        if morph_type == 1:
+            unit = vertex_index_size + 12
+            if offset <= first_diff < offset + (morph_offset_count * unit):
+                rel = first_diff - offset
+                return {"section": "morph", "morph_index": morph_idx, "field": "vertex_offset", "offset_index": rel // max(1, unit)}
+            offset += morph_offset_count * unit
+        else:
+            unit = morph_index_size + 4
+            if offset <= first_diff < offset + (morph_offset_count * unit):
+                rel = first_diff - offset
+                return {"section": "morph", "morph_index": morph_idx, "field": "group_offset", "offset_index": rel // max(1, unit), "panel": panel}
+            offset += morph_offset_count * unit
+
+    if first_diff < offset + 4:
+        return {"section": "display_slot_count"}
+    display_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for display_idx in range(display_count):
+        if first_diff < offset + 4:
+            return {"section": "display_slot", "display_index": display_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "display_slot", "display_index": display_idx, "field": "name"}
+        offset = next_offset
+        if first_diff < offset + 4:
+            return {"section": "display_slot", "display_index": display_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "display_slot", "display_index": display_idx, "field": "english_name"}
+        offset = next_offset
+        if offset <= first_diff < offset + 1:
+            return {"section": "display_slot", "display_index": display_idx, "field": "special_flag"}
+        offset += 1
+        if offset <= first_diff < offset + 4:
+            return {"section": "display_slot", "display_index": display_idx, "field": "ref_count"}
+        ref_count = struct.unpack_from("<i", data, offset)[0]
+        offset += 4
+        for ref_idx in range(ref_count):
+            if offset <= first_diff < offset + 1:
+                return {"section": "display_slot", "display_index": display_idx, "field": "ref_target_type", "ref_index": ref_idx}
+            target_type = data[offset]
+            offset += 1
+            ref_size = bone_index_size if target_type == 0 else morph_index_size
+            if offset <= first_diff < offset + ref_size:
+                return {"section": "display_slot", "display_index": display_idx, "field": "ref_index", "ref_target_type": target_type, "ref_pos": ref_idx}
+            offset += ref_size
+
+    if first_diff < offset + 4:
+        return {"section": "rigidbody_count"}
+    rigid_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for rigid_idx in range(rigid_count):
+        if first_diff < offset + 4:
+            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "name"}
+        offset = next_offset
+        if first_diff < offset + 4:
+            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "english_name"}
+        offset = next_offset
+        rigid_fixed = bone_index_size + 1 + 2 + 1 + 12 + 12 + 12 + 20 + 1
+        if offset <= first_diff < offset + rigid_fixed:
+            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "payload"}
+        offset += rigid_fixed
+
+    if first_diff < offset + 4:
+        return {"section": "joint_count"}
+    joint_count = struct.unpack_from("<i", data, offset)[0]
+    offset += 4
+    for joint_idx in range(joint_count):
+        if first_diff < offset + 4:
+            return {"section": "joint", "joint_index": joint_idx, "field": "name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "joint", "joint_index": joint_idx, "field": "name"}
+        offset = next_offset
+        if first_diff < offset + 4:
+            return {"section": "joint", "joint_index": joint_idx, "field": "english_name_length"}
+        text_len, next_offset = read_text(data, offset)
+        if offset + 4 <= first_diff < offset + 4 + text_len:
+            return {"section": "joint", "joint_index": joint_idx, "field": "english_name"}
+        offset = next_offset
+        joint_fixed = 1 + (2 * rigidbody_index_size) + (6 * 12)
+        if offset <= first_diff < offset + joint_fixed:
+            return {"section": "joint", "joint_index": joint_idx, "field": "payload"}
+        offset += joint_fixed
+
+    return {"section": "after_joint", "offset": first_diff}
 
 
 def probe_model(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict[str, Any]:

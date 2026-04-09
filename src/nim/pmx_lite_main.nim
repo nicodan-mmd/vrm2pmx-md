@@ -661,6 +661,9 @@ proc buildNodeToPmxBoneIndex(jsonData: JsonNode, bonePairsLookup: Table[string, 
   if not jsonData.hasKey("nodes"):
     return
   let nodes = jsonData["nodes"]
+  var bonePairsJaLookup = initTable[string, int]()
+  for i, name in BONE_PAIRS_JA:
+    bonePairsJaLookup[name] = i
 
   # DFS traversal to find ordered list of non-BONE_PAIRS nodes
   var nonBpNodes: seq[int] = @[]
@@ -672,7 +675,7 @@ proc buildNodeToPmxBoneIndex(jsonData: JsonNode, bonePairsLookup: Table[string, 
     visited[idx] = true
     let nd = nodes[idx]
     let name = if nd.hasKey("name"): nd["name"].getStr("") else: ""
-    if name notin bonePairsLookup:
+    if name notin bonePairsLookup and name notin bonePairsJaLookup:
       nonBpNodes.add(idx)
     if nd.hasKey("children"):
       for child in nd["children"]:
@@ -687,6 +690,8 @@ proc buildNodeToPmxBoneIndex(jsonData: JsonNode, bonePairsLookup: Table[string, 
     let name = if nd.hasKey("name"): nd["name"].getStr("") else: ""
     if name in bonePairsLookup:
       result[nidx] = int32(bonePairsLookup[name])
+    elif name in bonePairsJaLookup:
+      result[nidx] = int32(bonePairsJaLookup[name])
 
   # Assign non-BONE_PAIRS indices starting from BONE_PAIRS_EN.len
   let baseIdx = BONE_PAIRS_EN.len
@@ -1051,8 +1056,8 @@ proc computeRigidbodyGeometry(
 
   if shapeType == int8(0):
     if bone.name == "頭" and "右目" in boneIndexByName and "左目" in boneIndexByName:
-      let rightEye = vecToD(model.bones[int(boneIndexByName["右目"])].position)
-      let leftEye = vecToD(model.bones[int(boneIndexByName["左目"])].position)
+      let rightEye = preciseBonePos(boneIndexByName["右目"])
+      let leftEye = preciseBonePos(boneIndexByName["左目"])
       let eyeLength = vecLenD(vecSubD(rightEye, leftEye)) * 2.0
       centerVertex.x = bonePosD.x
       centerVertex.y = minVertex.y + (maxVertex.y - minVertex.y) * 0.5
@@ -1109,7 +1114,12 @@ proc computeRigidbodyGeometry(
         ))
       centerVertex = vecMidD(bonePosD, tailPosition)
 
-  (shapeSize, vec3dToVec3f(centerVertex), shapeRotation)
+  var shapePos = vec3dToVec3f(centerVertex)
+  if shapePos.x == 0'f32: shapePos.x = 0'f32
+  if shapePos.y == 0'f32: shapePos.y = 0'f32
+  if shapePos.z == 0'f32: shapePos.z = 0'f32
+
+  (shapeSize, shapePos, shapeRotation)
 
 proc applyArmTwistLayout(
   bones: var seq[PmxBoneLite],
@@ -1385,6 +1395,45 @@ proc buildBoneWorldXs(jsonData: JsonNode, nodeToBoneIdx: Table[int, int32]): seq
     if 61 < result.len: result[61] = bx + (ex - bx) * 0.5
     if 62 < result.len: result[62] = bx + (ex - bx) * 0.75
 
+proc alignTwistDistributionXs(
+  boneWorldXs: var seq[float64],
+  dir: string,
+  precisePos: seq[Vec3d],
+  hasPrecisePos: seq[bool],
+) =
+  let (armIdx, elbowIdx, armTwist1Idx, armTwist2Idx, armTwist3Idx, wristIdx, wristTwist1Idx, wristTwist2Idx, wristTwist3Idx) =
+    if dir == "左": (19, 24, 21, 22, 23, 29, 26, 27, 28) else: (53, 58, 55, 56, 57, 63, 60, 61, 62)
+  if boneWorldXs.len <= wristIdx:
+    return
+
+  template px(idx: int): untyped =
+    (if idx >= 0 and idx < precisePos.len and idx < hasPrecisePos.len and hasPrecisePos[idx]:
+      precisePos[idx].x
+    else:
+      boneWorldXs[idx])
+
+  let armX = px(armIdx)
+  let elbowX = px(elbowIdx)
+  let wristX = px(wristIdx)
+
+  boneWorldXs[armIdx] = armX
+  boneWorldXs[elbowIdx] = elbowX
+  boneWorldXs[wristIdx] = wristX
+
+  if armTwist1Idx < boneWorldXs.len:
+    boneWorldXs[armTwist1Idx] = armX + (elbowX - armX) * 0.25
+  if armTwist2Idx < boneWorldXs.len:
+    boneWorldXs[armTwist2Idx] = armX + (elbowX - armX) * 0.5
+  if armTwist3Idx < boneWorldXs.len:
+    boneWorldXs[armTwist3Idx] = armX + (elbowX - armX) * 0.75
+
+  if wristTwist1Idx < boneWorldXs.len:
+    boneWorldXs[wristTwist1Idx] = elbowX + (wristX - elbowX) * 0.25
+  if wristTwist2Idx < boneWorldXs.len:
+    boneWorldXs[wristTwist2Idx] = elbowX + (wristX - elbowX) * 0.5
+  if wristTwist3Idx < boneWorldXs.len:
+    boneWorldXs[wristTwist3Idx] = elbowX + (wristX - elbowX) * 0.75
+
 proc buildDeform(
   vertexIndex: int,
   joints: (int, int, int, int),
@@ -1600,6 +1649,7 @@ proc mapExpressionMorph(name: string): (string, int8) =
   of "Joy": ("喜", int8(4))
   of "Sorrow": ("哀", int8(4))
   of "Surprised": ("驚", int8(4))
+  of "Extra": ("＞＜", int8(2))
   else: (name, int8(4))
 
 proc standardDisplaySlotNameByBoneIndex(boneIdx: int): string =
@@ -1662,9 +1712,16 @@ proc buildDisplaySlots(model: var PmxModelLite) =
       slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
       continue
 
-    if "髪" in bone.name and (int(bone.flag) and 0x0010) != 0:
-      let idx = addDisplaySlot(slots, slotIndexByName, "髪", "髪", int8(0), int8(0))
-      slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
+    if "髪" in bone.name:
+      # Python parity:
+      # - create "髪" slot only when first hair bone is manipulatable
+      # - once created, append subsequent hair bones even if not manipulatable
+      if "髪" in slotIndexByName:
+        let idx = slotIndexByName["髪"]
+        slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
+      elif (int(bone.flag) and 0x0010) != 0:
+        let idx = addDisplaySlot(slots, slotIndexByName, "髪", "髪", int8(0), int8(0))
+        slots[idx].references.add(PmxDisplayRefLite(targetType: int8(0), index: int32(boneIdx)))
       continue
 
     if (int(bone.flag) and 0x0010) != 0:
@@ -2374,7 +2431,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   let nodeWorldMatrices = buildNodeWorldMatrices(jsonData)
   let nodeParents = buildNodeParents(jsonData)
   let humanBoneNodes = collectHumanBoneNodes(jsonData)
-  let boneWorldXs = buildBoneWorldXs(jsonData, nodeToBoneIdx)
+  var boneWorldXs = buildBoneWorldXs(jsonData, nodeToBoneIdx)
   result.boneCountHint = estimateBoneCountHint(nodeToBoneIdx)
   var precisePos = newSeq[Vec3d](max(0, result.boneCountHint))
   var hasPrecisePos = newSeq[bool](max(0, result.boneCountHint))
@@ -2392,6 +2449,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         z: wm[3 * 4 + 2] * float64(MIKU_METER),
       )
       hasPrecisePos[b] = true
+  alignTwistDistributionXs(boneWorldXs, "左", precisePos, hasPrecisePos)
+  alignTwistDistributionXs(boneWorldXs, "右", precisePos, hasPrecisePos)
   result.preciseBonePositions = precisePos
   result.hasPreciseBonePositions = hasPrecisePos
   result.preciseTailPositions = preciseTailPos
@@ -2692,6 +2751,18 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             tailIndex = nodeToBoneIdx[cNode]
             break
 
+      # Python only sets tailIndex from children when the parent bone position is non-zero.
+      # If position == (0,0,0), leave tailIndex = -1 (will become leaf bone with flag=0x0003).
+      if tailIndex != int32(-1) and bonePos == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32) and b >= BONE_PAIRS_EN.len:
+        tailIndex = int32(-1)
+
+      # Match Python baseline root bone connection: "全ての親" -> "センター" (index 1)
+
+      # Python finalize loop always sets tail_index = bone.index + 1 for non-standard bones with any child.
+      # (It never stores the real child PMX index; it just uses sequential order.)
+      if b >= BONE_PAIRS_EN.len and tailIndex != int32(-1):
+        tailIndex = int32(b + 1)
+
       # Match Python baseline root bone connection: "全ての親" -> "センター" (index 1)
       if b == 0 and result.bones.len > 1:
         tailIndex = int32(1)
@@ -2736,20 +2807,86 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       result.bones[1].parentIndex = int32(0)
       result.bones[2].parentIndex = int32(1)
 
-      # センター position: VRoid = 腰*0.7, generic = avg(leftLeg, leftKnee)
-      if isVroidProfile(jsonData, modelName):
-        let hipsPos = result.bones[3].position
-        result.bones[1].position = Vec3f(x: 0'f32, y: hipsPos.y * 0.7'f32, z: 0'f32)
-      elif result.bones.len > 86:
-        let leftLegY = result.bones[85].position.y
-        let leftKneeY = result.bones[86].position.y
-        let centerY = (leftLegY + leftKneeY) / 2'f32
-        result.bones[1].position = Vec3f(x: 0'f32, y: centerY, z: 0'f32)
+      var centerPosD: Vec3d = (
+        x: float64(result.bones[1].position.x),
+        y: float64(result.bones[1].position.y),
+        z: float64(result.bones[1].position.z),
+      )
 
-      # グルーブ position: always センター.y * 1.025
-      # Python processes グルーブ before 腰 is added to bones, so it always uses
-      # the generic formula (センター.y * 1.025) regardless of profile.
-      result.bones[2].position = Vec3f(x: 0'f32, y: result.bones[1].position.y * 1.025'f32, z: 0'f32)
+      # センター position: VRoid = 腰.position * 0.7, generic = avg(leftLeg, leftKnee)
+      if isVroidProfile(jsonData, modelName):
+        let hipsPosD = if 3 < precisePos.len and 3 < hasPrecisePos.len and hasPrecisePos[3]:
+          precisePos[3]
+        else:
+          (
+            x: float64(result.bones[3].position.x),
+            y: float64(result.bones[3].position.y),
+            z: float64(result.bones[3].position.z),
+          )
+        centerPosD = (
+          x: hipsPosD.x * 0.7,
+          y: hipsPosD.y * 0.7,
+          z: hipsPosD.z * 0.7,
+        )
+        result.bones[1].position = Vec3f(
+          x: float32(centerPosD.x),
+          y: float32(centerPosD.y),
+          z: float32(centerPosD.z),
+        )
+      elif result.bones.len > 86:
+        let leftLegYD = if 85 < precisePos.len and 85 < hasPrecisePos.len and hasPrecisePos[85]:
+          precisePos[85].y
+        else:
+          float64(result.bones[85].position.y)
+        let leftKneeYD = if 86 < precisePos.len and 86 < hasPrecisePos.len and hasPrecisePos[86]:
+          precisePos[86].y
+        else:
+          float64(result.bones[86].position.y)
+        centerPosD = (
+          x: 0.0,
+          y: (leftLegYD + leftKneeYD) / 2.0,
+          z: 0.0,
+        )
+        result.bones[1].position = Vec3f(
+          x: float32(centerPosD.x),
+          y: float32(centerPosD.y),
+          z: float32(centerPosD.z),
+        )
+      else:
+        centerPosD = (
+          x: float64(result.bones[1].position.x),
+          y: float64(result.bones[1].position.y),
+          z: float64(result.bones[1].position.z),
+        )
+
+      if not isVroidProfile(jsonData, modelName) and result.bones.len > 86:
+        result.bones[1].position = Vec3f(
+          x: float32(centerPosD.x),
+          y: float32(centerPosD.y),
+          z: float32(centerPosD.z),
+        )
+
+      # グルーブ position: VRoid = 腰.position * 0.8, generic = センター.y * 1.025
+      if isVroidProfile(jsonData, modelName):
+        let hipsPosD = if 3 < precisePos.len and 3 < hasPrecisePos.len and hasPrecisePos[3]:
+          precisePos[3]
+        else:
+          (
+            x: float64(result.bones[3].position.x),
+            y: float64(result.bones[3].position.y),
+            z: float64(result.bones[3].position.z),
+          )
+        result.bones[2].position = Vec3f(
+          x: float32(hipsPosD.x * 0.8),
+          y: float32(hipsPosD.y * 0.8),
+          z: float32(hipsPosD.z * 0.8),
+        )
+      else:
+        result.bones[2].position = Vec3f(
+          x: 0'f32,
+          y: float32(centerPosD.y * 1.025),
+          z: 0'f32,
+        )
 
       # センター: flag=0x1e (no tail-index bit = tail_pos mode), tail_pos=(0,-pos.y,0)
       result.bones[1].flag = int16(0x001e)
@@ -2757,7 +2894,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
       # グルーブ: flag=0x201e (0x2000=external-parent-deform | 0x1e), tail_pos mode
       result.bones[2].flag = int16(0x201e)
-      result.bones[2].tailPosition = Vec3f(x: 0'f32, y: result.bones[1].position.y * 0.175'f32, z: 0'f32)
+      result.bones[2].tailPosition = Vec3f(
+        x: 0'f32,
+        y: float32(centerPosD.y * 0.175),
+        z: 0'f32,
+      )
 
       for b in 0 ..< result.bones.len:
         if result.bones[b].name == "Hairs":
@@ -2782,11 +2923,6 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[b].tailIndex = BONE_TAIL_IDX[b]
           result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
         else:
-          result.bones[b].tailIndex = int32(-1)
-          result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
-
-        if result.bones[b].name.endsWith("先"):
-          result.bones[b].flag = int16(0x0003)
           result.bones[b].tailIndex = int32(-1)
           result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
@@ -2816,8 +2952,6 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
       # 下半身: tail_pos mode, tail = 腰 - 下半身
       if result.bones.len > 4:
-        if result.bones[3].position.x == 0'f32:
-          result.bones[3].position.x = -0'f32
         result.bones[4].flag = int16(0x001a)
         result.bones[4].tailIndex = int32(-1)
         if hasPrecisePos.len > 4 and hasPrecisePos[3] and hasPrecisePos[4]:
@@ -2891,12 +3025,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[91].appendBoneIndex = int32(3)
         result.bones[91].appendRatio = -1'f32
 
-      # 指先 bones: flag=0x0002, tail_pos=(0,0,0), and fallback position when missing.
+      # 指先 bones: only apply fallback position when missing (Python parity).
       if result.bones.len > 83:
         for tipIdx in [33, 37, 41, 45, 49, 67, 71, 75, 79, 83]:
-          result.bones[tipIdx].flag = int16(0x0002)
-          result.bones[tipIdx].tailIndex = int32(-1)
-          result.bones[tipIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
           if result.bones[tipIdx].position == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
             let parentIdx = int(BONE_PARENT_IDX[tipIdx])
             if parentIdx >= 0 and parentIdx < result.bones.len:
@@ -2937,6 +3068,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       for i in 0 ..< result.bones.len:
         if not initialized[i] or isStandardMapped[i]:
           continue
+        # Python uses 下半身 as the resolved parent for non-standard bones under 腰.
+        if result.bones[i].parentIndex == int32(3) and result.bones.len > 4:
+          result.bones[i].parentIndex = int32(4)
         if result.bones[i].tailIndex == int32(-1) and result.bones[i].tailPosition == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
           result.bones[i].flag = int16(0x0003)
 
@@ -3032,7 +3166,21 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             preciseTailPos[wristIdx] = preciseTail
             hasPreciseTailPos[wristIdx] = true
           else:
-            result.bones[wristIdx].tailPosition = vecNormalize(vecSub(result.bones[wristIdx].position, result.bones[elbowIdx].position))
+            let wristPosD = (
+              x: float64(result.bones[wristIdx].position.x),
+              y: float64(result.bones[wristIdx].position.y),
+              z: float64(result.bones[wristIdx].position.z),
+            )
+            let elbowPosD = (
+              x: float64(result.bones[elbowIdx].position.x),
+              y: float64(result.bones[elbowIdx].position.y),
+              z: float64(result.bones[elbowIdx].position.z),
+            )
+            let elbowPosD2 = if elbowIdx < hasPrecisePos.len and hasPrecisePos[elbowIdx]: precisePos[elbowIdx] else: elbowPosD
+            let preciseTail = vecNormD(vecSubD(wristPosD, elbowPosD2))
+            result.bones[wristIdx].tailPosition = vec3dToVec3f(preciseTail)
+            preciseTailPos[wristIdx] = preciseTail
+            hasPreciseTailPos[wristIdx] = true
           result.bones[wristIdx].localXAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
           result.bones[wristIdx].localZAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 

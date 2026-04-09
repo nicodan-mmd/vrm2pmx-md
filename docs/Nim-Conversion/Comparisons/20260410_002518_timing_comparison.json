@@ -1,0 +1,556 @@
+{
+  "generated_at": "20260410_002518",
+  "search_path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid",
+  "nim_exe": "D:\\Users\\maedashingo\\Documents\\_MyDocument\\Dev\\_MyWork\\vrm2pmx-md\\vrm2pmx-md\\tmp\\nim\\pmx_lite_main.exe",
+  "wasm_path": "D:\\Users\\maedashingo\\Documents\\_MyDocument\\Dev\\_MyWork\\vrm2pmx-md\\vrm2pmx-md\\frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
+  "rows": [
+    {
+      "model": "AvatarSample_A",
+      "relative_path": "original\\AvatarSample_A.vrm",
+      "vrm_size": 18481104,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6202,
+        "output_size": 4358195
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 477,
+        "output_size": 4358195
+      },
+      "wasm": {
+        "elapsed_ms": 151,
+        "input_size": 18481104,
+        "output_size": 4358195,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_A_1.0",
+      "relative_path": "original\\AvatarSample_A_1.0.vrm",
+      "vrm_size": 18484020,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6171,
+        "output_size": 4358127
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 466,
+        "output_size": 4358127
+      },
+      "wasm": {
+        "elapsed_ms": 142,
+        "input_size": 18484020,
+        "output_size": 4358127,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_M",
+      "relative_path": "original\\AvatarSample_M.vrm",
+      "vrm_size": 20321216,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 7075,
+        "output_size": 4501924
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 518,
+        "output_size": 4500810
+      },
+      "wasm": {
+        "elapsed_ms": 134,
+        "input_size": 20321216,
+        "output_size": 4500810,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "NicoDanBoy",
+      "relative_path": "original\\NicoDanBoy.vrm",
+      "vrm_size": 10638076,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 4888,
+        "output_size": 3924399
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 287,
+        "output_size": 3924399
+      },
+      "wasm": {
+        "elapsed_ms": 100,
+        "input_size": 10638076,
+        "output_size": 3924399,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "NicoDanBoy_20260306",
+      "relative_path": "original\\NicoDanBoy_20260306.vrm",
+      "vrm_size": 11020284,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 4994,
+        "output_size": 3945806
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 293,
+        "output_size": 3945806
+      },
+      "wasm": {
+        "elapsed_ms": 104,
+        "input_size": 11020284,
+        "output_size": 3945806,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "1899578487613238293",
+      "relative_path": "VRoid Hub\\hitogata\\1899578487613238293.vrm",
+      "vrm_size": 15859984,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6901,
+        "output_size": 4607187
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 538,
+        "output_size": 4606805
+      },
+      "wasm": {
+        "elapsed_ms": 147,
+        "input_size": 15859984,
+        "output_size": 4606805,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "3800391986853067029",
+      "relative_path": "VRoid Hub\\いろいろアバター カッパ\\3800391986853067029.vrm",
+      "vrm_size": 1286276,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 2165,
+        "output_size": 871670
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 291,
+        "output_size": 871653
+      },
+      "wasm": {
+        "elapsed_ms": 54,
+        "input_size": 1286276,
+        "output_size": 871653,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "8211396565083486995",
+      "relative_path": "VRoid Hub\\いろいろアバター グリズリー\\8211396565083486995.vrm",
+      "vrm_size": 370644,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 468,
+        "output_size": 169570
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 73,
+        "output_size": 169664
+      },
+      "wasm": {
+        "elapsed_ms": 23,
+        "input_size": 370644,
+        "output_size": 169664,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "8538742828286332800",
+      "relative_path": "VRoid Hub\\そるぴ\\8538742828286332800.vrm",
+      "vrm_size": 17616396,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 7487,
+        "output_size": 4724552
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 537,
+        "output_size": 4723406
+      },
+      "wasm": {
+        "elapsed_ms": 153,
+        "input_size": 17616396,
+        "output_size": 4723406,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "9119730241296603838",
+      "relative_path": "VRoid Hub\\ウェンズデー\\9119730241296603838.vrm",
+      "vrm_size": 18469284,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 5819,
+        "output_size": 3145569
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 590,
+        "output_size": 3145296
+      },
+      "wasm": {
+        "elapsed_ms": 148,
+        "input_size": 18469284,
+        "output_size": 3145296,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "7229542656829083947",
+      "relative_path": "VRoid Hub\\セインホーン・ユニコニー\\7229542656829083947.vrm",
+      "vrm_size": 16151908,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 7978,
+        "output_size": 4969909
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 609,
+        "output_size": 4969726
+      },
+      "wasm": {
+        "elapsed_ms": 165,
+        "input_size": 16151908,
+        "output_size": 4969726,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "514340979744949531",
+      "relative_path": "VRoid Hub\\メロン猫覚醒\\514340979744949531.vrm",
+      "vrm_size": 543564,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 976,
+        "output_size": 397532
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 157,
+        "output_size": 398276
+      },
+      "wasm": {
+        "elapsed_ms": 48,
+        "input_size": 543564,
+        "output_size": 398276,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "4590875026920364234",
+      "relative_path": "VRoid Hub\\仮面ライダーブルーアイズ\\4590875026920364234.vrm",
+      "vrm_size": 1395548,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 2770,
+        "output_size": 1140143
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 338,
+        "output_size": 1140862
+      },
+      "wasm": {
+        "elapsed_ms": 58,
+        "input_size": 1395548,
+        "output_size": 1140862,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "8954518223473550154",
+      "relative_path": "VRoid Hub\\赤炎 燐  Rin Sekien\\8954518223473550154.vrm",
+      "vrm_size": 18519484,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 7905,
+        "output_size": 5037731
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 628,
+        "output_size": 5036585
+      },
+      "wasm": {
+        "elapsed_ms": 152,
+        "input_size": 18519484,
+        "output_size": 5036585,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_C",
+      "relative_path": "VRoid Hub\\1.0\\AvatarSample_C_正式版v１.０対応vroidファイル\\AvatarSample_C\\AvatarSample_C.vrm",
+      "vrm_size": 14880896,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6274,
+        "output_size": 4332985
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 442,
+        "output_size": 4333017
+      },
+      "wasm": {
+        "elapsed_ms": 144,
+        "input_size": 14880896,
+        "output_size": 4333017,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "mod",
+      "relative_path": "Release\\0.1.0.0\\mod.vrm",
+      "vrm_size": 16089784,
+      "python": {
+        "status": "error",
+        "elapsed_ms": 0,
+        "output_size": 0,
+        "error": "conversion failed"
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 547,
+        "output_size": 1675334
+      },
+      "wasm": {
+        "elapsed_ms": 132,
+        "input_size": 16089784,
+        "output_size": 1675334,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "NicoDanBoy",
+      "relative_path": "Release\\0.1.0.0\\NicoDanBoy.vrm",
+      "vrm_size": 11020328,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 4993,
+        "output_size": 3945806
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 293,
+        "output_size": 3945806
+      },
+      "wasm": {
+        "elapsed_ms": 106,
+        "input_size": 11020328,
+        "output_size": 3945806,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "relative_path": "original\\v0.0\\AvatarSample_A.vrm",
+      "vrm_size": 18481152,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6142,
+        "output_size": 4358195
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 491,
+        "output_size": 4358195
+      },
+      "wasm": {
+        "elapsed_ms": 148,
+        "input_size": 18481152,
+        "output_size": 4358195,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "relative_path": "original\\v1.0\\AvatarSample_A.vrm",
+      "vrm_size": 18484020,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6322,
+        "output_size": 4358127
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 447,
+        "output_size": 4358127
+      },
+      "wasm": {
+        "elapsed_ms": 145,
+        "input_size": 18484020,
+        "output_size": 4358127,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "mod",
+      "relative_path": "original\\VRM2PMX\\mod.vrm",
+      "vrm_size": 23513608,
+      "python": {
+        "status": "error",
+        "elapsed_ms": 0,
+        "output_size": 0,
+        "error": "conversion failed"
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 696,
+        "output_size": 2245651
+      },
+      "wasm": {
+        "elapsed_ms": 188,
+        "input_size": 23513608,
+        "output_size": 2245651,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "relative_path": "original\\20260309\\1\\AvatarSample_A.vrm",
+      "vrm_size": 18481104,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6185,
+        "output_size": 4358195
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 474,
+        "output_size": 4358195
+      },
+      "wasm": {
+        "elapsed_ms": 144,
+        "input_size": 18481104,
+        "output_size": 4358195,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "relative_path": "original\\20260309\\2\\AvatarSample_A.vrm",
+      "vrm_size": 18481104,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6294,
+        "output_size": 4358195
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 475,
+        "output_size": 4358195
+      },
+      "wasm": {
+        "elapsed_ms": 176,
+        "input_size": 18481104,
+        "output_size": 4358195,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "超かぐや姫！酒寄彩葉「水色の描」",
+      "relative_path": "bowlroll\\超かぐや姫！酒寄彩葉「水色の描」\\超かぐや姫！酒寄彩葉「水色の描」\\超かぐや姫_酒寄彩葉_水色の描_\\超かぐや姫！酒寄彩葉「水色の描」vrm\\超かぐや姫！酒寄彩葉「水色の描」.vrm",
+      "vrm_size": 21291720,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 8009,
+        "output_size": 4967300
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 629,
+        "output_size": 4967117
+      },
+      "wasm": {
+        "elapsed_ms": 187,
+        "input_size": 21291720,
+        "output_size": 4967117,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "8831901753414439164",
+      "relative_path": "Booth\\Klee\\8831901753414439164.vrm",
+      "vrm_size": 8799676,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 5129,
+        "output_size": 3305016
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 359,
+        "output_size": 3305002
+      },
+      "wasm": {
+        "elapsed_ms": 98,
+        "input_size": 8799676,
+        "output_size": 3305002,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "プロレスラー_リンリン",
+      "relative_path": "Booth\\プロレスラー リンリン\\プロレスラー_リンリン.vrm",
+      "vrm_size": 21938004,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 9720,
+        "output_size": 6652947
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 982,
+        "output_size": 6652947
+      },
+      "wasm": {
+        "elapsed_ms": 241,
+        "input_size": 21938004,
+        "output_size": 6652947,
+        "status": "ok"
+      }
+    },
+    {
+      "model": "和風リメイクあかおに",
+      "relative_path": "Booth\\あかおに新 VRM形式\\和風リメイクあかおに\\和風リメイクあかおに.vrm",
+      "vrm_size": 18650692,
+      "python": {
+        "status": "ok",
+        "elapsed_ms": 6570,
+        "output_size": 3318310
+      },
+      "nim_exe": {
+        "status": "ok",
+        "elapsed_ms": 598,
+        "output_size": 3318371
+      },
+      "wasm": {
+        "elapsed_ms": 132,
+        "input_size": 18650692,
+        "output_size": 3318371,
+        "status": "ok"
+      }
+    }
+  ]
+}

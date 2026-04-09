@@ -19,13 +19,15 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 
 ## 最新計測
 
-- フロントエンド 3 レーン速度比較 (2026-04-09): [Comparisons/20260409_170901_timing_comparison.md](Comparisons/20260409_170901_timing_comparison.md)
-  - JSON: [Comparisons/20260409_170901_timing_comparison.json](Comparisons/20260409_170901_timing_comparison.json)
-  - 要約: 26 モデル平均で Python 7249 ms / Nim-exe 524 ms / Wasm 168 ms、Wasm は Python 比 43.1x
-- Python 版との差分・bit-perfect 再計測 (2026-04-09): [Comparisons/20260409_1716_bitperfect_probe.md](Comparisons/20260409_1716_bitperfect_probe.md)
-  - JSON: [Comparisons/20260409_1716_bitperfect_probe.json](Comparisons/20260409_1716_bitperfect_probe.json)
-  - 要約: 26 モデル中 ok=21 / bit-perfect=0 / errors=5、現状 bit-perfect 率は 0.0%
-  - 傾向: first diff は after_vertex 側が多く、vertex 差分も一部残る
+- フロントエンド 3 レーン速度比較 (2026-04-10): [Comparisons/20260410_002518_timing_comparison.md](Comparisons/20260410_002518_timing_comparison.md)
+  - JSON: [Comparisons/20260410_002518_timing_comparison.json](Comparisons/20260410_002518_timing_comparison.json)
+  - 要約: 26 モデル平均で Python 5727 ms / Nim-exe 458 ms / Wasm 129 ms、Wasm は Python 比 44.3x
+- Python 版との差分・bit-perfect 再計測 (2026-04-10): [Comparisons/20260410_0019_bitperfect_probe.md](Comparisons/20260410_0019_bitperfect_probe.md)
+  - JSON: [Comparisons/20260410_0019_bitperfect_probe.json](Comparisons/20260410_0019_bitperfect_probe.json)
+  - 要約: 26 モデル中 ok=24 / bit-perfect=5 / errors=2、bit-perfect 率は 20.8%
+  - 改善点: `左つま先` の bone flag が Python `0x0002` に対して Nim `0x0003` になっていた問題を修正し、AvatarSample_A 系 4 件と プロレスラー_リンリン が bit-perfect に復帰
+  - 切り分け結果: Nim-exe と Wasm は同一 PMX を出力しており、フロントエンド化そのものは回帰原因ではない
+  - 残差傾向: 非一致 19 件は bone 差分が中心で、一部モデルは vertex 差分も残る
 
 次の目標は、multi-model bit-perfect 率を 80% 超まで引き上げること。
 

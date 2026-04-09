@@ -1,0 +1,57 @@
+{
+  "recorded_at": "2026-04-10T01:09:16",
+  "source_probe": "docs/Nim-Conversion/Comparisons/20260410_0019_bitperfect_probe.json",
+  "note": "VRM0.x priority sample recheck after twist/center-groove adjustments",
+  "results": [
+    {
+      "model": "NicoDanBoy",
+      "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/original/NicoDanBoy.vrm",
+      "bit_perfect": false,
+      "first_diff_offset": 572815,
+      "section": "bone",
+      "field": "position",
+      "bone_index": 2,
+      "size_delta": 0
+    },
+    {
+      "model": "NicoDanBoy_20260306",
+      "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/original/NicoDanBoy_20260306.vrm",
+      "bit_perfect": false,
+      "first_diff_offset": 593338,
+      "section": "bone",
+      "field": "tail_position",
+      "bone_index": 2,
+      "size_delta": 0
+    },
+    {
+      "model": "1899578487613238293",
+      "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/VRoid Hub/hitogata/1899578487613238293.vrm",
+      "bit_perfect": false,
+      "first_diff_offset": 1395638,
+      "section": "bone",
+      "field": "position",
+      "bone_index": 1,
+      "size_delta": -382
+    },
+    {
+      "model": "514340979744949531",
+      "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/VRoid Hub/メロン猫覚醒/514340979744949531.vrm",
+      "bit_perfect": false,
+      "first_diff_offset": 902,
+      "section": "vertex",
+      "field": "unknown",
+      "vertex_index": 0,
+      "size_delta": 744
+    },
+    {
+      "model": "4590875026920364234",
+      "path": "D:/Users/maedashingo/Downloads/MMD/VRoid/VRoid Hub/仮面ライダーブルーアイズ/4590875026920364234.vrm",
+      "bit_perfect": false,
+      "first_diff_offset": 152162,
+      "section": "vertex",
+      "field": "unknown",
+      "vertex_index": 3878,
+      "size_delta": 719
+    }
+  ]
+}
