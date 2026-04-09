@@ -2984,7 +2984,7 @@ export default function App() {
       requestedMode === "rust"
         ? "Rust experimental mode requested. This build will fall back to Wasm while the Rust converter is under development."
         : requestedMode === "nim"
-          ? "Nim experimental mode requested. This build will fall back to Wasm while the Nim converter is under development."
+          ? "Trying Nim Wasm first. If it is unavailable, backend fallback will run."
         : mode === "backend"
           ? "Converting with backend... this can take a while for large files."
           : backendEnabled
@@ -2997,6 +2997,7 @@ export default function App() {
     try {
       const convertLogStartIndex = logLinesRef.current.length;
       const convertInput = await buildConvertInputFile(file);
+      const convertStartedAt = performance.now();
       poseDebug("convert start", {
         requestedMode,
         fileName: file.name,
@@ -3012,6 +3013,28 @@ export default function App() {
         onLog: appendWorkerLog,
         signal: abortControllerRef.current.signal,
       });
+      const convertElapsedMs = Math.round(performance.now() - convertStartedAt);
+      const timingLane = result.usedMode === "nim"
+        ? "nim"
+        : (result.usedMode === "wasm" || result.usedMode === "backend")
+          ? "python"
+          : result.usedMode;
+      const timingMessage =
+        timingLane === "nim"
+          ? `[INFO] Nim版 convert time: ${convertElapsedMs} ms (requested=${requestedMode}, used=${result.usedMode})`
+          : timingLane === "python"
+            ? `[INFO] Python版 convert time: ${convertElapsedMs} ms (requested=${requestedMode}, used=${result.usedMode})`
+            : `[INFO] ${timingLane} convert time: ${convertElapsedMs} ms (requested=${requestedMode}, used=${result.usedMode})`;
+      appendConsoleLine([timingMessage], "info");
+      console.log(
+        JSON.stringify({
+          event: "convert.timing",
+          lane: timingLane,
+          requestedMode,
+          usedMode: result.usedMode,
+          elapsedMs: convertElapsedMs,
+        }),
+      );
 
       let outputBlob = result.blob;
       let outputExtension: ConvertedOutput["fileExtension"] = result.fileExtension;

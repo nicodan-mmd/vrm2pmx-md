@@ -1,6 +1,30 @@
 import std/[json, os, strutils, uri, tables, sets, sequtils, algorithm, math]
 import glb_parser, accessor, pmx_writer_lite
 
+type ConvertResultMeta {.bycopy.} = object
+  outPtr*: uint32
+  outLen*: int32
+  status*: int32
+  errorCode*: int32
+
+const
+  CONVERT_OK = int32(0)
+  CONVERT_ERR_INVALID_ARG = int32(1001)
+  CONVERT_ERR_PARSE = int32(1002)
+  CONVERT_ERR_BUILD = int32(1003)
+  CONVERT_ERR_ALLOC = int32(1004)
+
+var gLastErrorMsg = ""
+
+proc setError(meta: ptr ConvertResultMeta, errorCode: int32, message: string): int32 =
+  gLastErrorMsg = message
+  if meta != nil:
+    meta[].outPtr = uint32(0)
+    meta[].outLen = int32(0)
+    meta[].status = int32(1)
+    meta[].errorCode = errorCode
+  return int32(1)
+
 type Mat4d = array[16, float64]
 type Vec3d = tuple[x, y, z: float64]
 
@@ -3041,6 +3065,68 @@ proc main() =
   echo "  vertices=" & $model.vertices.len
   echo "  indices=" & $model.indices.len
   echo "  materials=" & $model.materials.len
+
+proc convertGlbBytesToPmxBytes(inputBytes: openArray[uint8], modelName: string = "source"): seq[uint8] =
+  let glb = parseGlb(inputBytes)
+  let model = buildModelFromGlb(glb.jsonData, glb.binData, modelName)
+  result = buildPmxBinaryLite(model)
+
+proc init*(): int32 {.exportc: "nim_wasm_init", cdecl.} =
+  gLastErrorMsg = ""
+  return CONVERT_OK
+
+proc allocBuffer*(size: int32): pointer {.exportc: "nim_wasm_alloc", cdecl.} =
+  if size <= 0:
+    return nil
+  return allocShared(int(size))
+
+proc freeBuffer*(p: pointer) {.exportc: "nim_wasm_free", cdecl.} =
+  if p != nil:
+    deallocShared(p)
+
+proc lastErrorLen*(): int32 {.exportc: "nim_wasm_last_error_len", cdecl.} =
+  return int32(gLastErrorMsg.len)
+
+proc copyLastError*(outPtr: pointer, outLen: int32): int32 {.exportc: "nim_wasm_copy_last_error", cdecl.} =
+  if outPtr == nil or outLen <= 0:
+    return int32(0)
+  let actual = min(gLastErrorMsg.len, int(outLen))
+  if actual <= 0:
+    return int32(0)
+  copyMem(outPtr, unsafeAddr gLastErrorMsg[0], actual)
+  return int32(actual)
+
+proc convert*(ptrIn: pointer, lenIn: int32, ptrOutMeta: pointer): int32 {.exportc: "nim_wasm_convert", cdecl.} =
+  let meta = cast[ptr ConvertResultMeta](ptrOutMeta)
+  if ptrIn == nil or lenIn <= 0:
+    return setError(meta, CONVERT_ERR_INVALID_ARG, "invalid input buffer")
+
+  if meta == nil:
+    return CONVERT_ERR_INVALID_ARG
+
+  try:
+    let inputLen = int(lenIn)
+    var inputBytes = newSeq[uint8](inputLen)
+    copyMem(addr inputBytes[0], ptrIn, inputLen)
+
+    let pmxBytes = convertGlbBytesToPmxBytes(inputBytes, "source")
+    if pmxBytes.len == 0:
+      return setError(meta, CONVERT_ERR_BUILD, "empty PMX output")
+
+    let outMem = allocShared(pmxBytes.len)
+    if outMem == nil:
+      return setError(meta, CONVERT_ERR_ALLOC, "output allocation failed")
+
+    copyMem(outMem, unsafeAddr pmxBytes[0], pmxBytes.len)
+
+    meta[].outPtr = cast[uint](outMem).uint32
+    meta[].outLen = int32(pmxBytes.len)
+    meta[].status = CONVERT_OK
+    meta[].errorCode = CONVERT_OK
+    gLastErrorMsg = ""
+    return CONVERT_OK
+  except CatchableError as e:
+    return setError(meta, CONVERT_ERR_PARSE, e.msg)
 
 when isMainModule:
   main()

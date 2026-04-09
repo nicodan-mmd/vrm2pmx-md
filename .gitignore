@@ -74,3 +74,10 @@ executor.py.lprof
 *.c
 *.pyd
 *.pyd
+
+# Nim wasm build artifacts (generated)
+frontend/public/nim/nimcache/
+frontend/public/nim/*.wat
+
+# Local Nim native binaries (generated)
+src/nim/*.exe

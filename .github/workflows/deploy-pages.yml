@@ -32,6 +32,22 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Setup Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: stable
+
+      - name: Setup Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Verify emcc
+        run: emcc --version
+
+      - name: Build Nim Wasm Runtime
+        run: pwsh -File .\scripts\build_nim_wasm.ps1 -OutDir frontend/public/nim -OutWasm vrm2pmx_nim_runtime.wasm -ManifestName vrm2pmx_nim_manifest.json
+
       - name: Build Frontend
         working-directory: frontend
         env:

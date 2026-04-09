@@ -1,5 +1,6 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
 import { convertViaRustWorker } from "../rust/workerClient";
+import { convertViaNimWorker } from "../nim/workerClient";
 import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
 
 export type ConvertMode = "auto" | "backend" | "wasm" | "rust" | "nim";
@@ -183,6 +184,32 @@ async function convertViaRust(
   };
 }
 
+async function convertViaNim(
+  file: File,
+  options?: ConvertOptions,
+): Promise<ConvertResult> {
+  const inputBuffer = await file.arrayBuffer();
+  const response = await convertViaNimWorker(
+    file.name,
+    inputBuffer,
+    (event) => {
+      options?.onProgress?.({ stage: event.stage, message: event.message });
+    },
+    options?.onLog,
+    options?.signal,
+  );
+
+  if (response.status === "error") {
+    throw new Error(response.message);
+  }
+
+  return {
+    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    fileExtension: response.fileExtension,
+    usedMode: response.usedMode,
+  };
+}
+
 export async function convertWithMode(
   file: File,
   mode: ConvertMode,
@@ -266,7 +293,7 @@ export async function convertWithMode(
 
   if (mode === "nim") {
     try {
-      const result = await convertViaBackend(file, "nim", options);
+      const result = await convertViaNim(file, options);
       console.info(
         JSON.stringify({
           event: "convert.completed",
@@ -281,35 +308,75 @@ export async function convertWithMode(
         throw error;
       }
 
-      const fallbackReason = error instanceof Error ? error.message : "Unknown nim error";
+      const nimWasmFallbackReason = error instanceof Error ? error.message : "Unknown nim wasm error";
       console.warn(
         JSON.stringify({
-          event: "convert.nim.unavailable",
+          event: "convert.nim.wasm.unavailable",
           requestedMode: "nim",
           attemptedMode: "nim",
-          fallbackMode: "wasm",
-          fallbackReason,
+          fallbackMode: "backend",
+          fallbackReason: nimWasmFallbackReason,
           elapsedMs: Math.round(performance.now() - startedAt),
         }),
       );
 
-      const wasmResult = await convertViaWasm(file, options);
-      console.info(
-        JSON.stringify({
-          event: "convert.fallback.completed",
-          requestedMode: mode,
-          attemptedMode: "nim",
-          fallbackMode: wasmResult.usedMode,
-          fallbackReason,
-          finalMode: wasmResult.usedMode,
-          elapsedMs: Math.round(performance.now() - startedAt),
-        }),
-      );
+      try {
+        const backendResult = await convertViaBackend(file, "nim", options);
+        console.info(
+          JSON.stringify({
+            event: "convert.fallback.completed",
+            requestedMode: mode,
+            attemptedMode: "nim",
+            fallbackMode: backendResult.usedMode,
+            fallbackReason: nimWasmFallbackReason,
+            finalMode: backendResult.usedMode,
+            elapsedMs: Math.round(performance.now() - startedAt),
+          }),
+        );
 
-      return {
-        ...wasmResult,
-        fallbackReason,
-      };
+        return {
+          ...backendResult,
+          fallbackReason: nimWasmFallbackReason,
+        };
+      } catch (backendError) {
+        if (backendError instanceof Error && backendError.name === "AbortError") {
+          throw backendError;
+        }
+
+        const finalFallbackReason = [
+          `nim-wasm: ${nimWasmFallbackReason}`,
+          `nim-backend: ${backendError instanceof Error ? backendError.message : "Unknown nim backend error"}`,
+        ].join(" | ");
+
+        console.warn(
+          JSON.stringify({
+            event: "convert.nim.backend.unavailable",
+            requestedMode: "nim",
+            attemptedMode: "backend",
+            fallbackMode: "wasm",
+            fallbackReason: finalFallbackReason,
+            elapsedMs: Math.round(performance.now() - startedAt),
+          }),
+        );
+
+        const wasmResult = await convertViaWasm(file, options);
+        console.info(
+          JSON.stringify({
+            event: "convert.fallback.completed",
+            requestedMode: mode,
+            attemptedMode: "nim",
+            fallbackMode: wasmResult.usedMode,
+            fallbackReason: finalFallbackReason,
+            finalMode: wasmResult.usedMode,
+            elapsedMs: Math.round(performance.now() - startedAt),
+          }),
+        );
+
+        return {
+          ...wasmResult,
+          fallbackReason: finalFallbackReason,
+        };
+      }
     }
   }
 

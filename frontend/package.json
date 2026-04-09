@@ -6,6 +6,7 @@
   "scripts": {
     "sync:py-src": "node scripts/sync_py_src.mjs",
     "build:rust-runtime": "node scripts/build_rust_runtime.mjs",
+    "build:nim-runtime": "pwsh -File ../scripts/build_nim_wasm.ps1 -OutDir frontend/public/nim -OutWasm vrm2pmx_nim_runtime.wasm -ManifestName vrm2pmx_nim_manifest.json",
     "dev": "npm run sync:py-src && vite",
     "build": "npm run sync:py-src && tsc -b && vite build",
     "preview": "vite preview"
