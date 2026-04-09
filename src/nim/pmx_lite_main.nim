@@ -1,4 +1,4 @@
-import std/[json, os, strutils, uri, tables, sequtils, algorithm, math]
+import std/[json, os, strutils, uri, tables, sets, sequtils, algorithm, math]
 import glb_parser, accessor, pmx_writer_lite
 
 type Mat4d = array[16, float64]
@@ -1323,7 +1323,7 @@ proc makeNoCollisionMask(excludedGroups: openArray[int]): int16 =
   for grp in 0 .. 15:
     if grp notin excludedGroups:
       mask = mask or (1 shl grp)
-  return int16(mask)
+  return cast[int16](mask)
 
 proc buildStandardPhysics(model: var PmxModelLite) =
   type StdRigidDef = tuple[name: string, shapeType: int8, mode: int8, group: int8]
@@ -1357,16 +1357,56 @@ proc buildStandardPhysics(model: var PmxModelLite) =
   for i, bone in model.bones:
     boneIndexByName[bone.name] = int32(i)
 
+  # Build set of bone indices that have at least one vertex with weight >= 0.4
+  # (mirrors Python's bone_vertices: only bones in this set get rigidbodies)
+  var bonesWithVertices = initHashSet[int32]()
+  for v in model.vertices:
+    case v.deform.kind
+    of 0:  # Bdef1 – implied weight 1.0
+      bonesWithVertices.incl(v.deform.bones[0])
+    of 1:  # Bdef2
+      if v.deform.weights[0] >= 0.4'f32:
+        bonesWithVertices.incl(v.deform.bones[0])
+      if 1.0'f32 - v.deform.weights[0] >= 0.4'f32:
+        bonesWithVertices.incl(v.deform.bones[1])
+    of 2:  # Bdef4
+      for wi in 0..3:
+        if v.deform.weights[wi] >= 0.4'f32:
+          bonesWithVertices.incl(v.deform.bones[wi])
+    else: discard
+
+  # Propagate vertices to effect parents, mirroring Python's bone_vertices logic:
+  #   - 捩ボーン → propagate to parent
+  #   - flag 0x0100 (rotation inherit / D-bones) → propagate to appendBoneIndex
+  var extra = initHashSet[int32]()
+  for boneIdx in bonesWithVertices:
+    let bIdx = int(boneIdx)
+    if bIdx < 0 or bIdx >= model.bones.len:
+      continue
+    let b = model.bones[bIdx]
+    if "捩" in b.name and b.parentIndex >= 0:
+      extra.incl(b.parentIndex)
+    if (b.flag and 0x0100) != 0 and b.appendBoneIndex >= 0:
+      extra.incl(b.appendBoneIndex)
+  for bi in extra:
+    bonesWithVertices.incl(bi)
+
   model.rigidbodies = @[]
   model.joints = @[]
 
   let noCollisionMask = makeNoCollisionMask([0, 1, 2])
   var rigidIndexByBone = initTable[string, int32]()
+  var bonePairsJaSet = initHashSet[string]()
+  for n in BONE_PAIRS_JA:
+    bonePairsJaSet.incl(n)
 
   for d in defs:
     if d.name notin boneIndexByName:
       continue
-    let boneIdx = int(boneIndexByName[d.name])
+    let boneIdx32 = boneIndexByName[d.name]
+    if boneIdx32 notin bonesWithVertices:
+      continue
+    let boneIdx = int(boneIdx32)
     let bone = model.bones[boneIdx]
     var tailPos = bone.position
     if bone.tailIndex >= 0 and int(bone.tailIndex) < model.bones.len:
@@ -1413,6 +1453,89 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     )
     rigidIndexByBone[d.name] = int32(model.rigidbodies.len)
     model.rigidbodies.add(rb)
+
+  # Optional (non-standard) rigidbodies: mirror Python's candidate conditions
+  # and use RIGIDBODY_PAIRS defaults for now.
+  for boneIdx, bone in model.bones:
+    if bone.name in rigidIndexByBone:
+      continue
+    if "捩" in bone.name:
+      continue
+    if (bone.flag and 0x0100) != 0:
+      continue
+    if int32(boneIdx) notin bonesWithVertices:
+      continue
+    if bone.name in bonePairsJaSet:
+      continue
+
+    var collisionGroup = int8(9)
+    var shapeType = int8(2)
+    var paramMass = 2'f32
+    var paramMoveAttenuation = 0.9'f32
+    var paramRotationAttenuation = 0.9'f32
+    var paramRepulsion = 0'f32
+    var paramFriction = 0.5'f32
+    var noCollisionExtra = makeNoCollisionMask([9])
+
+    if "Skirt" in bone.name:
+      collisionGroup = int8(4)
+      shapeType = int8(1)
+      noCollisionExtra = makeNoCollisionMask([4])
+    elif "Sleeve" in bone.name:
+      collisionGroup = int8(4)
+      noCollisionExtra = makeNoCollisionMask([1, 4])
+    elif "髪" in bone.name:
+      collisionGroup = int8(3)
+      noCollisionExtra = makeNoCollisionMask([3])
+      paramMass = 1'f32
+      paramMoveAttenuation = 0.7'f32
+      paramRotationAttenuation = 0.7'f32
+      paramFriction = 0'f32
+
+    var tailPos = bone.position
+    if bone.tailIndex >= 0 and int(bone.tailIndex) < model.bones.len:
+      tailPos = model.bones[int(bone.tailIndex)].position
+    else:
+      tailPos = Vec3f(
+        x: bone.position.x + bone.tailPosition.x,
+        y: bone.position.y + bone.tailPosition.y,
+        z: bone.position.z + bone.tailPosition.z,
+      )
+
+    let dx = tailPos.x - bone.position.x
+    let dy = tailPos.y - bone.position.y
+    let dz = tailPos.z - bone.position.z
+    let length = max(0.01'f32, sqrt(dx * dx + dy * dy + dz * dz))
+    let radius = max(0.01'f32, length * 0.25'f32)
+
+    var shapeSize = Vec3f(x: radius, y: radius, z: radius)
+    var shapePos = bone.position
+    if shapeType != int8(0):
+      shapeSize = Vec3f(x: radius, y: length, z: 0'f32)
+      shapePos = Vec3f(
+        x: (bone.position.x + tailPos.x) * 0.5'f32,
+        y: (bone.position.y + tailPos.y) * 0.5'f32,
+        z: (bone.position.z + tailPos.z) * 0.5'f32,
+      )
+
+    model.rigidbodies.add(PmxRigidbodyLite(
+      name: bone.name,
+      englishName: bone.name,
+      boneIndex: int32(boneIdx),
+      collisionGroup: collisionGroup,
+      noCollisionGroup: noCollisionExtra,
+      shapeType: shapeType,
+      shapeSize: shapeSize,
+      shapePosition: shapePos,
+      shapeRotation: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
+      paramMass: paramMass,
+      paramMoveAttenuation: paramMoveAttenuation,
+      paramRotationAttenuation: paramRotationAttenuation,
+      paramRepulsion: paramRepulsion,
+      paramFriction: paramFriction,
+      mode: int8(1),
+    ))
+    rigidIndexByBone[bone.name] = int32(model.rigidbodies.len - 1)
 
   for d in defs:
     if d.mode notin [int8(1), int8(2)] or d.name notin rigidIndexByBone or d.name notin boneIndexByName:
