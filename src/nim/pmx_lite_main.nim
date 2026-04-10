@@ -16,6 +16,16 @@ const
 
 var gLastErrorMsg = ""
 
+proc isStageTraceEnabled(): bool =
+  let raw = getEnv("NIM_STAGE_TRACE", "").strip().toLowerAscii()
+  result = raw.len > 0 and raw notin ["0", "false", "off", "no"]
+
+proc stageTrace(message: string) =
+  if not isStageTraceEnabled():
+    return
+  writeLine(stderr, "[nim][trace] " & message)
+  flushFile(stderr)
+
 proc setError(meta: ptr ConvertResultMeta, errorCode: int32, message: string): int32 =
   gLastErrorMsg = message
   if meta != nil:
@@ -1777,6 +1787,9 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     ("右足首", int8(2), int8(0), int8(2)),
   ]
 
+  proc tracePhysics(message: string) =
+    stageTrace("buildStandardPhysics:" & message)
+
   var boneIndexByName = initTable[string, int32]()
   var boneEnglishByName = initTable[string, string]()
   for i, bone in model.bones:
@@ -1784,6 +1797,7 @@ proc buildStandardPhysics(model: var PmxModelLite) =
   for i, jaName in BONE_PAIRS_JA:
     if i < BONE_PAIRS_EN.len:
       boneEnglishByName[jaName] = BONE_PAIRS_EN[i]
+  tracePhysics("bone-index-maps:done bones=" & $model.bones.len)
 
   var boneVertices = initTable[int32, seq[int]]()
   var bonesWithVertices = initHashSet[int32]()
@@ -1801,6 +1815,7 @@ proc buildStandardPhysics(model: var PmxModelLite) =
       elif (b.flag and 0x0100) != 0 and b.appendBoneIndex >= 0:
         boneVertices.mgetOrPut(b.appendBoneIndex, @[]).add(vertexIdx)
         bonesWithVertices.incl(b.appendBoneIndex)
+  tracePhysics("bone-vertices:done influencedBones=" & $bonesWithVertices.len)
 
   model.rigidbodies = @[]
   model.joints = @[]
@@ -1899,9 +1914,11 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     )
     rigidIndexByBone[d.name] = int32(model.rigidbodies.len)
     model.rigidbodies.add(rb)
+  tracePhysics("standard-rigidbodies:done count=" & $model.rigidbodies.len)
 
   # Optional (non-standard) rigidbodies: mirror Python's candidate conditions
   # and parameter interpolation rules from RIGIDBODY_PAIRS.
+  tracePhysics("optional-rigidbodies:start")
   for boneIdx, bone in model.bones:
     if bone.name in rigidIndexByBone:
       continue
@@ -1924,11 +1941,17 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     let endsWithEarlyDigit = endsWithDigit and (bone.name[^1] == '0' or bone.name[^1] == '1')
     if hasParent and parentBone.name in rigidIndexByBone and not (model.rigidbodies[int(rigidIndexByBone[parentBone.name])].mode == int8(0) and (not endsWithDigit or endsWithEarlyDigit)):
       var targetBoneIdx = boneIdx
+      var visitedParents = initHashSet[int]()
+      visitedParents.incl(targetBoneIdx)
       while model.bones[targetBoneIdx].parentIndex > -1:
         inc(parentCnt)
         let nextParentIdx = int(model.bones[targetBoneIdx].parentIndex)
         if nextParentIdx < 0 or nextParentIdx >= model.bones.len:
           break
+        if nextParentIdx in visitedParents:
+          tracePhysics("optional-rigidbodies:parent-cycle bone=" & bone.name & " current=" & model.bones[targetBoneIdx].name & " next=" & model.bones[nextParentIdx].name)
+          break
+        visitedParents.incl(nextParentIdx)
         let nextParentName = model.bones[nextParentIdx].name
         if nextParentName notin rigidIndexByBone:
           break
@@ -1937,11 +1960,17 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     var childCnt = 0
     if bone.tailIndex >= 0:
       var targetBoneIdx = boneIdx
+      var visitedChildren = initHashSet[int]()
+      visitedChildren.incl(targetBoneIdx)
       while model.bones[targetBoneIdx].tailIndex > -1:
         inc(childCnt)
         let childIdx = int(model.bones[targetBoneIdx].tailIndex)
         if childIdx < 0 or childIdx >= model.bones.len:
           break
+        if childIdx in visitedChildren:
+          tracePhysics("optional-rigidbodies:tail-cycle bone=" & bone.name & " current=" & model.bones[targetBoneIdx].name & " next=" & model.bones[childIdx].name)
+          break
+        visitedChildren.incl(childIdx)
         targetBoneIdx = childIdx
 
     if parentCnt + childCnt <= 0:
@@ -1984,7 +2013,9 @@ proc buildStandardPhysics(model: var PmxModelLite) =
     ))
     rigidIndexByBone[bone.name] = int32(model.rigidbodies.len - 1)
     optionalPhysicsByBone[bone.name] = cfg
+  tracePhysics("optional-rigidbodies:done count=" & $model.rigidbodies.len)
 
+  tracePhysics("optional-joints:start")
   for boneIdx, bone in model.bones:
     if bone.name in bonePairsJaSet:
       continue
@@ -1993,7 +2024,12 @@ proc buildStandardPhysics(model: var PmxModelLite) =
 
     var parentRigid = int32(-1)
     var current = bone.parentIndex
+    var visitedCurrent = initHashSet[int]()
     while current >= 0:
+      if int(current) in visitedCurrent:
+        tracePhysics("optional-joints:parent-cycle bone=" & bone.name & " current=" & model.bones[int(current)].name)
+        break
+      visitedCurrent.incl(int(current))
       let parentName = model.bones[int(current)].name
       if parentName in rigidIndexByBone:
         parentRigid = rigidIndexByBone[parentName]
@@ -2040,13 +2076,20 @@ proc buildStandardPhysics(model: var PmxModelLite) =
       springConstantTranslation: springConstantTranslation,
       springConstantRotation: springConstantRotation,
     ))
+  tracePhysics("optional-joints:done count=" & $model.joints.len)
 
+  tracePhysics("standard-joints:start")
   for d in defs:
     if d.mode notin [int8(1), int8(2)] or d.name notin rigidIndexByBone or d.name notin boneIndexByName:
       continue
     var current = int(boneIndexByName[d.name])
     var parentRigid = int32(-1)
+    var visitedCurrent = initHashSet[int]()
     while current >= 0:
+      if current in visitedCurrent:
+        tracePhysics("standard-joints:parent-cycle bone=" & d.name & " current=" & model.bones[current].name)
+        break
+      visitedCurrent.incl(current)
       let parentIdx = model.bones[current].parentIndex
       if parentIdx < 0:
         break
@@ -2076,6 +2119,7 @@ proc buildStandardPhysics(model: var PmxModelLite) =
       springConstantTranslation: Vec3f(x: spring, y: spring, z: spring),
       springConstantRotation: Vec3f(x: spring, y: spring, z: spring),
     ))
+  tracePhysics("standard-joints:done count=" & $model.joints.len)
 
 proc iterExpressionGroups(jsonData: JsonNode): seq[(string, seq[(int, float32)])] =
   if jsonData.kind != JObject or not jsonData.hasKey("extensions"):
@@ -2314,6 +2358,82 @@ proc getShadeColorAmbient(jsonData: JsonNode, materialNode: JsonNode): Vec3f =
       return Vec3f(x: float32(arr[0].getFloat(0.5)), y: float32(arr[1].getFloat(0.5)), z: float32(arr[2].getFloat(0.5)))
   return Vec3f(x: 0.5'f32, y: 0.5'f32, z: 0.5'f32)
 
+proc getBaseColorFactor(materialNode: JsonNode): Vec4f =
+  ## Reads pbrMetallicRoughness.baseColorFactor as diffuse RGBA fallback.
+  if materialNode.kind != JObject or not materialNode.hasKey("pbrMetallicRoughness"):
+    return Vec4f(x: 1'f32, y: 1'f32, z: 1'f32, w: 1'f32)
+  let pbr = materialNode["pbrMetallicRoughness"]
+  if pbr.kind != JObject or not pbr.hasKey("baseColorFactor") or pbr["baseColorFactor"].kind != JArray:
+    return Vec4f(x: 1'f32, y: 1'f32, z: 1'f32, w: 1'f32)
+  let arr = pbr["baseColorFactor"]
+  if arr.len < 3:
+    return Vec4f(x: 1'f32, y: 1'f32, z: 1'f32, w: 1'f32)
+
+  proc readChannel(idx: int, defaultValue: float32): float32 =
+    if idx < 0 or idx >= arr.len:
+      return defaultValue
+    case arr[idx].kind
+    of JFloat:
+      return float32(arr[idx].getFloat(float(defaultValue)))
+    of JInt:
+      return float32(arr[idx].getInt(int(defaultValue)))
+    else:
+      return defaultValue
+
+  let r = readChannel(0, 1'f32)
+  let g = readChannel(1, 1'f32)
+  let b = readChannel(2, 1'f32)
+  let a = if arr.len >= 4: readChannel(3, 1'f32) else: 1'f32
+  return Vec4f(x: r, y: g, z: b, w: a)
+
+proc applyMaterialNameColorFallback(matName: string, base: Vec4f): Vec4f =
+  var lower = matName.toLowerAscii()
+  # Always keep a visible default even when material name matching fails.
+  result = Vec4f(x: 0.85'f32, y: 0.85'f32, z: 0.85'f32, w: 1'f32)
+  if base.x > 0'f32 or base.y > 0'f32 or base.z > 0'f32:
+    result = base
+
+  template setRgb(rv, gv, bv: float32) =
+    result.x = rv
+    result.y = gv
+    result.z = bv
+    result.w = 1'f32
+
+  if matName.contains("薄水色") or lower.contains("lightcyan"):
+    setRgb(0.67'f32, 0.88'f32, 0.92'f32)
+  elif matName.contains("水色") or lower.contains("cyan") or lower.contains("aqua"):
+    setRgb(0.47'f32, 0.78'f32, 0.86'f32)
+  elif matName.contains("薄黄色") or lower.contains("lightyellow"):
+    setRgb(0.90'f32, 0.86'f32, 0.59'f32)
+  elif matName.contains("薄緑") or lower.contains("lightgreen") or lower.contains("mint"):
+    setRgb(0.62'f32, 0.90'f32, 0.66'f32)
+  elif matName.contains("オレンジ") or lower.contains("orange"):
+    setRgb(0.96'f32, 0.66'f32, 0.28'f32)
+  elif matName.contains("黄色") or lower.contains("yellow"):
+    setRgb(0.92'f32, 0.88'f32, 0.36'f32)
+  elif matName.contains("ピンク") or lower.contains("pink"):
+    setRgb(0.92'f32, 0.58'f32, 0.73'f32)
+  elif matName.contains("紫") or lower.contains("purple") or lower.contains("violet"):
+    setRgb(0.66'f32, 0.52'f32, 0.82'f32)
+  elif matName.contains("青") or lower.contains("blue"):
+    setRgb(0.52'f32, 0.66'f32, 0.90'f32)
+  elif matName.contains("赤") or lower.contains("red"):
+    setRgb(0.88'f32, 0.50'f32, 0.50'f32)
+  elif matName.contains("灰") or lower.contains("gray") or lower.contains("grey"):
+    setRgb(0.70'f32, 0.70'f32, 0.70'f32)
+  elif matName.contains("緑") or lower.contains("green"):
+    setRgb(0.46'f32, 0.82'f32, 0.50'f32)
+  elif matName.contains("白") or lower.contains("white"):
+    setRgb(0.96'f32, 0.96'f32, 0.96'f32)
+  elif matName.contains("黒") or lower.contains("black"):
+    setRgb(0.24'f32, 0.24'f32, 0.24'f32)
+
+proc isRgbNearZero(v: Vec4f): bool =
+  return abs(v.x) < 1.0e-6'f32 and abs(v.y) < 1.0e-6'f32 and abs(v.z) < 1.0e-6'f32
+
+proc isVec3NearZero(v: Vec3f): bool =
+  return abs(v.x) < 1.0e-6'f32 and abs(v.y) < 1.0e-6'f32 and abs(v.z) < 1.0e-6'f32
+
 proc getOutlineColor(jsonData: JsonNode, materialNode: JsonNode): Vec4f =
   ## Returns edge RGBA from _OutlineColor, defaulting to (0,0,0,1).
   let prop = findVrmMaterialProp(jsonData, materialNode)
@@ -2398,6 +2518,7 @@ proc pythonInitialBoneFlag(node: JsonNode, bonePairsLookup: Table[string, int], 
   return int16(0x001b)
 
 proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName: string): PmxModelLite =
+  stageTrace("buildModelFromGlb:start model=" & modelName)
   let meta = readModelMetadata(jsonData, modelName)
   result.name = meta.name
   result.englishName = ""
@@ -2423,9 +2544,11 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.preciseVertexPositions = @[]
 
   if not jsonData.hasKey("meshes"):
+    stageTrace("buildModelFromGlb:no-meshes")
     return
 
   # Build bone lookup tables
+  stageTrace("buildModelFromGlb:prepare-bone-lookups")
   let bonePairsLookup = buildBonePairsLookup()
   let nodeToBoneIdx = buildNodeToPmxBoneIndex(jsonData, bonePairsLookup)
   let nodeWorldMatrices = buildNodeWorldMatrices(jsonData)
@@ -2467,7 +2590,9 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   var materialIndices = initOrderedTable[int, seq[int32]]()
   var vertexMorphs = initOrderedTable[int, PmxMorphLite]()
 
+  stageTrace("buildModelFromGlb:mesh-loop:start meshes=" & $jsonData["meshes"].len)
   for meshIdx, mesh in jsonData["meshes"].elems:
+    stageTrace("buildModelFromGlb:mesh-loop:mesh=" & $meshIdx)
     if not mesh.hasKey("primitives"):
       continue
 
@@ -2592,10 +2717,12 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             i += 1
 
   # Flatten indices per material in insertion order
+  stageTrace("buildModelFromGlb:mesh-loop:done vertices=" & $result.vertices.len & " indices=" & $result.indices.len)
   for matIdx, idxList in materialIndices:
     for idx in idxList:
       result.indices.add(idx)
 
+  stageTrace("buildModelFromGlb:morphs:start")
   var vertexMorphIndexMap = initTable[int, int32]()
   for sourceMorphIdx, morph in vertexMorphs:
     vertexMorphIndexMap[sourceMorphIdx] = int32(result.morphs.len)
@@ -2660,9 +2787,12 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
     namedMorphIndexMap[morph.name] = int32(result.morphs.len)
     result.morphs.add(morph)
   result.morphCountHint = result.morphs.len
+  stageTrace("buildModelFromGlb:morphs:done morphs=" & $result.morphs.len)
 
   # Build one material per GLB material index (in order of first appearance)
+  stageTrace("buildModelFromGlb:materials:start")
   let hasMaterials = jsonData.hasKey("materials")
+  let hasImageAssets = jsonData.hasKey("images") and jsonData["images"].kind == JArray and jsonData["images"].len > 0
   for matIdx, idxList in materialIndices:
     let idxCount = int32(idxList.len)
     var mat = defaultMaterial(idxCount)
@@ -2674,6 +2804,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       mat.name = matName
       mat.englishName = matName
       mat.textureIndex = resolveMainTextureIndex(jsonData, vrmMat, result.textures.len)
+      let useSolidColorFallback = (not hasImageAssets) and mat.textureIndex < 0
+      if mat.textureIndex < 0:
+        # For texture-less materials, keep PMX diffuse close to source baseColorFactor.
+        mat.diffuse = applyMaterialNameColorFallback(matName, getBaseColorFactor(vrmMat))
       # Check doubleSided and set 0x01 flag if needed (matches Python path)
       if vrmMat.kind == JObject and vrmMat.hasKey("doubleSided") and vrmMat["doubleSided"].getBool(false):
         mat.flag = int8(int(mat.flag) or 0x01)
@@ -2688,6 +2822,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       mat.sphereMode = sphMode
       # Check for _ShadeColor to determine toon sharing mode
       hasCustomToon = hasShadeColor(jsonData, vrmMat)
+      discard useSolidColorFallback
     else:
       mat.name = matName
       mat.englishName = matName
@@ -2704,9 +2839,25 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       mat.toonSharingFlag = int8(1)
       mat.toonTextureIndex = int32(1)
 
+    # Final safety guard: never leave toon-driven materials with fully black diffuse/ambient.
+    if isRgbNearZero(mat.diffuse):
+      mat.diffuse = applyMaterialNameColorFallback(matName, Vec4f(x: 0.85'f32, y: 0.85'f32, z: 0.85'f32, w: 1'f32))
+    if isVec3NearZero(mat.ambient):
+      mat.ambient = Vec3f(x: 0.45'f32, y: 0.45'f32, z: 0.45'f32)
+
+    stageTrace(
+      "material: idx=" & $matIdx &
+      " name=" & matName &
+      " tex=" & $mat.textureIndex &
+      " diff=(" & $mat.diffuse.x & "," & $mat.diffuse.y & "," & $mat.diffuse.z & ")" &
+      " amb=(" & $mat.ambient.x & "," & $mat.ambient.y & "," & $mat.ambient.z & ")"
+    )
+
     result.materials.add(mat)
+  stageTrace("buildModelFromGlb:materials:done materials=" & $result.materials.len & " textures=" & $result.textures.len)
 
   # Build minimal bones from mapped glTF nodes.
+  stageTrace("buildModelFromGlb:bones:start hint=" & $result.boneCountHint)
   if result.boneCountHint > 0:
     result.bones = newSeq[PmxBoneLite](result.boneCountHint)
     var initialized = newSeq[bool](result.boneCountHint)
@@ -2782,6 +2933,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       initialized[b] = true
       isStandardMapped[b] = nodeName in bonePairsLookup or b == 0
 
+    stageTrace("buildModelFromGlb:bones:initial-map-done")
+
     for i in 0 ..< result.bones.len:
       if initialized[i]:
         continue
@@ -2797,6 +2950,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         tailIndex: int32(-1),
         tailPosition: Vec3f(x: 0'f32, y: 0'f32, z: 0'f32),
       )
+
+    stageTrace("buildModelFromGlb:bones:fill-fallback-done")
 
     # Match Python center/groove placement.
     # default_pairs index: 1=センター, 2=グルーブ, 3=腰, 85=左足, 86=左ひざ
@@ -2926,6 +3081,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[b].tailIndex = int32(-1)
           result.bones[b].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
+      stageTrace("buildModelFromGlb:bones:standard-layout-done")
+
       # 肩C bones: append rotation from 肩P (flag & 0x0100)
       if result.bones.len > 52:
         # 肩P/肩C positions follow 肩 position
@@ -2949,6 +3106,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[18].appendRatio = -1'f32
         result.bones[52].appendBoneIndex = int32(50)  # 右肩C → 右肩P
         result.bones[52].appendRatio = -1'f32
+
+      stageTrace("buildModelFromGlb:bones:upper-body-adjustments-done")
 
       # 下半身: tail_pos mode, tail = 腰 - 下半身
       if result.bones.len > 4:
@@ -3025,6 +3184,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
         result.bones[91].appendBoneIndex = int32(3)
         result.bones[91].appendRatio = -1'f32
 
+      stageTrace("buildModelFromGlb:bones:waist-and-eyes-done")
+
       # 指先 bones: only apply fallback position when missing (Python parity).
       if result.bones.len > 83:
         for tipIdx in [33, 37, 41, 45, 49, 67, 71, 75, 79, 83]:
@@ -3066,13 +3227,15 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
       # Python finalize step for non-standard bones: tail-less endpoints become rotate-only.
       for i in 0 ..< result.bones.len:
-        if not initialized[i] or isStandardMapped[i]:
+        if i < BONE_PAIRS_EN.len or not initialized[i] or isStandardMapped[i]:
           continue
         # Python uses 下半身 as the resolved parent for non-standard bones under 腰.
         if result.bones[i].parentIndex == int32(3) and result.bones.len > 4:
           result.bones[i].parentIndex = int32(4)
         if result.bones[i].tailIndex == int32(-1) and result.bones[i].tailPosition == Vec3f(x: 0'f32, y: 0'f32, z: 0'f32):
           result.bones[i].flag = int16(0x0003)
+
+      stageTrace("buildModelFromGlb:bones:nonstandard-finalize-done")
 
       # 足IK / つま先IK: Python create_bone_leg_ik と同じ動的上書き
       if result.bones.len > 97:
@@ -3126,6 +3289,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
             ],
           )
 
+      stageTrace("buildModelFromGlb:bones:leg-ik-done")
+
       # D bones: layer=1, append from parent (without D)
       if result.bones.len > 105:
         for (dIdx, parentIdx) in [(98, 85), (99, 86), (100, 87), (102, 92), (103, 93), (104, 94)]:
@@ -3143,6 +3308,8 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[exIdx].flag = int16(0x001a)
           result.bones[exIdx].tailIndex = int32(-1)
           result.bones[exIdx].tailPosition = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
+
+      stageTrace("buildModelFromGlb:bones:d-bones-done")
 
       # 手首: tail_pos = normalize(手首 - ひじ)
       if result.bones.len > 63:
@@ -3184,10 +3351,18 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           result.bones[wristIdx].localXAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
           result.bones[wristIdx].localZAxis = Vec3f(x: 0'f32, y: 0'f32, z: 0'f32)
 
+      stageTrace("buildModelFromGlb:bones:twist-and-wrist-done")
+
       result.preciseTailPositions = preciseTailPos
       result.hasPreciseTailPositions = hasPreciseTailPos
+      stageTrace("buildModelFromGlb:bones:display-slots:start")
       buildDisplaySlots(result)
+      stageTrace("buildModelFromGlb:bones:display-slots:done")
+      stageTrace("buildModelFromGlb:bones:physics:start")
       buildStandardPhysics(result)
+      stageTrace("buildModelFromGlb:bones:physics:done")
+  stageTrace("buildModelFromGlb:bones:done bones=" & $result.bones.len & " rigidbodies=" & $result.rigidbodies.len & " joints=" & $result.joints.len)
+  stageTrace("buildModelFromGlb:done")
 
 proc main() =
   let args = commandLineParams()
@@ -3202,12 +3377,18 @@ proc main() =
     echo "Error: input not found: " & inputPath
     quit(1)
 
+  stageTrace("main:readFile:start path=" & inputPath)
   let bytes = cast[seq[uint8]](readFile(inputPath))
+  stageTrace("main:readFile:done bytes=" & $bytes.len)
   let glb = parseGlb(bytes)
+  stageTrace("main:parseGlb:done jsonKeys=" & $glb.jsonData.len)
   let model = buildModelFromGlb(glb.jsonData, glb.binData, "source")
+  stageTrace("main:buildModel:done vertices=" & $model.vertices.len & " materials=" & $model.materials.len & " bones=" & $model.bones.len)
   let pmxBytes = buildPmxBinaryLite(model)
+  stageTrace("main:buildPmxBinary:done bytes=" & $pmxBytes.len)
 
   writeFile(outputPath, cast[string](pmxBytes))
+  stageTrace("main:writeFile:done path=" & outputPath)
 
   echo "Wrote PMX Lite: " & outputPath
   echo "  vertices=" & $model.vertices.len
@@ -3215,9 +3396,13 @@ proc main() =
   echo "  materials=" & $model.materials.len
 
 proc convertGlbBytesToPmxBytes(inputBytes: openArray[uint8], modelName: string = "source"): seq[uint8] =
+  stageTrace("wasm:parseGlb:start bytes=" & $inputBytes.len)
   let glb = parseGlb(inputBytes)
+  stageTrace("wasm:parseGlb:done jsonKeys=" & $glb.jsonData.len)
   let model = buildModelFromGlb(glb.jsonData, glb.binData, modelName)
+  stageTrace("wasm:buildModel:done vertices=" & $model.vertices.len & " materials=" & $model.materials.len & " bones=" & $model.bones.len)
   result = buildPmxBinaryLite(model)
+  stageTrace("wasm:buildPmxBinary:done bytes=" & $result.len)
 
 proc init*(): int32 {.exportc: "nim_wasm_init", cdecl.} =
   gLastErrorMsg = ""

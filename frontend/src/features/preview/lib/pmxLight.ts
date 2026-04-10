@@ -40,8 +40,8 @@ export function computePmxLightPreset(root: THREE.Object3D): {
 
   if (materialCount === 0) {
     return {
-      ambientIntensity: 0.72,
-      directionalIntensity: 0.95,
+      ambientIntensity: 0.62,
+      directionalIntensity: 0.86,
       avgLuminance: 0,
       brightMaterialRatio: 0,
     };
@@ -50,33 +50,33 @@ export function computePmxLightPreset(root: THREE.Object3D): {
   const avgLuminance = totalLuminance / materialCount;
   const brightMaterialRatio = brightMaterialCount / materialCount;
 
-  let directionalIntensity = 0.95;
-  let ambientIntensity = 0.72;
+  let directionalIntensity = 0.88;
+  let ambientIntensity = 0.64;
 
   if (avgLuminance >= 0.7) {
-    directionalIntensity = 0.82;
-    ambientIntensity = 0.6;
+    directionalIntensity = 0.76;
+    ambientIntensity = 0.54;
   } else if (avgLuminance >= 0.62) {
-    directionalIntensity = 0.9;
-    ambientIntensity = 0.65;
+    directionalIntensity = 0.82;
+    ambientIntensity = 0.58;
   } else if (avgLuminance >= 0.52) {
-    directionalIntensity = 1.0;
-    ambientIntensity = 0.72;
+    directionalIntensity = 0.9;
+    ambientIntensity = 0.64;
   } else if (avgLuminance < 0.3) {
-    directionalIntensity = 1.25;
-    ambientIntensity = 0.82;
+    directionalIntensity = 1.04;
+    ambientIntensity = 0.68;
   } else {
-    directionalIntensity = 1.12;
-    ambientIntensity = 0.76;
+    directionalIntensity = 0.98;
+    ambientIntensity = 0.66;
   }
 
   if (brightMaterialRatio > 0.35) {
-    directionalIntensity -= 0.08;
-    ambientIntensity -= 0.05;
+    directionalIntensity -= 0.06;
+    ambientIntensity -= 0.04;
   }
 
-  directionalIntensity = THREE.MathUtils.clamp(directionalIntensity, 0.4, 1.8);
-  ambientIntensity = THREE.MathUtils.clamp(ambientIntensity, 0.2, 1.2);
+  directionalIntensity = THREE.MathUtils.clamp(directionalIntensity, 0.35, 1.6);
+  ambientIntensity = THREE.MathUtils.clamp(ambientIntensity, 0.18, 1.0);
 
   return {
     ambientIntensity,

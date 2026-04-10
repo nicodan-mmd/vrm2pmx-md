@@ -3,8 +3,8 @@ import type { ConvertMode } from "../../../services/convertClient";
 
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
 
-export const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
-export const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
+export const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.0;
+export const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.0;
 
 type UiSettingsSnapshot = {
   mode: ConvertMode;
@@ -87,10 +87,10 @@ export function useUiSettings() {
           setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
         }
         if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
-          setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
+          setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.05));
         }
         if (typeof saved.pmxContrastFactor === "number" && Number.isFinite(saved.pmxContrastFactor)) {
-          setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.4));
+          setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.2));
         }
       }
     } catch (error) {

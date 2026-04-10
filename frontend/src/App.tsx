@@ -2499,8 +2499,72 @@ export default function App() {
       } finally {
         console.warn = originalConsoleWarn;
       }
+      // Some converted PMX models can appear with collapsed/shifted parts on first frame.
+      // Force bind pose before applying preview material tuning.
+      if (typeof mesh.pose === "function") {
+        mesh.pose();
+      }
+      mesh.traverse((obj) => {
+        const skinned = obj as THREE.SkinnedMesh;
+        if (skinned.isSkinnedMesh && typeof skinned.pose === "function") {
+          skinned.pose();
+        }
+      });
       loadedMesh = mesh;
       setPmxInfoData(extractPmxInfoData(mesh));
+
+      const hasTextureImageData = (tex?: THREE.Texture | null): boolean => {
+        if (!tex) return false;
+        const img = tex.image as
+          | { width?: number; height?: number; data?: ArrayLike<number> }
+          | undefined;
+        if (!img) return false;
+        const width = typeof img.width === "number" ? img.width : 0;
+        const height = typeof img.height === "number" ? img.height : 0;
+        if (width <= 0 || height <= 0) return false;
+        if ("data" in img && img.data) {
+          return img.data.length > 0;
+        }
+        return true;
+      };
+
+      const setMaterialNameFallbackColor = (material: THREE.MeshToonMaterial): void => {
+        const name = (material.name || "").toLowerCase();
+        let rgb: [number, number, number] = [0.88, 0.88, 0.88];
+        if (name.includes("薄緑") || name.includes("lightgreen") || name.includes("mint")) rgb = [0.62, 0.90, 0.66];
+        else if (name.includes("オレンジ") || name.includes("orange")) rgb = [0.96, 0.66, 0.28];
+        else if (name.includes("黄色") || name.includes("yellow")) rgb = [0.92, 0.88, 0.36];
+        else if (name.includes("ピンク") || name.includes("pink")) rgb = [0.92, 0.58, 0.73];
+        else if (name.includes("紫") || name.includes("purple") || name.includes("violet")) rgb = [0.66, 0.52, 0.82];
+        else if (name.includes("青") || name.includes("blue")) rgb = [0.52, 0.66, 0.90];
+        else if (name.includes("赤") || name.includes("red")) rgb = [0.88, 0.50, 0.50];
+        else if (name.includes("灰") || name.includes("gray") || name.includes("grey")) rgb = [0.70, 0.70, 0.70];
+        else if (name.includes("緑") || name.includes("green")) rgb = [0.46, 0.82, 0.50];
+        else if (name.includes("白") || name.includes("white")) rgb = [0.96, 0.96, 0.96];
+        else if (name.includes("黒") || name.includes("black")) rgb = [0.24, 0.24, 0.24];
+
+        material.color.setRGB(rgb[0], rgb[1], rgb[2], THREE.SRGBColorSpace);
+        // Keep toon-only fallback materials from looking flat/washed out.
+        material.emissive.setRGB(rgb[0] * 0.05, rgb[1] * 0.05, rgb[2] * 0.05, THREE.SRGBColorSpace);
+      };
+
+      const tuneToonOnlyBaseColor = (material: THREE.MeshToonMaterial): void => {
+        // Preserve PMX diffuse tint, then boost saturation a bit to avoid washed-out fallback look.
+        const base = material.color.clone().convertLinearToSRGB();
+        const isNearlyBlack = base.r < 0.02 && base.g < 0.02 && base.b < 0.02;
+        const isNearlyWhite = base.r > 0.98 && base.g > 0.98 && base.b > 0.98;
+        if (isNearlyBlack || isNearlyWhite) {
+          setMaterialNameFallbackColor(material);
+          return;
+        }
+
+        const hsl = { h: 0, s: 0, l: 0 };
+        base.getHSL(hsl);
+        const tunedS = Math.min(1, hsl.s * 1.30 + 0.08);
+        const tunedL = Math.max(0.07, Math.min(0.56, hsl.l * 0.76));
+        material.color.setHSL(hsl.h, tunedS, tunedL, THREE.SRGBColorSpace);
+        material.emissive.setRGB(material.color.r * 0.025, material.color.g * 0.025, material.color.b * 0.025);
+      };
 
       // MMDLoader does not tag color textures as sRGB, causing double-gamma and
       // washed-out colors in Three.js r152+ (SRGBColorSpace output default).
@@ -2522,9 +2586,14 @@ export default function App() {
             aoMap?: THREE.Texture | null;
             lightMap?: THREE.Texture | null;
           };
+          const hasBaseMap = Boolean(m.map);
+          const hasToonGradient = Boolean(m.gradientMap);
+          const isToonOnlyMaterial = !hasBaseMap && hasToonGradient;
           // PMXEditor寄りに、材質の色乗算と発光寄与をリセットして
           // テクスチャ本来の発色を優先する。
-          m.color.setRGB(1, 1, 1);
+          if (!isToonOnlyMaterial) {
+            m.color.setRGB(1, 1, 1);
+          }
           m.emissive.setRGB(0, 0, 0);
           m.blending = THREE.NormalBlending;
           m.toneMapped = false;
@@ -2541,9 +2610,18 @@ export default function App() {
             // 特定モデルで髪色や角に色被りを起こしやすいため preview では切る。
             m.matcap = null;
           }
-          if (m.gradientMap) {
+          if (m.gradientMap && !isToonOnlyMaterial) {
             // three の gradientMap は MMD toon texture と表現差が大きいため無効化。
             m.gradientMap = null;
+          } else if (isToonOnlyMaterial) {
+            // TOON-only 材質は gradientMap を使うと白っぽく転ぶケースが多いため、
+            // PMX diffuse を主に使う。
+            if (m.gradientMap && !hasTextureImageData(m.gradientMap)) {
+              m.gradientMap = null;
+            } else if (m.gradientMap) {
+              m.gradientMap = null;
+            }
+            tuneToonOnlyBaseColor(m);
           }
           // 法線/補助マップは PMX プレビューで色転びを起こしやすいため無効化。
           m.normalMap = null;

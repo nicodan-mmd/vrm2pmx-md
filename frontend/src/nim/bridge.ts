@@ -235,6 +235,40 @@ function buildWhiteBmpBytes(): Uint8Array {
   ]);
 }
 
+function buildSolidBmpBytes(r: number, g: number, b: number): Uint8Array {
+  const bytes = buildWhiteBmpBytes();
+  const pixelOffset = bytes.length - 4;
+  // 24-bit BMP pixel order is B, G, R (+1 byte row padding for 1x1).
+  bytes[pixelOffset] = Math.max(0, Math.min(255, b | 0));
+  bytes[pixelOffset + 1] = Math.max(0, Math.min(255, g | 0));
+  bytes[pixelOffset + 2] = Math.max(0, Math.min(255, r | 0));
+  bytes[pixelOffset + 3] = 0x00;
+  return bytes;
+}
+
+function pickBmpPlaceholderColor(path: string): [number, number, number] {
+  const lower = path.toLowerCase();
+
+  // Prefer more specific names first.
+  if (lower.includes("lightcyan") || lower.includes("\u8584\u6c34\u8272")) return [130, 205, 220];
+  if (lower.includes("cyan") || lower.includes("aqua") || lower.includes("\u6c34\u8272")) return [70, 175, 205];
+  if (lower.includes("lightyellow") || lower.includes("\u8584\u9ec4\u8272")) return [220, 200, 110];
+  if (lower.includes("lightgreen") || lower.includes("mint") || lower.includes("\u8584\u7dd1")) return [110, 205, 120];
+  if (lower.includes("orange") || lower.includes("\u30aa\u30ec\u30f3\u30b8")) return [220, 120, 20];
+  if (lower.includes("yellow") || lower.includes("\u9ec4")) return [205, 185, 30];
+  if (lower.includes("pink") || lower.includes("\u30d4\u30f3\u30af")) return [210, 90, 145];
+  if (lower.includes("purple") || lower.includes("violet") || lower.includes("\u7d2b")) return [120, 75, 175];
+  if (lower.includes("blue") || lower.includes("\u9752")) return [70, 115, 205];
+  if (lower.includes("red") || lower.includes("\u8d64")) return [185, 70, 70];
+  if (lower.includes("gray") || lower.includes("grey") || lower.includes("\u7070")) return [120, 120, 120];
+  if (lower.includes("green") || lower.includes("\u7dd1")) return [30, 170, 50];
+  if (lower.includes("white") || lower.includes("\u767d")) return [220, 220, 220];
+  if (lower.includes("black") || lower.includes("\u9ed2")) return [20, 20, 20];
+
+  // Neutral fallback: slightly bright gray works better than pure white for toon ramps.
+  return [160, 160, 160];
+}
+
 function buildWhitePngBytes(): Uint8Array {
   const base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7ZgE8AAAAASUVORK5CYII=";
   const binary = atob(base64);
@@ -242,7 +276,11 @@ function buildWhitePngBytes(): Uint8Array {
 }
 
 function buildPlaceholderTextureBytes(path: string): Uint8Array {
-  return path.toLowerCase().endsWith(".bmp") ? buildWhiteBmpBytes() : buildWhitePngBytes();
+  if (path.toLowerCase().endsWith(".bmp")) {
+    const [r, g, b] = pickBmpPlaceholderColor(path);
+    return buildSolidBmpBytes(r, g, b);
+  }
+  return buildWhitePngBytes();
 }
 
 function decodeDataUri(uri: string): { bytes: Uint8Array; mimeType?: string } | null {

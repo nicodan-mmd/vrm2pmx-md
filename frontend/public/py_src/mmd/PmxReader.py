@@ -786,15 +786,17 @@ class PmxReader:
 
     def read_RGB(self):
         return MVector3D(
-            int(self.read_float()), int(self.read_float()), int(self.read_float())
+            float(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
         )
 
     def read_RGBA(self):
         return MVector4D(
-            int(self.read_float()),
-            int(self.read_float()),
-            int(self.read_float()),
-            int(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
+            float(self.read_float()),
         )
 
     def read_Vector4D(self):
