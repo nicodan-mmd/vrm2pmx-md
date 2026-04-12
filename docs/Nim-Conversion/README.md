@@ -34,3 +34,29 @@ Rust 経路は現時点の検証結果を踏まえて非推奨扱いとし、継
 - 主要ケースで Python 比の変換時間が短縮される
 - 出力 PMX の要素数差分が許容範囲内である
 - 頂点数が異常増加した場合は自動で検出し、Nim 経路を失敗扱いでフォールバックできる
+
+## 安全ビルド運用（既存 exe を壊さない）
+
+Nim ソースの修正中は、既存の参照 exe（`src/nim/pmx_lite_main.exe`）を直接置換しない。
+
+1. 候補 exe をビルドする
+2. 同一入力モデルで 参照 exe / 候補 exe を両方実行する
+3. 出力 PMX の SHA256 が一致した時だけ置換する
+
+実行コマンド:
+
+```powershell
+python scripts/nim_safe_rebuild_check.py "D:\Users\maedashingo\Downloads\MMD\VRoid\original\AvatarSample_A.vrm" --report-json tmp/nim/safe_rebuild_report_avatarA.json
+```
+
+- 終了コード `0`: 参照出力と一致
+- 終了コード `2`: 不一致（置換禁止）
+- JSON レポート: `tmp/nim/safe_rebuild_report_*.json`
+
+置換を許可する場合（一致時のみ）:
+
+```powershell
+python scripts/nim_safe_rebuild_check.py "<model.vrm>" --replace-reference
+```
+
+この運用により「ビルドは通るが挙動が壊れる」ケースで参照 exe が守られる。

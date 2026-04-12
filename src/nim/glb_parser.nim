@@ -22,7 +22,7 @@ proc readUint32*(data: openArray[uint8], offset: int): uint32 =
   var bytes: array[4, uint8]
   for i in 0..<4:
     bytes[i] = data[offset + i]
-  result = fromUint32(bytes)
+  result = bytes[0].uint32 or (bytes[1].uint32 shl 8) or (bytes[2].uint32 shl 16) or (bytes[3].uint32 shl 24)
 
 # Read uint16 in little-endian
 proc readUint16*(data: openArray[uint8], offset: int): uint16 =
