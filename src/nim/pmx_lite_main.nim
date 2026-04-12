@@ -588,6 +588,14 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   # Build one material per GLB material index (in order of first appearance)
   let hasMaterials = jsonData.hasKey("materials")
   let hasTextures = jsonData.hasKey("textures")
+  let hasVrmMatProps =
+    jsonData.hasKey("extensions") and
+    jsonData["extensions"].kind == JObject and
+    jsonData["extensions"].hasKey("VRM") and
+    jsonData["extensions"]["VRM"].kind == JObject and
+    jsonData["extensions"]["VRM"].hasKey("materialProperties") and
+    jsonData["extensions"]["VRM"]["materialProperties"].kind == JArray
+
   for matIdx, idxList in materialIndices:
     let idxCount = int32(idxList.len)
     var mat = defaultMaterial(idxCount)
@@ -611,6 +619,18 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
                 let pmxTexIdx = srcIdx + 1
                 if pmxTexIdx >= 0 and pmxTexIdx < result.textures.len:
                   mat.textureIndex = int32(pmxTexIdx)
+
+      # VRM0 MToon shade color -> generate dedicated toon texture slot.
+      if hasVrmMatProps and matIdx < jsonData["extensions"]["VRM"]["materialProperties"].len:
+        let mp = jsonData["extensions"]["VRM"]["materialProperties"][matIdx]
+        if mp.kind == JObject and mp.hasKey("vectorProperties"):
+          let vp = mp["vectorProperties"]
+          if vp.kind == JObject and vp.hasKey("_ShadeColor"):
+            let toonName = "tex\\" & matName & "_TOON.bmp"
+            result.textures.add(toonName)
+            mat.toonSharingFlag = int8(0)
+            mat.toonTextureIndex = int32(result.textures.len - 1)
+
     else:
       mat.name = "mat_" & $matIdx
       mat.englishName = "mat_" & $matIdx
