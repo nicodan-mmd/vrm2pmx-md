@@ -268,8 +268,8 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
     addInt32LE(result, m.vertexCount)
 
   # bones/morphs/display/rigidbodies/joints
-  addInt32LE(result, 0)
-  addInt32LE(result, 0)
-  addInt32LE(result, 0)
-  addInt32LE(result, 0)
-  addInt32LE(result, 0)
+  addInt32LE(result, int32(model.boneCountHint))
+  addInt32LE(result, int32(model.morphCountHint))
+  addInt32LE(result, 0)  # display frames (not implemented)
+  addInt32LE(result, int32(model.rigidbodyCountHint))
+  addInt32LE(result, 0)  # joints (not implemented)
