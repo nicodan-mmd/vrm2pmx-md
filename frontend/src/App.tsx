@@ -214,6 +214,7 @@ const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
 const METRICS_BASELINE_KEY_PREFIX = "vrm2pmx.metrics.baseline";
+const MAX_USER_CONVERT_LOG_LINES = 10;
 const NIM_VERTEX_RATIO_LIMIT = 1.05;
 const NIM_BONE_RATIO_TOLERANCE = 0.01;
 const NIM_MORPH_RATIO_TOLERANCE = 0.01;
@@ -981,7 +982,7 @@ function normalizeTextureBaseName(raw: string, fallback: string): string {
   return base || fallback;
 }
 
-async function buildRustPmxZipFromVrm(
+async function buildPmxZipFromVrm(
   sourceVrmFile: File,
   pmxBlob: Blob,
 ): Promise<{ zipBlob: Blob; textureCount: number }> {
@@ -1441,6 +1442,8 @@ export default function App() {
   const pmxGridRef = useRef<THREE.GridHelper | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
   const logLinesRef = useRef<string[]>([]);
+  const convertUiLogCountRef = useRef(0);
+  const convertUiLogSeenRef = useRef<Set<string>>(new Set());
   const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [aboutDefaultTab, setAboutDefaultTab] = useState<AboutTabId>("about");
@@ -1884,7 +1887,87 @@ export default function App() {
   }
 
   function appendWorkerLog(log: WorkerLogResponse) {
-    appendConsoleLine(log.args, log.level);
+    const joined = log.args.map((value) => formatLogArg(value)).join(" ");
+
+    if (log.level === "error") {
+      console.error(`[worker] ${joined}`);
+    } else if (log.level === "warn") {
+      console.warn(`[worker] ${joined}`);
+    } else if (log.level === "debug") {
+      console.debug(`[worker] ${joined}`);
+    } else if (log.level === "log") {
+      console.log(`[worker] ${joined}`);
+    } else {
+      console.info(`[worker] ${joined}`);
+    }
+
+    const normalized = joined.toLowerCase();
+    if (log.level === "error") {
+      appendUserConvertLog("[ERROR] 変換中にエラーが発生しました。詳細はコンソールを確認してください。", "error");
+      return;
+    }
+    if (log.level === "warn") {
+      appendUserConvertLog("[WARN] 変換中に注意メッセージがありました。", "warn");
+    }
+
+    if (normalized.includes("bone")) {
+      appendUserConvertLog("[INFO] ボーン変換中...");
+    } else if (normalized.includes("morph") || normalized.includes("expression")) {
+      appendUserConvertLog("[INFO] モーフ変換中...");
+    } else if (normalized.includes("material") || normalized.includes("texture")) {
+      appendUserConvertLog("[INFO] 材質・テクスチャ変換中...");
+    } else if (normalized.includes("rigid") || normalized.includes("joint") || normalized.includes("physics")) {
+      appendUserConvertLog("[INFO] 物理情報変換中...");
+    } else if (normalized.includes("parse") || normalized.includes("glb") || normalized.includes("json")) {
+      appendUserConvertLog("[INFO] モデル解析中...");
+    }
+  }
+
+  function beginUserConvertLogSession() {
+    convertUiLogCountRef.current = 0;
+    convertUiLogSeenRef.current = new Set();
+  }
+
+  function appendUserConvertLog(line: string, level: ConsoleLogLevel = "info") {
+    const key = `${level}:${line}`;
+    if (convertUiLogSeenRef.current.has(key)) {
+      return;
+    }
+    if (convertUiLogCountRef.current >= MAX_USER_CONVERT_LOG_LINES) {
+      return;
+    }
+
+    convertUiLogSeenRef.current.add(key);
+    convertUiLogCountRef.current += 1;
+    appendConsoleLine([line], level);
+  }
+
+  function appendUserConvertStageLog(stage: WorkerProgressStage, mode: ConvertMode) {
+    if (stage === "init") {
+      appendUserConvertLog("[INFO] 変換準備中...");
+      return;
+    }
+    if (stage === "pyodide-loading") {
+      appendUserConvertLog("[INFO] ランタイム初期化中...");
+      return;
+    }
+    if (stage === "py-src-sync") {
+      appendUserConvertLog("[INFO] 変換エンジン同期中...");
+      return;
+    }
+    if (stage === "converting") {
+      appendUserConvertLog(
+        mode === "nim"
+          ? "[INFO] Nim変換中（ボーン・モーフ・材質）..."
+          : mode === "rust"
+            ? "[INFO] Rust変換中（ボーン・モーフ・材質）..."
+            : "[INFO] 変換中（ボーン・モーフ・材質）...",
+      );
+      return;
+    }
+    if (stage === "finalizing") {
+      appendUserConvertLog("[INFO] 出力を最終化中...");
+    }
   }
 
   useEffect(() => {
@@ -2941,19 +3024,20 @@ export default function App() {
     setConvertProgressPercent(2);
     setConvertProgressStage("init");
     abortControllerRef.current = new AbortController();
+    beginUserConvertLogSession();
     setMessage(
       requestedMode === "rust"
-        ? "Rust experimental mode requested. This build will fall back to Wasm while the Rust converter is under development."
+        ? "Rust mode is deprecated and not recommended. Please use Turbo (Labs)/Nim mode."
         : requestedMode === "nim"
-          ? "Nim experimental mode requested. This build will fall back to Wasm while the Nim converter is under development."
+          ? "Nim experimental mode requested. Running Nim Wasm converter in this browser."
         : mode === "backend"
           ? "Converting with backend... this can take a while for large files."
           : backendEnabled
             ? "Trying Wasm first. If it fails, backend fallback will run."
             : "Converting with Wasm mode...",
     );
-    appendConsoleLine([`[INFO] Convert requested: preparing input (${file.name})`], "info");
-    appendConsoleLine([`[INFO] Requested convert mode: ${requestedMode}`], "info");
+    appendUserConvertLog(`[INFO] 変換を開始します: ${file.name}`);
+    appendUserConvertLog(`[INFO] 変換モード: ${requestedMode}`);
 
     try {
       const convertLogStartIndex = logLinesRef.current.length;
@@ -2963,16 +3047,19 @@ export default function App() {
         fileName: file.name,
         convertInputBytes: convertInput.size,
       });
+      const convertStartedAt = performance.now();
       const result = await convertWithMode(convertInput, requestedMode, {
         onProgress: (progress) => {
           setMessage(progress.message);
           const nextPercent = getStageProgressPercent(progress.stage);
           setConvertProgressStage(progress.stage);
           setConvertProgressPercent((prev) => Math.max(prev, nextPercent));
+          appendUserConvertStageLog(progress.stage, requestedMode);
         },
         onLog: appendWorkerLog,
         signal: abortControllerRef.current.signal,
       });
+      const convertElapsedMs = Math.round(performance.now() - convertStartedAt);
 
       let outputBlob = result.blob;
       let outputExtension: ConvertedOutput["fileExtension"] = result.fileExtension;
@@ -2980,15 +3067,11 @@ export default function App() {
       if (result.fileExtension === "zip") {
         outputBlob = await addLicenseToZip(result.blob, licenseText);
       } else if (result.fileExtension === "pmx") {
-        const wrapped = await buildRustPmxZipFromVrm(file, result.blob);
+        const wrapped = await buildPmxZipFromVrm(file, result.blob);
         outputBlob = await addLicenseToZip(wrapped.zipBlob, licenseText);
         outputExtension = "zip";
-        appendConsoleLine(
-          [
-            `[INFO] Rust PMX packaged as ZIP with ${wrapped.textureCount} texture file(s) from source VRM.`,
-          ],
-          "info",
-        );
+        console.info(`[INFO] PMX packaged as ZIP with ${wrapped.textureCount} texture file(s) from source VRM.`);
+        appendUserConvertLog("[INFO] PMXとテクスチャをZIP化しました。");
       }
 
       const nextOutput: ConvertedOutput = {
@@ -3002,22 +3085,24 @@ export default function App() {
       setLastConversionReportId(conversionReportId);
 
       if (requestedMode === "rust") {
-        appendConsoleLine(
+        appendUserConvertLog(
           result.fallbackReason
-            ? [`[WARN] Rust experimental mode did not run yet. Using ${result.usedMode}. ${result.fallbackReason}`]
-            : [`[INFO] Rust experimental mode completed via ${result.usedMode}.`],
-          result.fallbackReason ? "warn" : "info",
+            ? `[WARN] Rust mode is deprecated. Using ${result.usedMode}. ${result.fallbackReason}`
+            : `[WARN] Rust mode is deprecated and not recommended. Completed via ${result.usedMode}.`,
+          "warn",
         );
       }
 
       if (requestedMode === "nim") {
-        appendConsoleLine(
+        appendUserConvertLog(
           result.fallbackReason
-            ? [`[WARN] Nim experimental mode did not run yet. Using ${result.usedMode}. ${result.fallbackReason}`]
-            : [`[INFO] Nim experimental mode completed via ${result.usedMode}.`],
+            ? `[WARN] Nim experimental mode did not run yet. Using ${result.usedMode}. ${result.fallbackReason}`
+            : `[INFO] Nim experimental mode completed via ${result.usedMode}.`,
           result.fallbackReason ? "warn" : "info",
         );
       }
+
+      appendUserConvertLog(`[INFO] 変換時間: ${convertElapsedMs} ms`);
 
       if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
@@ -3069,7 +3154,7 @@ export default function App() {
           counts,
           timestamp: new Date().toISOString(),
         };
-        appendConsoleLine([`[METRICS] ${JSON.stringify(metricsRecord)}`], "info");
+        console.info(`[METRICS] ${JSON.stringify(metricsRecord)}`);
 
         const baselineKey = buildMetricsBaselineKey(file.name);
         const baselineRaw = (() => {
@@ -3089,43 +3174,40 @@ export default function App() {
             };
             if (baseline.counts) {
               const diff = buildOutputCountDiff(counts, baseline.counts);
-              appendConsoleLine(
-                [
-                  `[METRICS_DIFF] ${JSON.stringify({
-                    event: "convert.output.counts.diff",
-                    inputName: file.name,
-                    requestedMode,
-                    actualMode: result.usedMode,
-                    baselineMode: baseline.sourceMode ?? "unknown",
-                    baselineTimestamp: baseline.timestamp ?? null,
-                    diff,
-                    timestamp: metricsRecord.timestamp,
-                  })}`,
-                ],
-                "info",
+              console.info(
+                `[METRICS_DIFF] ${JSON.stringify({
+                  event: "convert.output.counts.diff",
+                  inputName: file.name,
+                  requestedMode,
+                  actualMode: result.usedMode,
+                  baselineMode: baseline.sourceMode ?? "unknown",
+                  baselineTimestamp: baseline.timestamp ?? null,
+                  diff,
+                  timestamp: metricsRecord.timestamp,
+                })}`,
               );
 
               if (requestedMode === "nim") {
                 const gate = evaluateNimQualityGate(diff);
-                appendConsoleLine(
-                  [
-                    `[QUALITY_GATE] ${JSON.stringify({
-                      event: "convert.nim.quality-gate",
-                      inputName: file.name,
-                      requestedMode,
-                      actualMode: result.usedMode,
-                      passed: gate.passed,
-                      reasons: gate.reasons,
-                      threshold: {
-                        verticesRatioMax: NIM_VERTEX_RATIO_LIMIT,
-                        bonesRatioTolerance: NIM_BONE_RATIO_TOLERANCE,
-                        morphsRatioTolerance: NIM_MORPH_RATIO_TOLERANCE,
-                      },
-                      timestamp: metricsRecord.timestamp,
-                    })}`,
-                  ],
-                  gate.passed ? "info" : "warn",
-                );
+                const gatePayload = `[QUALITY_GATE] ${JSON.stringify({
+                  event: "convert.nim.quality-gate",
+                  inputName: file.name,
+                  requestedMode,
+                  actualMode: result.usedMode,
+                  passed: gate.passed,
+                  reasons: gate.reasons,
+                  threshold: {
+                    verticesRatioMax: NIM_VERTEX_RATIO_LIMIT,
+                    bonesRatioTolerance: NIM_BONE_RATIO_TOLERANCE,
+                    morphsRatioTolerance: NIM_MORPH_RATIO_TOLERANCE,
+                  },
+                  timestamp: metricsRecord.timestamp,
+                })}`;
+                if (gate.passed) {
+                  console.info(gatePayload);
+                } else {
+                  console.warn(gatePayload);
+                }
 
                 if (!gate.passed) {
                   runtimeQualitySignalsRef.current.add("nim-quality-gate-failed");
@@ -3133,7 +3215,7 @@ export default function App() {
               }
             }
           } catch {
-            appendConsoleLine(["[WARN] Failed to parse metrics baseline JSON."], "warn");
+            console.warn("[WARN] Failed to parse metrics baseline JSON.");
           }
         }
 
@@ -3207,8 +3289,9 @@ export default function App() {
           }),
         );
         setLogEnabled(true);
-        appendConsoleLine(["[ERROR] Convert failed:"], "error");
-        rawDetail.split("\n").forEach((line) => appendConsoleLine([line], "error"));
+        console.error("[ERROR] Convert failed:");
+        console.error(rawDetail);
+        appendUserConvertLog("[ERROR] 変換に失敗しました。詳細はブラウザのコンソールを確認してください。", "error");
         showDialog({
           title: "Error",
           message: "Convert error. Please see Log View.",
@@ -3385,34 +3468,19 @@ export default function App() {
     const originalDebug = console.debug;
 
     console.log = (...args: unknown[]) => {
-      if (shouldCaptureLog("log", APP_LOG_LEVEL)) {
-        originalLog(...args);
-      }
-      appendConsoleLine(args, "log");
+      originalLog(...args);
     };
     console.info = (...args: unknown[]) => {
-      if (shouldCaptureLog("info", APP_LOG_LEVEL)) {
-        originalInfo(...args);
-      }
-      appendConsoleLine(args, "info");
+      originalInfo(...args);
     };
     console.warn = (...args: unknown[]) => {
-      if (shouldCaptureLog("warn", APP_LOG_LEVEL)) {
-        originalWarn(...args);
-      }
-      appendConsoleLine(args, "warn");
+      originalWarn(...args);
     };
     console.error = (...args: unknown[]) => {
-      if (shouldCaptureLog("error", APP_LOG_LEVEL)) {
-        originalError(...args);
-      }
-      appendConsoleLine(args, "error");
+      originalError(...args);
     };
     console.debug = (...args: unknown[]) => {
-      if (shouldCaptureLog("debug", APP_LOG_LEVEL)) {
-        originalDebug(...args);
-      }
-      appendConsoleLine(args, "debug");
+      originalDebug(...args);
     };
 
     return () => {

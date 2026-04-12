@@ -22,7 +22,7 @@ export type WorkerProgressResponse = {
 export type WorkerSuccessResponse = {
   id: string;
   status: "ok";
-  usedMode: "wasm" | "rust";
+  usedMode: "wasm" | "rust" | "nim";
   fileExtension: "pmx" | "zip";
   outputBuffer: ArrayBuffer;
 };

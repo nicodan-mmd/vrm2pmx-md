@@ -1,0 +1,21 @@
+{
+  "name": "vrm2pmx-nim-runtime",
+  "version": "0.1.0",
+  "status": "wasm-pmx-output",
+  "entryJs": "nim/vrm2pmx_nim_loader.js",
+  "entryWasm": "nim/vrm2pmx_nim_runtime.wasm",
+  "capabilities": [
+    "loader-bridge",
+    "wasi-preview1-stubbed",
+    "nim-wasm-init",
+    "nim-wasm-alloc",
+    "nim-wasm-free",
+    "nim-wasm-convert",
+    "pmx-output"
+  ],
+  "notes": [
+    "Generated from frontend/public/nim/vrm2pmx_nim_runtime.wat via wabt.",
+    "Browser worker calls Nim C ABI exports directly and receives PMX bytes.",
+    "This runtime is fully client-side and does not require the local Nim exe."
+  ]
+}

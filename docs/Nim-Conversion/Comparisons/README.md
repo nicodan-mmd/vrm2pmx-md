@@ -27,6 +27,18 @@
 
 ## 実行履歴
 
+- 2026-04-12 (models=28, timing)
+  - モデル探索パス: D:\Users\maedashingo\Downloads\MMD\VRoid
+  - 記録(JSON): 20260412_175514_timing_comparison.json
+  - 記録(MD): 20260412_175514_timing_comparison.md
+  - 結果要約: Avg Python=6572 ms, Avg Nim-exe=1368 ms (4.8x), Avg Wasm=149 ms (44.2x)
+  - 補足: Python は 2 モデルで失敗のため平均は 26 モデルベース
+- 2026-04-12 (models=28, bit-perfect probe)
+  - モデル探索パス: D:\Users\maedashingo\Downloads\MMD\VRoid
+  - 記録(JSON): 20260412_175624_bitperfect_probe.json
+  - 記録(MD): 20260412_175624_bitperfect_probe.md
+  - 結果要約: total=28, ok=26, bit_perfect=0, non_bit_perfect=26, errors=2, ratio=0.0%
+  - エラー対象: Release\0.1.0.0\mod.vrm, original\VRM2PMX\mod.vrm
 - 2026-04-07 (runs=10)
   - モデル: D:\Users\maedashingo\Downloads\MMD\VRoid\Booth\プロレスラー リンリン\プロレスラー_リンリン.vrm
   - 記録(JSON): 20260407_180130_プロレスラー_リンリン_nim-validation.json

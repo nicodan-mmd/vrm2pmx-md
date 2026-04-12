@@ -4,6 +4,8 @@
 
 Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を再発防止しつつ、Python 実装との互換性を維持したまま段階的に検証する。
 
+Rust 経路は現時点の検証結果を踏まえて非推奨扱いとし、継続検証は Nim 経路を優先する。
+
 ## 目的
 
 - Nim 経路を実験モードとして追加し、既存 Python 経路は安全なフォールバックとして維持する
@@ -15,7 +17,9 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 - 01-Roadmap.md: フェーズ計画とゲート条件
 - 02-Metrics-Plan.md: 出力要素数の比較仕様（骨・モーフ・頂点など）
 - 03-Frontend-Toggle.md: Nim チェックボックス導入方針
-- Comparisons/README.md: 比較記録の保存ルール
+- Comparisons/README.md: 比較記録の保存ルールと実行履歴
+- Comparisons/20260412_175514_timing_comparison.md: 28 体の timing 比較（Python/Nim-exe/Wasm）
+- Comparisons/20260412_175624_bitperfect_probe.md: 28 体の bit-perfect probe 結果
 
 ## 参考メモ
 
