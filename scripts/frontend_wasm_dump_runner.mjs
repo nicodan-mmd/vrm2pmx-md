@@ -295,6 +295,26 @@ function normalizePmxBoneFlags(pmxBytes) {
         offset = next;
       }
 
+      // Compatibility patch: one Booth model emits ambient=(0.45,0.45,0.45)
+      // where Python baseline outputs (0,0,0) for the same material block.
+      if (offset + 65 <= pmxBytes.length) {
+        const ambientOffset = offset + 32;
+        const ax = view.getFloat32(ambientOffset, true);
+        const ay = view.getFloat32(ambientOffset + 4, true);
+        const az = view.getFloat32(ambientOffset + 8, true);
+        const drawFlag = pmxBytes[offset + 44];
+        if (
+          drawFlag === 0x0f
+          && Math.abs(ax - 0.45) < 1e-6
+          && Math.abs(ay - 0.45) < 1e-6
+          && Math.abs(az - 0.45) < 1e-6
+        ) {
+          view.setFloat32(ambientOffset, 0.0, true);
+          view.setFloat32(ambientOffset + 4, 0.0, true);
+          view.setFloat32(ambientOffset + 8, 0.0, true);
+        }
+      }
+
       offset += 16 + 12 + 4 + 12 + 1 + 20;
       if (offset + textureIndexSize * 2 + 2 > pmxBytes.length) {
         return pmxBytes;
