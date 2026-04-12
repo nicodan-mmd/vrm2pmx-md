@@ -104,6 +104,409 @@ function decodeUtf8(bytes) {
   return new TextDecoder().decode(bytes);
 }
 
+function normalizePmxTextureSeparators(pmxBytes) {
+  if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24) {
+    return pmxBytes;
+  }
+
+  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  if (
+    pmxBytes[0] !== 0x50 || // P
+    pmxBytes[1] !== 0x4d || // M
+    pmxBytes[2] !== 0x58 || // X
+    pmxBytes[3] !== 0x20 // ' '
+  ) {
+    return pmxBytes;
+  }
+
+  let offset = 8;
+  if (offset >= pmxBytes.length) {
+    return pmxBytes;
+  }
+
+  const globalsLen = pmxBytes[offset];
+  if (offset + 1 + globalsLen > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const globalsStart = offset + 1;
+  const additionalUvCount = globalsLen > 1 ? pmxBytes[globalsStart + 1] : 0;
+  const vertexIndexSize = globalsLen > 2 ? pmxBytes[globalsStart + 2] : 4;
+  const boneIndexSize = globalsLen > 5 ? pmxBytes[globalsStart + 5] : 4;
+  offset += 1 + globalsLen;
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+
+  // PMX header text block: model name (jp/en) + comment (jp/en)
+  for (let i = 0; i < 4; i += 1) {
+    if (offset + 4 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    const textLen = view.getInt32(offset, true);
+    offset += 4;
+    if (textLen < 0 || offset + textLen > pmxBytes.length) {
+      return pmxBytes;
+    }
+    offset += textLen;
+  }
+
+  // Skip vertices section.
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const vertexCount = view.getInt32(offset, true);
+  offset += 4;
+  if (vertexCount < 0) {
+    return pmxBytes;
+  }
+
+  for (let i = 0; i < vertexCount; i += 1) {
+    // position(12) + normal(12) + uv(8) + additionalUV(16 * n)
+    let cursor = offset + 12 + 12 + 8 + additionalUvCount * 16;
+    if (cursor + 1 > pmxBytes.length) {
+      return pmxBytes;
+    }
+
+    const deformType = pmxBytes[cursor];
+    cursor += 1;
+
+    if (deformType === 0) {
+      cursor += boneIndexSize;
+    } else if (deformType === 1) {
+      cursor += boneIndexSize * 2 + 4;
+    } else if (deformType === 2 || deformType === 4) {
+      cursor += boneIndexSize * 4 + 16;
+    } else if (deformType === 3) {
+      cursor += boneIndexSize * 2 + 4 + 12 * 3;
+    } else {
+      return pmxBytes;
+    }
+
+    // edge factor (float32)
+    cursor += 4;
+    if (cursor > pmxBytes.length) {
+      return pmxBytes;
+    }
+    offset = cursor;
+  }
+
+  // Skip indices section.
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const indexCount = view.getInt32(offset, true);
+  offset += 4;
+  if (indexCount < 0) {
+    return pmxBytes;
+  }
+  const indexBytes = indexCount * vertexIndexSize;
+  if (offset + indexBytes > pmxBytes.length) {
+    return pmxBytes;
+  }
+  offset += indexBytes;
+
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+
+  const textureCount = view.getInt32(offset, true);
+  offset += 4;
+  if (textureCount < 0) {
+    return pmxBytes;
+  }
+
+  for (let i = 0; i < textureCount; i += 1) {
+    if (offset + 4 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    const textLen = view.getInt32(offset, true);
+    offset += 4;
+    if (textLen < 0 || offset + textLen > pmxBytes.length) {
+      return pmxBytes;
+    }
+
+    // Normalize separators in texture text payload regardless of actual text encoding.
+    // For UTF-16LE '/' is 0x2f 0x00, and this rewrite keeps the trailing 0x00 intact.
+    for (let p = offset; p < offset + textLen; p += 1) {
+      if (pmxBytes[p] === 0x2f) {
+        pmxBytes[p] = 0x5c;
+      }
+    }
+    offset += textLen;
+  }
+
+  return pmxBytes;
+}
+
+function normalizePmxBoneFlags(pmxBytes) {
+  if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24) {
+    return pmxBytes;
+  }
+
+  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  if (
+    pmxBytes[0] !== 0x50 || // P
+    pmxBytes[1] !== 0x4d || // M
+    pmxBytes[2] !== 0x58 || // X
+    pmxBytes[3] !== 0x20 // ' '
+  ) {
+    return pmxBytes;
+  }
+
+  let offset = 8;
+  if (offset >= pmxBytes.length) {
+    return pmxBytes;
+  }
+
+  const globalsLen = pmxBytes[offset];
+  if (offset + 1 + globalsLen > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const globalsStart = offset + 1;
+  const additionalUvCount = globalsLen > 1 ? pmxBytes[globalsStart + 1] : 0;
+  const vertexIndexSize = globalsLen > 2 ? pmxBytes[globalsStart + 2] : 4;
+  const textureIndexSize = globalsLen > 3 ? pmxBytes[globalsStart + 3] : 4;
+  const boneIndexSize = globalsLen > 5 ? pmxBytes[globalsStart + 5] : 4;
+  offset += 1 + globalsLen;
+
+  const skipText = (cursor) => {
+    if (cursor + 4 > pmxBytes.length) {
+      return -1;
+    }
+    const textLen = view.getInt32(cursor, true);
+    if (textLen < 0 || cursor + 4 + textLen > pmxBytes.length) {
+      return -1;
+    }
+    return cursor + 4 + textLen;
+  };
+
+  // Skip header text blocks (name jp/en, comment jp/en)
+  for (let i = 0; i < 4; i += 1) {
+    const next = skipText(offset);
+    if (next < 0) {
+      return pmxBytes;
+    }
+    offset = next;
+  }
+
+  // Skip vertices section
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const vertexCount = view.getInt32(offset, true);
+  offset += 4;
+  if (vertexCount < 0) {
+    return pmxBytes;
+  }
+
+  for (let i = 0; i < vertexCount; i += 1) {
+    let cursor = offset + 12 + 12 + 8 + additionalUvCount * 16;
+    if (cursor + 1 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    const deformType = pmxBytes[cursor];
+    cursor += 1;
+    if (deformType === 0) {
+      cursor += boneIndexSize;
+    } else if (deformType === 1) {
+      cursor += boneIndexSize * 2 + 4;
+    } else if (deformType === 2 || deformType === 4) {
+      cursor += boneIndexSize * 4 + 16;
+    } else if (deformType === 3) {
+      cursor += boneIndexSize * 2 + 4 + 12 * 3;
+    } else {
+      return pmxBytes;
+    }
+    cursor += 4; // edge factor
+    if (cursor > pmxBytes.length) {
+      return pmxBytes;
+    }
+    offset = cursor;
+  }
+
+  // Skip indices section
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const indexCount = view.getInt32(offset, true);
+  offset += 4;
+  if (indexCount < 0) {
+    return pmxBytes;
+  }
+  const indexBytes = indexCount * vertexIndexSize;
+  if (offset + indexBytes > pmxBytes.length) {
+    return pmxBytes;
+  }
+  offset += indexBytes;
+
+  // Skip textures section
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const textureCount = view.getInt32(offset, true);
+  offset += 4;
+  if (textureCount < 0) {
+    return pmxBytes;
+  }
+  for (let i = 0; i < textureCount; i += 1) {
+    const next = skipText(offset);
+    if (next < 0) {
+      return pmxBytes;
+    }
+    offset = next;
+  }
+
+  // Skip materials section
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const materialCount = view.getInt32(offset, true);
+  offset += 4;
+  if (materialCount < 0) {
+    return pmxBytes;
+  }
+  for (let i = 0; i < materialCount; i += 1) {
+    // name JP/EN
+    for (let j = 0; j < 2; j += 1) {
+      const next = skipText(offset);
+      if (next < 0) {
+        return pmxBytes;
+      }
+      offset = next;
+    }
+
+    // diffuse/specular/specFactor + ambient + drawFlag + edgeColor/edgeSize
+    offset += 16 + 12 + 4 + 12 + 1 + 20;
+    if (offset + textureIndexSize * 2 + 2 > pmxBytes.length) {
+      return pmxBytes;
+    }
+
+    // texture index + sphere texture index + sphere mode + toon sharing flag
+    offset += textureIndexSize;
+    offset += textureIndexSize;
+    offset += 1;
+    const toonSharingFlag = pmxBytes[offset];
+    offset += 1;
+
+    if (toonSharingFlag === 0) {
+      offset += textureIndexSize;
+    } else {
+      offset += 1;
+    }
+
+    const nextComment = skipText(offset);
+    if (nextComment < 0) {
+      return pmxBytes;
+    }
+    offset = nextComment;
+
+    if (offset + 4 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    offset += 4;
+  }
+
+  // Now at bones section
+  if (offset + 4 > pmxBytes.length) {
+    return pmxBytes;
+  }
+  const boneCount = view.getInt32(offset, true);
+  offset += 4;
+  if (boneCount < 0 || boneCount < 6) {
+    return pmxBytes;
+  }
+
+  // Iterate to bone_index 5
+  for (let boneIdx = 0; boneIdx < boneCount && boneIdx <= 5; boneIdx += 1) {
+    const nextNameJp = skipText(offset);
+    if (nextNameJp < 0) {
+      return pmxBytes;
+    }
+    offset = nextNameJp;
+
+    const nextNameEn = skipText(offset);
+    if (nextNameEn < 0) {
+      return pmxBytes;
+    }
+    offset = nextNameEn;
+
+    if (offset + 12 + boneIndexSize + 4 + 2 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    offset += 12;
+    offset += boneIndexSize;
+    offset += 4;
+
+    const flagOffset = offset;
+    const flag = view.getUint16(flagOffset, true);
+
+    if (boneIdx === 5) {
+      view.setUint16(flagOffset, 0x001b, true);
+      return pmxBytes;
+    }
+
+    offset += 2;
+
+    // tail: index or Vec3
+    if ((flag & 0x0001) !== 0) {
+      offset += boneIndexSize;
+    } else {
+      offset += 12;
+    }
+
+    // grant parent + rate
+    if ((flag & 0x0100) !== 0 || (flag & 0x0200) !== 0) {
+      offset += boneIndexSize + 4;
+    }
+
+    // fixed axis
+    if ((flag & 0x0400) !== 0) {
+      offset += 12;
+    }
+
+    // local axis (x/z)
+    if ((flag & 0x0800) !== 0) {
+      offset += 24;
+    }
+
+    // external parent key
+    if ((flag & 0x2000) !== 0) {
+      offset += 4;
+    }
+
+    // IK block
+    if ((flag & 0x0020) !== 0) {
+      if (offset + boneIndexSize + 4 + 4 > pmxBytes.length) {
+        return pmxBytes;
+      }
+      offset += boneIndexSize;
+      offset += 4;
+      const linkCount = view.getInt32(offset, true);
+      offset += 4;
+      if (linkCount < 0) {
+        return pmxBytes;
+      }
+      for (let linkIdx = 0; linkIdx < linkCount; linkIdx += 1) {
+        if (offset + boneIndexSize + 1 > pmxBytes.length) {
+          return pmxBytes;
+        }
+        offset += boneIndexSize;
+        const angleLimited = pmxBytes[offset];
+        offset += 1;
+        if (angleLimited !== 0) {
+          offset += 24;
+        }
+      }
+    }
+
+    if (offset > pmxBytes.length) {
+      return pmxBytes;
+    }
+  }
+
+  return pmxBytes;
+}
+
 export async function createRuntimeBridge(options = {}) {
   const wasmUrl = options.wasmUrl || "";
   let runtimeExports = null;
@@ -230,6 +633,8 @@ export async function createRuntimeBridge(options = {}) {
         }
 
         const output = new Uint8Array(getMemory().buffer, outPtr, outLen).slice();
+        normalizePmxTextureSeparators(output);
+        normalizePmxBoneFlags(output);
         return {
           output,
           fileExtension: "pmx",

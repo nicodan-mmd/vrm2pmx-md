@@ -47,6 +47,14 @@ type
     comment*: string
     vertexCount*: int32
 
+  PmxBoneLite* = object
+    name*: string
+    nameEnglish*: string
+    position*: Vec3f
+    parent*: int32
+    layer*: int32
+    flag*: int16
+
   PmxModelLite* = object
     name*: string
     englishName*: string
@@ -56,6 +64,7 @@ type
     indices*: seq[int32]
     textures*: seq[string]
     materials*: seq[PmxMaterialLite]
+    bones*: seq[PmxBoneLite]
     boneCountHint*: int
     morphCountHint*: int
     rigidbodyCountHint*: int
@@ -267,8 +276,19 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
     writeText(result, m.comment)
     addInt32LE(result, m.vertexCount)
 
-  # bones/morphs/display/rigidbodies/joints
-  addInt32LE(result, int32(model.boneCountHint))
+  # Write bones
+  addInt32LE(result, int32(model.bones.len))
+  for bone in model.bones:
+    writeText(result, bone.name)
+    writeText(result, bone.nameEnglish)
+    addFloat32LE(result, bone.position.x)
+    addFloat32LE(result, bone.position.y)
+    addFloat32LE(result, bone.position.z)
+    addIntBySizeLE(result, bone.parent, boneIdxSize)
+    addInt32LE(result, bone.layer)
+    addInt16LE(result, int(bone.flag))
+
+  # morphs/display/rigidbodies/joints
   addInt32LE(result, int32(model.morphCountHint))
   addInt32LE(result, 0)  # display frames (not implemented)
   addInt32LE(result, int32(model.rigidbodyCountHint))

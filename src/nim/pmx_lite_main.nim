@@ -455,6 +455,30 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   result.boneCountHint = if jsonData.kind == JObject and jsonData.hasKey("nodes"): jsonData["nodes"].len else: 0
   result.morphCountHint = estimateMorphCount(jsonData)
   result.rigidbodyCountHint = estimateRigidbodyCount(jsonData)
+  result.bones = @[]
+
+  # Build bones from VRM nodes
+  if jsonData.hasKey("nodes"):
+    for nodeIdx, node in jsonData["nodes"].elems:
+      var bone: PmxBoneLite
+      bone.name = if node.hasKey("name"): node["name"].getStr($nodeIdx) else: $nodeIdx
+      bone.nameEnglish = ""
+      # Get node position from TRS
+      let tx = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][0].getFloat(0.0) else: 0.0
+      let ty = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][1].getFloat(0.0) else: 0.0
+      let tz = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][2].getFloat(0.0) else: 0.0
+      bone.position = Vec3f(x: float32(tx * MIKU_METER), y: float32(ty * MIKU_METER), z: float32(tz * MIKU_METER))
+      # Find parent node
+      bone.parent = -1i32
+      for p in 0 ..< jsonData["nodes"].len:
+        if jsonData["nodes"][p].hasKey("children"):
+          for ch in jsonData["nodes"][p]["children"]:
+            if ch.getInt(-1) == nodeIdx:
+              bone.parent = int32(p)
+              break
+      bone.layer = 0i32
+      bone.flag = int16(0x1b)  # Default flag: 27 (connection=1, rotation=1, visible=1, manipulateable=1)
+      result.bones.add(bone)
 
   if not jsonData.hasKey("meshes"):
     return

@@ -85,11 +85,16 @@ def write_markdown_summary(output_md: Path, payload: dict[str, Any]) -> None:
         f"# VRoid Multi-Model Bitperfect Probe Summary ({datetime.now().strftime('%Y-%m-%d')})",
         "",
         f"- Search path: {payload['search_path']}",
-        f"- Nim exe: {payload['nim_exe']}",
+        f"- Mode: {payload.get('mode', 'nim-exe')}",
+        f"- Target: {payload.get('target_path', payload.get('nim_exe', ''))}",
+        f"- Excluded from bit-perfect target: {payload.get('exclude_bitperfect_path', [])}",
         f"- Total: {summary['total']}",
-        f"- OK: {summary['ok']}",
-        f"- Bit-perfect: {summary['bit_perfect']}",
-        f"- Non bit-perfect: {summary['non_bit_perfect']}",
+        f"- Preview OK: {summary['preview_ok']}",
+        f"- Preview Errors: {summary['errors']}",
+        f"- Bit-perfect target models: {summary['bitperfect_target_models']}",
+        f"- Bit-perfect (target only): {summary['bit_perfect']}",
+        f"- Non bit-perfect (target only): {summary['non_bit_perfect']}",
+        f"- Excluded models (preview-only policy): {summary['excluded_models']}",
         f"- Errors: {summary['errors']}",
         f"- Bit-perfect ratio: {summary['bit_perfect_ratio_percent']}%",
         "",
@@ -105,8 +110,8 @@ def write_markdown_summary(output_md: Path, payload: dict[str, Any]) -> None:
     lines += [
         "## Per Model Results",
         "",
-        "| Model | RelativePath | Status | BitPerfect | first_diff | size_delta | section |",
-        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        "| Model | RelativePath | Status | Target | BitPerfect | first_diff | size_delta | section |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
     search_root = Path(payload["search_path"])
@@ -131,9 +136,10 @@ def write_markdown_summary(output_md: Path, payload: dict[str, Any]) -> None:
         section = location.get("section", "")
         bit_perfect = "yes" if comparison.get("bit_perfect") else "no"
         status = str(comparison.get("status", "unknown"))
+        target = "no" if item.get("bitperfect_excluded") else "yes"
 
         lines.append(
-            f"| {item['model']} | {relative_path} | {status} | {bit_perfect} | {first_diff} | {size_delta} | {section} |"
+            f"| {item['model']} | {relative_path} | {status} | {target} | {bit_perfect} | {first_diff} | {size_delta} | {section} |"
         )
 
     output_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -146,6 +152,50 @@ def find_vrm_files(search_root: Path, max_count: int) -> list[Path]:
         if len(results) >= max_count:
             break
     return results
+
+
+def normalize_for_match(path_text: str) -> str:
+    return path_text.replace("\\", "/").lower()
+
+
+def is_bitperfect_excluded(vrm_path: Path, patterns: list[str]) -> bool:
+    if not patterns:
+        return False
+    target = normalize_for_match(str(vrm_path))
+    for pattern in patterns:
+        if not pattern:
+            continue
+        if normalize_for_match(pattern) in target:
+            return True
+    return False
+
+
+def run_wasm_dump(vrm_path: Path, wasm_path: Path, wasm_runner: Path, output_path: Path) -> None:
+    proc = subprocess.run(
+        ["node", str(wasm_runner), "--vrm", str(vrm_path), "--wasm", str(wasm_path), "--out", str(output_path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError(f"wasm runner failed (rc={proc.returncode}): {detail[:300]}")
+
+    raw = (proc.stdout or "").strip().splitlines()
+    if not raw:
+        raise RuntimeError("wasm runner returned empty output")
+
+    try:
+        payload = json.loads(raw[-1])
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"wasm runner output parse error: {exc}") from exc
+
+    if payload.get("status") != "ok":
+        raise RuntimeError(f"wasm runner error: {payload.get('error', 'unknown')}")
+
+    if not output_path.exists():
+        raise RuntimeError(f"wasm output missing: {output_path}")
 
 
 def read_idx(data: bytes, offset: int, size: int) -> tuple[int, int]:
@@ -587,9 +637,24 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     return {"section": "after_joint", "offset": first_diff}
 
 
-def probe_model(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict[str, Any]:
+def probe_model(
+    vrm_path: Path,
+    mode: str,
+    work_dir: Path,
+    nim_exe: Path | None,
+    wasm_path: Path | None,
+    wasm_runner: Path | None,
+    exclude_bitperfect_path: list[str],
+) -> dict[str, Any]:
     nim_pmx_path = work_dir / f"{vrm_path.stem}_nim.pmx"
-    subprocess.run([str(nim_exe), str(vrm_path), str(nim_pmx_path)], check=True)
+    if mode == "nim-exe":
+        if nim_exe is None:
+            raise RuntimeError("nim_exe is required for nim-exe mode")
+        subprocess.run([str(nim_exe), str(vrm_path), str(nim_pmx_path)], check=True)
+    else:
+        if wasm_path is None or wasm_runner is None:
+            raise RuntimeError("wasm_path/wasm_runner are required for wasm mode")
+        run_wasm_dump(vrm_path, wasm_path, wasm_runner, nim_pmx_path)
 
     baseline_bytes, baseline_runs = run_python_baseline(vrm_path, 1)
     report = build_report(vrm_path, baseline_bytes, baseline_runs, nim_pmx_path)
@@ -599,6 +664,7 @@ def probe_model(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict[str, Any]
         "model": vrm_path.stem,
         "path": str(vrm_path),
         "nim_comparison": comparison,
+        "bitperfect_excluded": is_bitperfect_excluded(vrm_path, exclude_bitperfect_path),
     }
 
     if isinstance(comparison, dict) and comparison.get("status") == "ok":
@@ -611,7 +677,10 @@ def probe_model(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict[str, Any]
 def main() -> int:
     parser = argparse.ArgumentParser(description="Probe first diff patterns across multiple VRM models")
     parser.add_argument("search_path", help="Root directory to search for VRM files")
-    parser.add_argument("--nim-exe", required=True, help="Path to compiled Nim converter executable")
+    parser.add_argument("--mode", choices=["nim-exe", "wasm"], default="nim-exe", help="Probe target mode")
+    parser.add_argument("--nim-exe", default=None, help="Path to compiled Nim converter executable")
+    parser.add_argument("--wasm", default="frontend/public/nim/vrm2pmx_nim_runtime.wasm", help="Path to Nim Wasm binary")
+    parser.add_argument("--wasm-runner", default="scripts/frontend_wasm_dump_runner.mjs", help="Node runner script for Wasm")
     parser.add_argument("--max-count", type=int, default=5, help="Maximum number of VRM files to probe")
     parser.add_argument(
         "--output-json",
@@ -622,6 +691,12 @@ def main() -> int:
         "--output-md",
         default=None,
         help="Optional markdown summary path",
+    )
+    parser.add_argument(
+        "--exclude-bitperfect-path",
+        action="append",
+        default=[],
+        help="Path substring to exclude from bit-perfect target (can be specified multiple times)",
     )
     parser.add_argument(
         "--nim-lock-file",
@@ -641,14 +716,40 @@ def main() -> int:
     args = parser.parse_args()
 
     search_root = Path(args.search_path)
-    nim_exe = Path(args.nim_exe)
-    if not nim_exe.exists():
-        print(f"Nim exe not found: {nim_exe}")
-        return 1
+    mode = args.mode
 
-    nim_env = collect_nim_environment(nim_exe)
+    nim_exe: Path | None = None
+    wasm_path: Path | None = None
+    wasm_runner: Path | None = None
+    nim_env: dict[str, Any] = {}
 
-    if args.write_nim_lock:
+    if mode == "nim-exe":
+        if not args.nim_exe:
+            print("--nim-exe is required when --mode nim-exe")
+            return 1
+        nim_exe = Path(args.nim_exe)
+        if not nim_exe.exists():
+            print(f"Nim exe not found: {nim_exe}")
+            return 1
+        nim_env = collect_nim_environment(nim_exe)
+    else:
+        wasm_path = Path(args.wasm)
+        wasm_runner = Path(args.wasm_runner)
+        if not wasm_path.exists():
+            print(f"Wasm not found: {wasm_path}")
+            return 1
+        if not wasm_runner.exists():
+            print(f"Wasm runner not found: {wasm_runner}")
+            return 1
+        nim_env = {
+            "mode": "wasm",
+            "wasm_path": str(wasm_path.resolve()),
+            "wasm_sha256": sha256_file(wasm_path),
+            "wasm_size_bytes": wasm_path.stat().st_size,
+            "node_version_probe": run_command_capture(["node", "--version"]),
+        }
+
+    if args.write_nim_lock and mode == "nim-exe":
         lock_out = Path(args.write_nim_lock)
         lock_out.parent.mkdir(parents=True, exist_ok=True)
         lock_payload = {
@@ -663,7 +764,7 @@ def main() -> int:
         "ok": True,
         "mismatches": [],
     }
-    if args.nim_lock_file:
+    if args.nim_lock_file and mode == "nim-exe":
         lock_file = Path(args.nim_lock_file)
         if not lock_file.exists():
             print(f"Nim lock file not found: {lock_file}")
@@ -697,7 +798,17 @@ def main() -> int:
     for index, vrm_path in enumerate(vrm_paths, start=1):
         print(f"[{index}/{len(vrm_paths)}] {vrm_path.stem}")
         try:
-            results.append(probe_model(vrm_path, nim_exe, work_dir))
+            results.append(
+                probe_model(
+                    vrm_path,
+                    mode,
+                    work_dir,
+                    nim_exe,
+                    wasm_path,
+                    wasm_runner,
+                    args.exclude_bitperfect_path,
+                )
+            )
         except Exception as exc:
             results.append(
                 {
@@ -707,37 +818,46 @@ def main() -> int:
                 }
             )
 
+    preview_ok = sum(1 for item in results if item.get("nim_comparison", {}).get("status") == "ok")
+    target_items = [
+        item
+        for item in results
+        if item.get("nim_comparison", {}).get("status") == "ok" and not item.get("bitperfect_excluded", False)
+    ]
+    excluded_items = [
+        item
+        for item in results
+        if item.get("nim_comparison", {}).get("status") == "ok" and item.get("bitperfect_excluded", False)
+    ]
+
     summary = {
         "total": len(results),
         "ok": sum(1 for item in results if "nim_comparison" in item),
-        "bit_perfect": sum(
-            1
-            for item in results
-            if item.get("nim_comparison", {}).get("status") == "ok"
-            and item.get("nim_comparison", {}).get("bit_perfect")
-        ),
-        "non_bit_perfect": sum(
-            1
-            for item in results
-            if item.get("nim_comparison", {}).get("status") == "ok"
-            and not item.get("nim_comparison", {}).get("bit_perfect")
-        ),
+        "preview_ok": preview_ok,
+        "bitperfect_target_models": len(target_items),
+        "excluded_models": len(excluded_items),
+        "bit_perfect": sum(1 for item in target_items if item.get("nim_comparison", {}).get("bit_perfect")),
+        "non_bit_perfect": sum(1 for item in target_items if not item.get("nim_comparison", {}).get("bit_perfect")),
         "errors": sum(1 for item in results if "error" in item),
         "vertex_weight0": sum(
             1
-            for item in results
+            for item in target_items
             if item.get("first_diff_location", {}).get("section") == "vertex"
             and item.get("first_diff_location", {}).get("field") == "weight0"
         ),
     }
-    if summary["ok"] > 0:
-        summary["bit_perfect_ratio_percent"] = round(summary["bit_perfect"] / summary["ok"] * 100, 1)
+    if summary["bitperfect_target_models"] > 0:
+        summary["bit_perfect_ratio_percent"] = round(summary["bit_perfect"] / summary["bitperfect_target_models"] * 100, 1)
     else:
         summary["bit_perfect_ratio_percent"] = 0.0
 
     payload = {
         "search_path": str(search_root),
-        "nim_exe": str(nim_exe),
+        "mode": mode,
+        "target_path": str(nim_exe if mode == "nim-exe" else wasm_path),
+        "exclude_bitperfect_path": args.exclude_bitperfect_path,
+        "nim_exe": str(nim_exe) if nim_exe else None,
+        "wasm": str(wasm_path) if wasm_path else None,
         "nim_environment": nim_env,
         "nim_lock_check": lock_result,
         "summary": summary,
