@@ -248,9 +248,11 @@ proc buildDeform(
   nodeToBoneIdx: Table[int, int32],
 ): PmxDeformLite =
   ## Build PMX deform data from JOINTS_0/WEIGHTS_0 for a single vertex.
-  ## Filters joints with weight > 0 and maps joint -> skin_joint node -> PMX bone index.
-  var validBones: seq[int32] = @[]
-  var validWeights: seq[float32] = @[]
+  ## - filter weight>0
+  ## - map to PMX bone index
+  ## - merge duplicate bones and normalize weights
+  ## - fit to PMX BDEF constraints (1/2/4)
+  var jointWeights = initOrderedTable[int32, float64]()
 
   let jArr = [joints[0], joints[1], joints[2], joints[3]]
   let wArr = [weights[0], weights[1], weights[2], weights[3]]
@@ -263,26 +265,65 @@ proc buildDeform(
       continue
     let nodeIdx = skinJoints[j]
     let pmxBone = nodeToBoneIdx.getOrDefault(nodeIdx, int32(0))
-    validBones.add(pmxBone)
-    validWeights.add(wArr[i])
+    let w = float64(wArr[i])
+    if jointWeights.hasKey(pmxBone):
+      jointWeights[pmxBone] = jointWeights[pmxBone] + w
+    else:
+      jointWeights[pmxBone] = w
 
-  case validBones.len
+  if jointWeights.len == 0:
+    return makeBdef1(0)
+
+  var bones: seq[int32] = @[]
+  var weightsNorm: seq[float64] = @[]
+  var total = 0.0
+  for _, w in jointWeights:
+    total += w
+
+  if total <= 0.0:
+    return makeBdef1(0)
+
+  for b, w in jointWeights:
+    bones.add(b)
+    weightsNorm.add(w / total)
+
+  if bones.len == 3:
+    bones.add(0)
+    weightsNorm.add(0.0)
+  elif bones.len > 4:
+    var minIdx = 0
+    var minW = weightsNorm[0]
+    for i in 1 ..< weightsNorm.len:
+      if weightsNorm[i] < minW:
+        minW = weightsNorm[i]
+        minIdx = i
+    bones.delete(minIdx)
+    weightsNorm.delete(minIdx)
+
+    var total2 = 0.0
+    for w in weightsNorm:
+      total2 += w
+    if total2 > 0.0:
+      for i in 0 ..< weightsNorm.len:
+        weightsNorm[i] = weightsNorm[i] / total2
+
+  case bones.len
   of 0:
     return makeBdef1(0)
   of 1:
-    return makeBdef1(validBones[0])
+    return makeBdef1(bones[0])
   of 2:
-    return makeBdef2(validBones[0], validBones[1], validWeights[0])
+    return makeBdef2(bones[0], bones[1], float32(weightsNorm[0]))
   else:
     # Bdef4: pad to 4 entries
-    let b0 = validBones[0]
-    let b1 = if validBones.len > 1: validBones[1] else: int32(0)
-    let b2 = if validBones.len > 2: validBones[2] else: int32(0)
-    let b3 = if validBones.len > 3: validBones[3] else: int32(0)
-    let w0 = validWeights[0]
-    let w1 = if validWeights.len > 1: validWeights[1] else: 0'f32
-    let w2 = if validWeights.len > 2: validWeights[2] else: 0'f32
-    let w3 = if validWeights.len > 3: validWeights[3] else: 0'f32
+    let b0 = bones[0]
+    let b1 = if bones.len > 1: bones[1] else: int32(0)
+    let b2 = if bones.len > 2: bones[2] else: int32(0)
+    let b3 = if bones.len > 3: bones[3] else: int32(0)
+    let w0 = float32(weightsNorm[0])
+    let w1 = if weightsNorm.len > 1: float32(weightsNorm[1]) else: 0'f32
+    let w2 = if weightsNorm.len > 2: float32(weightsNorm[2]) else: 0'f32
+    let w3 = if weightsNorm.len > 3: float32(weightsNorm[3]) else: 0'f32
     return makeBdef4(b0, b1, b2, b3, w0, w1, w2, w3)
 
 proc getSkinJointsForMesh(jsonData: JsonNode, meshIdx: int): seq[int] =
