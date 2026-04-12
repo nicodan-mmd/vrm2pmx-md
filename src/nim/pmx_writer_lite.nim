@@ -17,7 +17,7 @@ type
     w*: float32
 
   PmxDeformLite* = object
-    ## kind: 0=Bdef1, 1=Bdef2, 3=Bdef4
+    ## kind: 0=Bdef1, 1=Bdef2, 2=Bdef4
     kind*: int
     bones*: array[4, int32]
     weights*: array[4, float32]
@@ -131,7 +131,7 @@ proc makeBdef2*(bone0, bone1: int32, weight0: float32): PmxDeformLite =
   result.weights[0] = weight0
 
 proc makeBdef4*(bone0, bone1, bone2, bone3: int32; w0, w1, w2, w3: float32): PmxDeformLite =
-  result.kind = 3
+  result.kind = 2
   result.bones[0] = bone0
   result.bones[1] = bone1
   result.bones[2] = bone2
@@ -205,8 +205,8 @@ proc buildPmxBinaryLite*(model: PmxModelLite): seq[uint8] =
       addIntBySizeLE(result, v.deform.bones[0], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[1], boneIdxSize)
       addFloat32LE(result, v.deform.weights[0])
-    of 3:  # Bdef4
-      addByte(result, 3)
+    of 2:  # Bdef4
+      addByte(result, 2)
       addIntBySizeLE(result, v.deform.bones[0], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[1], boneIdxSize)
       addIntBySizeLE(result, v.deform.bones[2], boneIdxSize)
