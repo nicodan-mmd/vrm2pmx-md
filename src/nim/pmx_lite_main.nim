@@ -543,8 +543,17 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       # Collect indices for this material
       if prim.hasKey("indices"):
           let localIndices = readIndices(jsonData, binData, prim["indices"].getInt(-1))
-          for idx in localIndices:
-            materialIndices[matIdx].add(vertexStartIdx + int32(idx))
+          # Match Python path: reverse winding per triangle (2,1,0).
+          var i = 0
+          while i + 2 < localIndices.len:
+            materialIndices[matIdx].add(vertexStartIdx + int32(localIndices[i + 2]))
+            materialIndices[matIdx].add(vertexStartIdx + int32(localIndices[i + 1]))
+            materialIndices[matIdx].add(vertexStartIdx + int32(localIndices[i]))
+            i += 3
+          # Fallback for non-triangle tail (should not usually occur).
+          while i < localIndices.len:
+            materialIndices[matIdx].add(vertexStartIdx + int32(localIndices[i]))
+            inc(i)
 
   # Flatten indices per material in insertion order
   for matIdx, idxList in materialIndices:
