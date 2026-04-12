@@ -426,6 +426,18 @@ proc readVec3(jsonData: JsonNode, binData: openArray[uint8], accessorIdx: int): 
     return @[]
   return readAccessor(jsonData, binData, accessorIdx)
 
+proc mimeToExt(mime: string): string =
+  let m = mime.toLowerAscii()
+  if m == "image/png":
+    return "png"
+  if m == "image/jpeg":
+    return "jpg"
+  if m == "image/bmp":
+    return "bmp"
+  if m == "image/webp":
+    return "webp"
+  return "png"
+
 proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName: string): PmxModelLite =
   let meta = readModelMetadata(jsonData, modelName)
   result.name = meta.name
@@ -446,6 +458,19 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
   if not jsonData.hasKey("meshes"):
     return
+
+  # Python path compatibility: texture slot 0 is reserved as empty.
+  result.textures.add("")
+
+  # Build PMX texture list from glTF images in source order.
+  if jsonData.hasKey("images"):
+    for i, img in jsonData["images"].elems:
+      let baseName = if img.hasKey("name") and img["name"].kind == JString and img["name"].getStr("").len > 0:
+                       img["name"].getStr("")
+                     else:
+                       "image_" & $i
+      let ext = if img.hasKey("mimeType"): mimeToExt(img["mimeType"].getStr("")) else: "png"
+      result.textures.add("tex\\" & baseName & "." & ext)
 
   # Build bone lookup tables
   let bonePairsLookup = buildBonePairsLookup()
@@ -562,6 +587,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
 
   # Build one material per GLB material index (in order of first appearance)
   let hasMaterials = jsonData.hasKey("materials")
+  let hasTextures = jsonData.hasKey("textures")
   for matIdx, idxList in materialIndices:
     let idxCount = int32(idxList.len)
     var mat = defaultMaterial(idxCount)
@@ -570,6 +596,21 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
       let matName = vrmMat["name"].getStr("mat_" & $matIdx)
       mat.name = matName
       mat.englishName = matName
+
+      # Base color texture -> PMX texture index (with +1 reserved empty slot)
+      if hasTextures and vrmMat.hasKey("pbrMetallicRoughness"):
+        let pbr = vrmMat["pbrMetallicRoughness"]
+        if pbr.hasKey("baseColorTexture"):
+          let texRef = pbr["baseColorTexture"]
+          if texRef.hasKey("index"):
+            let texIdx = texRef["index"].getInt(-1)
+            if texIdx >= 0 and texIdx < jsonData["textures"].len:
+              let tx = jsonData["textures"][texIdx]
+              if tx.hasKey("source"):
+                let srcIdx = tx["source"].getInt(-1)
+                let pmxTexIdx = srcIdx + 1
+                if pmxTexIdx >= 0 and pmxTexIdx < result.textures.len:
+                  mat.textureIndex = int32(pmxTexIdx)
     else:
       mat.name = "mat_" & $matIdx
       mat.englishName = "mat_" & $matIdx
