@@ -3,6 +3,175 @@ import glb_parser, accessor, pmx_writer_lite
 
 const MIKU_METER = 12.5'f32
 
+type Matrix4d = array[16, float64]
+
+proc matIdentity(): Matrix4d =
+  result = [
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0,
+  ]
+
+proc matMulColMajor(a, b: Matrix4d): Matrix4d =
+  for c in 0 ..< 4:
+    for r in 0 ..< 4:
+      var s = 0.0
+      for k in 0 ..< 4:
+        s += a[k * 4 + r] * b[c * 4 + k]
+      result[c * 4 + r] = s
+
+proc matVecMulColMajor(m: Matrix4d, v: array[4, float64]): array[4, float64] =
+  for r in 0 ..< 4:
+    result[r] =
+      m[0 * 4 + r] * v[0] +
+      m[1 * 4 + r] * v[1] +
+      m[2 * 4 + r] * v[2] +
+      m[3 * 4 + r] * v[3]
+
+proc quatToMat3(qx, qy, qz, qw: float64): array[9, float64] =
+  result = [
+    1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qy - qz * qw), 2.0 * (qx * qz + qy * qw),
+    2.0 * (qx * qy + qz * qw), 1.0 - 2.0 * (qx * qx + qz * qz), 2.0 * (qy * qz - qx * qw),
+    2.0 * (qx * qz - qy * qw), 2.0 * (qy * qz + qx * qw), 1.0 - 2.0 * (qx * qx + qy * qy),
+  ]
+
+proc nodeLocalMatrixColMajor(node: JsonNode): Matrix4d =
+  if node.hasKey("matrix") and node["matrix"].kind == JArray and node["matrix"].len == 16:
+    for i in 0 ..< 16:
+      result[i] = node["matrix"][i].getFloat(0.0)
+    return result
+
+  let tx = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][0].getFloat(0.0) else: 0.0
+  let ty = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][1].getFloat(0.0) else: 0.0
+  let tz = if node.hasKey("translation") and node["translation"].len >= 3: node["translation"][2].getFloat(0.0) else: 0.0
+
+  let qx = if node.hasKey("rotation") and node["rotation"].len >= 4: node["rotation"][0].getFloat(0.0) else: 0.0
+  let qy = if node.hasKey("rotation") and node["rotation"].len >= 4: node["rotation"][1].getFloat(0.0) else: 0.0
+  let qz = if node.hasKey("rotation") and node["rotation"].len >= 4: node["rotation"][2].getFloat(0.0) else: 0.0
+  let qw = if node.hasKey("rotation") and node["rotation"].len >= 4: node["rotation"][3].getFloat(1.0) else: 1.0
+
+  let sx = if node.hasKey("scale") and node["scale"].len >= 3: node["scale"][0].getFloat(1.0) else: 1.0
+  let sy = if node.hasKey("scale") and node["scale"].len >= 3: node["scale"][1].getFloat(1.0) else: 1.0
+  let sz = if node.hasKey("scale") and node["scale"].len >= 3: node["scale"][2].getFloat(1.0) else: 1.0
+
+  let rot = quatToMat3(qx, qy, qz, qw)
+  result = matIdentity()
+  # upper-left 3x3 in column-major (R @ diag(S))
+  result[0] = rot[0] * sx; result[1] = rot[3] * sx; result[2] = rot[6] * sx
+  result[4] = rot[1] * sy; result[5] = rot[4] * sy; result[6] = rot[7] * sy
+  result[8] = rot[2] * sz; result[9] = rot[5] * sz; result[10] = rot[8] * sz
+  result[12] = tx; result[13] = ty; result[14] = tz
+
+proc buildNodeWorldMatrices(jsonData: JsonNode): seq[Matrix4d] =
+  if not jsonData.hasKey("nodes"):
+    return @[]
+
+  let nodes = jsonData["nodes"]
+  let n = nodes.len
+  var local = newSeq[Matrix4d](n)
+  var parents = newSeq[int](n)
+  var world = newSeq[Matrix4d](n)
+  var resolved = newSeq[bool](n)
+
+  for i in 0 ..< n:
+    local[i] = nodeLocalMatrixColMajor(nodes[i])
+    parents[i] = -1
+
+  for p in 0 ..< n:
+    if nodes[p].hasKey("children"):
+      for ch in nodes[p]["children"]:
+        let c = ch.getInt(-1)
+        if c >= 0 and c < n:
+          parents[c] = p
+
+  proc resolveWorld(i: int): Matrix4d =
+    if resolved[i]:
+      return world[i]
+    if parents[i] >= 0:
+      world[i] = matMulColMajor(resolveWorld(parents[i]), local[i])
+    else:
+      world[i] = local[i]
+    resolved[i] = true
+    return world[i]
+
+  for i in 0 ..< n:
+    discard resolveWorld(i)
+  return world
+
+proc getSkinIndexForMesh(jsonData: JsonNode, meshIdx: int): int =
+  if not jsonData.hasKey("nodes"):
+    return -1
+  for nd in jsonData["nodes"]:
+    if nd.hasKey("mesh") and nd["mesh"].getInt(-1) == meshIdx and nd.hasKey("skin"):
+      return nd["skin"].getInt(-1)
+  return -1
+
+proc getSkinJoints(jsonData: JsonNode, skinIdx: int): seq[int] =
+  if skinIdx < 0 or not jsonData.hasKey("skins") or skinIdx >= jsonData["skins"].len:
+    return @[]
+  let skin = jsonData["skins"][skinIdx]
+  if not skin.hasKey("joints"):
+    return @[]
+  for j in skin["joints"]:
+    result.add(j.getInt(-1))
+
+proc getSkinInverseBindMatrices(jsonData: JsonNode, binData: openArray[uint8], skinIdx: int): seq[Matrix4d] =
+  if skinIdx < 0 or not jsonData.hasKey("skins") or skinIdx >= jsonData["skins"].len:
+    return @[]
+  let skin = jsonData["skins"][skinIdx]
+  if not skin.hasKey("inverseBindMatrices"):
+    return @[]
+  let accessorIdx = skin["inverseBindMatrices"].getInt(-1)
+  let mats = readAccessorMat4Float(jsonData, binData, accessorIdx)
+  result = newSeq[Matrix4d](mats.len)
+  for i in 0 ..< mats.len:
+    for j in 0 ..< 16:
+      result[i][j] = float64(mats[i][j])
+
+proc applySkinningPose(
+  position: Vector3D,
+  joints: (int, int, int, int),
+  weights: (float32, float32, float32, float32),
+  skinJoints: seq[int],
+  inverseBindMatrices: seq[Matrix4d],
+  nodeWorldMatrices: seq[Matrix4d],
+): Vector3D =
+  if skinJoints.len == 0 or nodeWorldMatrices.len == 0:
+    return position
+
+  let jArr = [joints[0], joints[1], joints[2], joints[3]]
+  let wArr = [weights[0], weights[1], weights[2], weights[3]]
+  let source = [float64(position.x), float64(position.y), float64(position.z), 1.0]
+
+  var skinned = [0.0, 0.0, 0.0, 0.0]
+  var totalWeight = 0.0
+
+  for i in 0 .. 3:
+    let w = float64(wArr[i])
+    if w <= 0.0:
+      continue
+    let j = jArr[i]
+    if j < 0 or j >= skinJoints.len:
+      continue
+    let nodeIdx = skinJoints[j]
+    if nodeIdx < 0 or nodeIdx >= nodeWorldMatrices.len:
+      continue
+
+    let bindMat = if j < inverseBindMatrices.len: inverseBindMatrices[j] else: matIdentity()
+    let p = matVecMulColMajor(nodeWorldMatrices[nodeIdx], matVecMulColMajor(bindMat, source))
+    for k in 0 ..< 4:
+      skinned[k] += w * p[k]
+    totalWeight += w
+
+  if totalWeight <= 0.0:
+    return position
+  return (
+    float32(skinned[0] / totalWeight),
+    float32(skinned[1] / totalWeight),
+    float32(skinned[2] / totalWeight),
+  )
+
 # BONE_PAIRS: English node name -> PMX bone index (order matches Python's config/default_pairs.py)
 const BONE_PAIRS_EN = [
   "Root", "Center", "Groove", "J_Bip_C_Hips", "J_Bip_C_Spine",
@@ -240,6 +409,7 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
   # Build bone lookup tables
   let bonePairsLookup = buildBonePairsLookup()
   let nodeToBoneIdx = buildNodeToPmxBoneIndex(jsonData, bonePairsLookup)
+  let nodeWorldMatrices = buildNodeWorldMatrices(jsonData)
 
   # POSITION accessor dedup: accessor_idx -> vertex start index
   var processedAccessors = initTable[int, int32]()
@@ -253,8 +423,10 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
     if not mesh.hasKey("primitives"):
       continue
 
-    # Get skin joint array for this mesh (same for all primitives of this mesh)
-    let skinJoints = getSkinJointsForMesh(jsonData, meshIdx)
+    # Get skin data for this mesh (same for all primitives of this mesh)
+    let skinIdx = getSkinIndexForMesh(jsonData, meshIdx)
+    let skinJoints = getSkinJoints(jsonData, skinIdx)
+    let inverseBindMatrices = getSkinInverseBindMatrices(jsonData, binData, skinIdx)
 
     for prim in mesh["primitives"]:
       if not prim.hasKey("attributes"):
@@ -303,16 +475,20 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           let n = if i < normals.len: normals[i] else: (x: 0'f32, y: 1'f32, z: 0'f32)
           let uvRaw = if i < uvs.len: uvs[i] else: (x: 0'f32, y: 0'f32, z: 0'f32)
 
-          # MMD coordinate transform: negate X, scale by MIKU_METER
+          # Apply skinning pose before MMD coordinate transform.
           # Build deform data
           var deform: PmxDeformLite
+          let posedP = if i < jointsData.len and i < weightsData.len:
+                        applySkinningPose(positions[i], jointsData[i], weightsData[i], skinJoints, inverseBindMatrices, nodeWorldMatrices)
+                      else:
+                        positions[i]
           if i < jointsData.len and i < weightsData.len and skinJoints.len > 0:
             deform = buildDeform(jointsData[i], weightsData[i], skinJoints, nodeToBoneIdx)
           else:
             deform = makeBdef1(0)
 
           result.vertices.add(PmxVertexLite(
-            position: Vec3f(x: -p.x * MIKU_METER, y: p.y * MIKU_METER, z: p.z * MIKU_METER),
+            position: Vec3f(x: -posedP.x * MIKU_METER, y: posedP.y * MIKU_METER, z: posedP.z * MIKU_METER),
             normal: Vec3f(x: -n.x, y: n.y, z: n.z),
             uv: Vec2f(x: uvRaw.x, y: uvRaw.y),
             deform: deform,
