@@ -1304,11 +1304,12 @@ function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
     return null;
   }
 
-  if (!supported()) {
-    return <span className="install-hint">{i18n.installUnsupportedHint}</span>;
-  }
-
   const onInstallClick = () => {
+    if (!supported()) {
+      window.alert(`${i18n.installDialogTitle}\n\n${i18n.installUnsupportedHint}`);
+      return;
+    }
+
     void pwaInstall({
       title: i18n.installDialogTitle,
       description: i18n.installDialogDescription,
