@@ -71,6 +71,8 @@ executor.py.lprof
 *.thread
 *.html
 !frontend/index.html
+nimcache/
 *.c
 *.pyd
 *.pyd
+frontend/public/nim/nimcache/@maccessor.nim.c.o

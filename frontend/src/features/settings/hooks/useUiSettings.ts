@@ -12,6 +12,7 @@ type UiSettingsSnapshot = {
   orbitSyncEnabled: boolean;
   logEnabled: boolean;
   rustEnabled: boolean;
+  turboLabsEnabled: boolean;
   nimEnabled: boolean;
   worldCounterParticipationEnabled: boolean;
   pmxBrightnessScale: number;
@@ -30,6 +31,7 @@ export function useUiSettings() {
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
   const [rustEnabled, setRustEnabled] = useState(false);
+  const [turboLabsEnabled, setTurboLabsEnabled] = useState(false);
   const [nimEnabled, setNimEnabled] = useState(false);
   const [worldCounterParticipationEnabled, setWorldCounterParticipationEnabled] = useState(true);
   const [gridEnabled, setGridEnabled] = useState(false);
@@ -80,8 +82,10 @@ export function useUiSettings() {
         if (typeof saved.rustEnabled === "boolean") {
           setRustEnabled(saved.rustEnabled);
         }
+        const savedTurboLabsEnabled = typeof saved.turboLabsEnabled === "boolean" ? saved.turboLabsEnabled : false;
+        setTurboLabsEnabled(savedTurboLabsEnabled);
         if (typeof saved.nimEnabled === "boolean") {
-          setNimEnabled(saved.nimEnabled);
+          setNimEnabled(savedTurboLabsEnabled ? saved.nimEnabled : false);
         }
         if (typeof saved.worldCounterParticipationEnabled === "boolean") {
           setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
@@ -101,6 +105,12 @@ export function useUiSettings() {
   }, []);
 
   useEffect(() => {
+    if (!turboLabsEnabled && nimEnabled) {
+      setNimEnabled(false);
+    }
+  }, [turboLabsEnabled, nimEnabled]);
+
+  useEffect(() => {
     if (!isUiSettingsHydrated) {
       return;
     }
@@ -116,6 +126,7 @@ export function useUiSettings() {
       orbitSyncEnabled,
       logEnabled,
       rustEnabled,
+      turboLabsEnabled,
       nimEnabled,
       worldCounterParticipationEnabled,
       pmxBrightnessScale,
@@ -134,6 +145,7 @@ export function useUiSettings() {
     orbitSyncEnabled,
     logEnabled,
     rustEnabled,
+    turboLabsEnabled,
     nimEnabled,
     worldCounterParticipationEnabled,
     pmxBrightnessScale,
@@ -148,6 +160,7 @@ export function useUiSettings() {
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
     setRustEnabled(false);
+    setTurboLabsEnabled(false);
     setNimEnabled(false);
     setWorldCounterParticipationEnabled(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
@@ -167,6 +180,8 @@ export function useUiSettings() {
     logEnabledRef,
     rustEnabled,
     setRustEnabled,
+    turboLabsEnabled,
+    setTurboLabsEnabled,
     nimEnabled,
     setNimEnabled,
     worldCounterParticipationEnabled,

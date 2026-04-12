@@ -183,6 +183,9 @@ type AppI18n = {
   allResetCounterLabel: string;
   taPoseZeroConfirm: string;
   taPoseZeroCanceled: string;
+  turboLabsLabel: string;
+  turboLabsEnableInSettingTooltip: string;
+  turboLabsSettingLabel: string;
   installButtonLabel: string;
   installUnsupportedHint: string;
   installDialogTitle: string;
@@ -310,6 +313,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     allResetCounterLabel: "変換カウンターもリセットする",
     taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
     taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip: "有効にするにはセッティングを変更してください。",
+    turboLabsSettingLabel: "Turbo: 爆速化を有効にする",
     installButtonLabel: "Install",
     installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
     installDialogTitle: "アプリをインストール",
@@ -360,6 +366,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     allResetCounterLabel: "Also reset the conversion counter",
     taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
     taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip: "To enable this, please change the setting.",
+    turboLabsSettingLabel: "Turbo: Enable high-speed mode",
     installButtonLabel: "Install",
     installUnsupportedHint: "Use your browser menu and choose \"Add to Home Screen\".",
     installDialogTitle: "Install App",
@@ -410,6 +419,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     allResetCounterLabel: "同时重置转换计数器",
     taPoseZeroConfirm: "T/A Pose 已设置为 0 度。确定继续转换吗？",
     taPoseZeroCanceled: "因 0 度姿势设置，已取消转换。",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip: "要启用此功能，请先在设置中更改。",
+    turboLabsSettingLabel: "Turbo：启用高速模式",
     installButtonLabel: "Install",
     installUnsupportedHint: "请从浏览器菜单中选择「添加到主屏幕」。",
     installDialogTitle: "安装应用",
@@ -1415,6 +1427,7 @@ export default function App() {
     orbitSyncEnabled, setOrbitSyncEnabled, orbitSyncEnabledRef,
     logEnabled, setLogEnabled, logEnabledRef,
     rustEnabled, setRustEnabled,
+    turboLabsEnabled, setTurboLabsEnabled,
     nimEnabled, setNimEnabled,
     worldCounterParticipationEnabled, setWorldCounterParticipationEnabled,
     gridEnabled, setGridEnabled, gridEnabledRef,
@@ -3210,7 +3223,7 @@ export default function App() {
     if (!file) {
       return;
     }
-    const requestedMode: ConvertMode = nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
+    const requestedMode: ConvertMode = turboLabsEnabled && nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
 
     if (taPoseAngle === 0) {
       showDialog({
@@ -4195,21 +4208,25 @@ export default function App() {
               <label className="pmx-tool-checkbox">
                 <input
                   type="checkbox"
-                  name="nim-mode"
-                  checked={nimEnabled}
-                  onChange={(event) => setNimEnabled(event.target.checked)}
-                  disabled={status === "uploading"}
-                />
-                <span>Nim</span>
-              </label>
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
                   name="pmx-log"
                   checked={logEnabled}
                   onChange={(event) => setLogEnabled(event.target.checked)}
                 />
                 <span>Log</span>
+              </label>
+              <label
+                className="pmx-tool-checkbox"
+                title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+              >
+                <input
+                  type="checkbox"
+                  name="nim-mode"
+                  checked={nimEnabled}
+                  onChange={(event) => setNimEnabled(event.target.checked)}
+                  disabled={status === "uploading" || !turboLabsEnabled}
+                  title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                />
+                <span>{i18n.turboLabsLabel}</span>
               </label>
             </div>
           </div>
@@ -4452,6 +4469,9 @@ export default function App() {
         installControl={<PwaInstallControl i18n={i18n} />}
         worldCounterParticipationEnabled={worldCounterParticipationEnabled}
         onWorldCounterParticipationChange={setWorldCounterParticipationEnabled}
+        turboLabsEnabled={turboLabsEnabled}
+        onTurboLabsEnabledChange={setTurboLabsEnabled}
+        turboLabsSettingLabel={i18n.turboLabsSettingLabel}
         onAllReset={onAllReset}
         onClose={() => setIsAboutOpen(false)}
       />

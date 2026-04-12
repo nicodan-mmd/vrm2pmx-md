@@ -11,6 +11,9 @@ type AboutDialogProps = {
   installControl?: ReactNode;
   worldCounterParticipationEnabled: boolean;
   onWorldCounterParticipationChange: (enabled: boolean) => void;
+  turboLabsEnabled: boolean;
+  onTurboLabsEnabledChange: (enabled: boolean) => void;
+  turboLabsSettingLabel: string;
   onAllReset: () => void;
   onClose: () => void;
 };
@@ -191,6 +194,9 @@ export default function AboutDialog({
   installControl,
   worldCounterParticipationEnabled,
   onWorldCounterParticipationChange,
+  turboLabsEnabled,
+  onTurboLabsEnabledChange,
+  turboLabsSettingLabel,
   onAllReset,
   onClose,
 }: AboutDialogProps) {
@@ -285,6 +291,14 @@ export default function AboutDialog({
                 onChange={(event) => onWorldCounterParticipationChange(event.target.checked)}
               />
               <span>WORLD CONVERT COUNTER に参加する (外すと表示のみになります)</span>
+            </label>
+            <label className="about-settings-toggle">
+              <input
+                type="checkbox"
+                checked={turboLabsEnabled}
+                onChange={(event) => onTurboLabsEnabledChange(event.target.checked)}
+              />
+              <span>{turboLabsSettingLabel}</span>
             </label>
             <div className="about-settings-actions">
               {installControl}

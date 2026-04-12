@@ -12,6 +12,7 @@
   "module/__init__.py",
   "service/Vrm2PmxBytesService.py",
   "service/Vrm2PmxExportService.py",
+  "service/VrmCounterService.py",
   "service/__init__.py",
   "service/profile_detection.py",
   "service/vrm_common.py",
