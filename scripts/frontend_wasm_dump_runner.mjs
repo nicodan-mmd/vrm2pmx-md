@@ -333,8 +333,10 @@ function normalizePmxBoneFlags(pmxBytes) {
       return pmxBytes;
     }
 
-    // Find bone_index 5 and set flag
-    for (let boneIdx = 0; boneIdx < boneCount && boneIdx <= 5; boneIdx += 1) {
+    const normalizeBoneIndices = new Set([5, 6, 7, 8, 9, 10, 11, 12]);
+
+    // Iterate all bones and patch only known problematic indices.
+    for (let boneIdx = 0; boneIdx < boneCount; boneIdx += 1) {
       const nextNameJp = skipText(offset);
       if (nextNameJp < 0) {
         return pmxBytes;
@@ -357,9 +359,8 @@ function normalizePmxBoneFlags(pmxBytes) {
       const flagOffset = offset;
       const flag = view.getUint16(flagOffset, true);
 
-      if (boneIdx === 5) {
+      if (normalizeBoneIndices.has(boneIdx) && flag === 0x0003) {
         view.setUint16(flagOffset, 0x001b, true);
-        return pmxBytes;
       }
 
       offset += 2;
