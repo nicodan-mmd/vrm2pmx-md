@@ -17,6 +17,7 @@ const { values } = parseArgs({
     vrm: { type: "string" },
     wasm: { type: "string" },
     out: { type: "string" },
+    version: { type: "string" },
   },
 });
 
@@ -30,6 +31,94 @@ const wasmBytes = readFileSync(values.wasm);
 
 const runtimeRef = { memory: null, lastMessage: "" };
 const textDecoder = new TextDecoder();
+
+function encodeUtf16Le(text) {
+  const buffer = new Uint8Array(text.length * 2);
+  for (let index = 0; index < text.length; index += 1) {
+    const codeUnit = text.charCodeAt(index);
+    buffer[index * 2] = codeUnit & 0xff;
+    buffer[index * 2 + 1] = codeUnit >> 8;
+  }
+  return buffer;
+}
+
+function normalizePmxHeaderComments(pmxBytes, versionName) {
+  if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24 || !versionName) {
+    return pmxBytes;
+  }
+
+  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  if (
+    pmxBytes[0] !== 0x50 || // P
+    pmxBytes[1] !== 0x4d || // M
+    pmxBytes[2] !== 0x58 || // X
+    pmxBytes[3] !== 0x20 // ' '
+  ) {
+    return pmxBytes;
+  }
+
+  let offset = 8;
+  if (offset >= pmxBytes.length) {
+    return pmxBytes;
+  }
+
+  const globalsLen = pmxBytes[offset];
+  if (offset + 1 + globalsLen > pmxBytes.length) {
+    return pmxBytes;
+  }
+  offset += 1 + globalsLen;
+
+  const textRanges = [];
+  for (let index = 0; index < 4; index += 1) {
+    if (offset + 4 > pmxBytes.length) {
+      return pmxBytes;
+    }
+    const textLen = view.getInt32(offset, true);
+    const textStart = offset + 4;
+    const textEnd = textStart + textLen;
+    if (textLen < 0 || textEnd > pmxBytes.length) {
+      return pmxBytes;
+    }
+    textRanges.push({ lengthOffset: offset, textStart, textEnd, textLen });
+    offset = textEnd;
+  }
+
+  const commentRange = textRanges[2];
+  if (!commentRange) {
+    return pmxBytes;
+  }
+
+  const commentText = new TextDecoder("utf-16le").decode(
+    pmxBytes.subarray(commentRange.textStart, commentRange.textEnd),
+  );
+  const nextCommentText = commentText.replace(
+    /変換: VRM to MMD Converter - Version .*?  \(@nicodan-mmd\)/,
+    `変換: VRM to MMD Converter - Version ${versionName}  (@nicodan-mmd)`,
+  );
+  if (nextCommentText === commentText) {
+    return pmxBytes;
+  }
+
+  const nextCommentBytes = encodeUtf16Le(nextCommentText);
+  const sizeDelta = nextCommentBytes.length - commentRange.textLen;
+
+  if (sizeDelta === 0) {
+    view.setInt32(commentRange.lengthOffset, nextCommentBytes.length, true);
+    pmxBytes.set(nextCommentBytes, commentRange.textStart);
+    return pmxBytes;
+  }
+
+  const nextBytes = new Uint8Array(pmxBytes.length + sizeDelta);
+  nextBytes.set(pmxBytes.subarray(0, commentRange.lengthOffset), 0);
+  const nextView = new DataView(nextBytes.buffer);
+  nextView.setInt32(commentRange.lengthOffset, nextCommentBytes.length, true);
+  nextBytes.set(nextCommentBytes, commentRange.lengthOffset + 4);
+  nextBytes.set(
+    pmxBytes.subarray(commentRange.textEnd),
+    commentRange.lengthOffset + 4 + nextCommentBytes.length,
+  );
+  return nextBytes;
+}
 
 function normalizePmxTextureSeparators(pmxBytes) {
   if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24) {
@@ -524,7 +613,8 @@ async function run() {
   const status = dv.getUint8(metaPtr + META_STATUS_OFFSET);
 
   if (rc === 0 && status === 0 && outLen > 0) {
-    const out = new Uint8Array(ex.memory.buffer, outPtr, outLen).slice();
+    let out = new Uint8Array(ex.memory.buffer, outPtr, outLen).slice();
+    out = normalizePmxHeaderComments(out, values.version || "1.5.3");
     normalizePmxTextureSeparators(out);
     normalizePmxBoneFlags(out);
     writeFileSync(values.out, out);

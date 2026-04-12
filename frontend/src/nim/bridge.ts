@@ -1,7 +1,9 @@
+import { APP_VERSION } from "../constants/appInfo";
 import { getNimRuntimeAvailability, resolveNimAssetUrl, type NimRuntimeManifest } from "./runtime";
 
 export type NimBridgeOptions = {
   wasmUrl: string;
+  versionName?: string;
 };
 
 export type NimConvertRequest = {

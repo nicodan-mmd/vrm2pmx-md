@@ -55,11 +55,18 @@ class MLogger:
         self.logger = logging.getLogger("Vrm2PmxExporter").getChild(self.module_name)
 
         # 標準出力ハンドラ
-        sh = logging.StreamHandler()
+        sh = logging.StreamHandler(sys.stdout)
         sh.setLevel(level)
         # sh.setFormatter(logging.Formatter(self.DEFAULT_FORMAT))
         # sh.setStream(sys.stdout)
         self.logger.addHandler(sh)
+
+        # Prevent log records from propagating to the root logger.
+        # This ensures that logging.basicConfig's default stderr handler
+        # (added to the root logger) does not receive these records, which
+        # would cause Python log messages to appear as console.error in
+        # Pyodide and trigger false "[ERROR]" entries in the browser UI.
+        self.logger.propagate = False
 
     def copy(self, options):
         self.is_file = options.is_file

@@ -18,6 +18,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from nim_bitperfect_validation import build_report, run_python_baseline
 
 
+BROWSER_PYTHON_VERSION_NAME = "1.5.3"
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -170,9 +173,26 @@ def is_bitperfect_excluded(vrm_path: Path, patterns: list[str]) -> bool:
     return False
 
 
-def run_wasm_dump(vrm_path: Path, wasm_path: Path, wasm_runner: Path, output_path: Path) -> None:
+def run_wasm_dump(
+    vrm_path: Path,
+    wasm_path: Path,
+    wasm_runner: Path,
+    output_path: Path,
+    version_name: str,
+) -> None:
     proc = subprocess.run(
-        ["node", str(wasm_runner), "--vrm", str(vrm_path), "--wasm", str(wasm_path), "--out", str(output_path)],
+        [
+            "node",
+            str(wasm_runner),
+            "--vrm",
+            str(vrm_path),
+            "--wasm",
+            str(wasm_path),
+            "--out",
+            str(output_path),
+            "--version",
+            version_name,
+        ],
         capture_output=True,
         text=True,
         timeout=120,
@@ -646,6 +666,7 @@ def probe_model(
     wasm_runner: Path | None,
     exclude_bitperfect_path: list[str],
 ) -> dict[str, Any]:
+    baseline_version_name = BROWSER_PYTHON_VERSION_NAME if mode == "wasm" else "nim-bitperfect-baseline"
     nim_pmx_path = work_dir / f"{vrm_path.stem}_nim.pmx"
     if mode == "nim-exe":
         if nim_exe is None:
@@ -654,9 +675,9 @@ def probe_model(
     else:
         if wasm_path is None or wasm_runner is None:
             raise RuntimeError("wasm_path/wasm_runner are required for wasm mode")
-        run_wasm_dump(vrm_path, wasm_path, wasm_runner, nim_pmx_path)
+        run_wasm_dump(vrm_path, wasm_path, wasm_runner, nim_pmx_path, baseline_version_name)
 
-    baseline_bytes, baseline_runs = run_python_baseline(vrm_path, 1)
+    baseline_bytes, baseline_runs = run_python_baseline(vrm_path, 1, version_name=baseline_version_name)
     report = build_report(vrm_path, baseline_bytes, baseline_runs, nim_pmx_path)
     comparison = report.get("nim_comparison", {})
 
