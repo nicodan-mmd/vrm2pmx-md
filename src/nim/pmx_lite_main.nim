@@ -136,9 +136,9 @@ proc applySkinningPose(
   skinJoints: seq[int],
   inverseBindMatrices: seq[Matrix4d],
   nodeWorldMatrices: seq[Matrix4d],
-): Vector3D =
+): tuple[x, y, z: float64] =
   if skinJoints.len == 0 or nodeWorldMatrices.len == 0:
-    return position
+    return (float64(position.x), float64(position.y), float64(position.z))
 
   let jArr = [joints[0], joints[1], joints[2], joints[3]]
   let wArr = [weights[0], weights[1], weights[2], weights[3]]
@@ -165,11 +165,11 @@ proc applySkinningPose(
     totalWeight += w
 
   if totalWeight <= 0.0:
-    return position
+    return (float64(position.x), float64(position.y), float64(position.z))
   return (
-    float32(skinned[0] / totalWeight),
-    float32(skinned[1] / totalWeight),
-    float32(skinned[2] / totalWeight),
+    skinned[0] / totalWeight,
+    skinned[1] / totalWeight,
+    skinned[2] / totalWeight,
   )
 
 # BONE_PAIRS: English node name -> PMX bone index (order matches Python's config/default_pairs.py)
@@ -481,14 +481,18 @@ proc buildModelFromGlb(jsonData: JsonNode, binData: openArray[uint8], modelName:
           let posedP = if i < jointsData.len and i < weightsData.len:
                         applySkinningPose(positions[i], jointsData[i], weightsData[i], skinJoints, inverseBindMatrices, nodeWorldMatrices)
                       else:
-                        positions[i]
+                        (float64(positions[i].x), float64(positions[i].y), float64(positions[i].z))
           if i < jointsData.len and i < weightsData.len and skinJoints.len > 0:
             deform = buildDeform(jointsData[i], weightsData[i], skinJoints, nodeToBoneIdx)
           else:
             deform = makeBdef1(0)
 
           result.vertices.add(PmxVertexLite(
-            position: Vec3f(x: -posedP.x * MIKU_METER, y: posedP.y * MIKU_METER, z: posedP.z * MIKU_METER),
+            position: Vec3f(
+              x: float32(-posedP.x * 12.5),
+              y: float32(posedP.y * 12.5),
+              z: float32(posedP.z * 12.5),
+            ),
             normal: Vec3f(x: -n.x, y: n.y, z: n.z),
             uv: Vec2f(x: uvRaw.x, y: uvRaw.y),
             deform: deform,
