@@ -24,17 +24,21 @@
 ## 変換観点での差分
 
 1. Morph/Expression
+
 - VRM0.x: blendShape 系中心
 - VRM1.x: expression 系
 - VRoid: 表情系マッピングに固有処理が必要
 
 2. Bone Mapping
+
 - 共通骨格を基準にしつつ、VRoid特有の補正処理を profile 内で適用
 
 3. Physics
+
 - springBone 相当情報の扱い差分があるため、共通層ではなく profile 側で吸収
 
 4. Material/Texture
+
 - 共通抽出は共通層、固有パラメータ解釈は profile 側で分離
 
 ## データ契約方針

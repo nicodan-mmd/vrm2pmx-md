@@ -47,4 +47,6 @@ export type WorkerResponse =
   | WorkerErrorResponse
   | WorkerLogResponse;
 
-export type WorkerTerminalResponse = WorkerSuccessResponse | WorkerErrorResponse;
+export type WorkerTerminalResponse =
+  | WorkerSuccessResponse
+  | WorkerErrorResponse;

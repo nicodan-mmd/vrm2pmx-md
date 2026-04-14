@@ -1,6 +1,9 @@
 const BASE_URL = import.meta.env.BASE_URL;
 const APP_BASE_URL = new URL(BASE_URL, self.location.origin);
-const RUST_RUNTIME_MANIFEST = new URL("rust/vrm2pmx_rust_manifest.json", APP_BASE_URL);
+const RUST_RUNTIME_MANIFEST = new URL(
+  "rust/vrm2pmx_rust_manifest.json",
+  APP_BASE_URL,
+);
 
 export type RustRuntimeAvailability = {
   available: boolean;

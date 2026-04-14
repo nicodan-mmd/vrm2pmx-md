@@ -1,4 +1,5 @@
 """Tests for VRM material main texture index resolution."""
+
 from __future__ import annotations
 
 import sys
@@ -10,7 +11,7 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from mmd.VrmReader import VrmReader
+from mmd.VrmReader import VrmReader  # noqa: E402
 
 
 class VrmMainTextureResolutionTestCase(unittest.TestCase):
@@ -106,9 +107,7 @@ class VrmMainTextureResolutionTestCase(unittest.TestCase):
         material = {
             "name": "Body",
             "extensions": {
-                "VRMC_materials_mtoon": {
-                    "litMultiplyTexture": {"index": 0}
-                }
+                "VRMC_materials_mtoon": {"litMultiplyTexture": {"index": 0}}
             },
         }
         texture_props = {}

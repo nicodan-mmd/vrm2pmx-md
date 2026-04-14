@@ -2,7 +2,6 @@ import json
 import os
 import sys
 
-
 FLAG_LABELS = {
     0x01: "double_sided",
     0x02: "ground_shadow",
@@ -26,10 +25,7 @@ def to_float_list(value):
 
 
 def decode_flags(flag_value):
-    return {
-        name: bool(flag_value & bit)
-        for bit, name in FLAG_LABELS.items()
-    }
+    return {name: bool(flag_value & bit) for bit, name in FLAG_LABELS.items()}
 
 
 def resolve_texture(textures, texture_index, toon_sharing_flag=None):
@@ -147,8 +143,12 @@ def main():
             "reference": summarize(reference_model),
             "candidate": summarize(candidate_model),
             "common_material_count": len(common_names),
-            "reference_only_materials": sorted(set(reference_names) - set(candidate_names)),
-            "candidate_only_materials": sorted(set(candidate_names) - set(reference_names)),
+            "reference_only_materials": sorted(
+                set(reference_names) - set(candidate_names)
+            ),
+            "candidate_only_materials": sorted(
+                set(candidate_names) - set(reference_names)
+            ),
             "different_material_count": len(material_differences),
         },
         "material_order": {

@@ -15,20 +15,24 @@
 ## 論理構成
 
 1. Detection Layer
+
 - 役割: 入力メタデータから変換経路を判定する
 - 入力: extensions, version, 追加ヒント
 - 出力: profile種別（generic/vroid）と判定理由
 
 2. Common Conversion Layer
+
 - 役割: 共通処理（読込、画像展開、accessor、テクスチャ配置）
 - 制約: ドメイン固有分岐を持ち込まない
 
 3. Profile Layer
+
 - GenericProfile: 既存VRM変換を保持
 - VroidProfile: VRoid由来の固有変換を担当
 - 制約: 分岐はprofile内に閉じる
 
 4. Frontend Layer
+
 - 役割: 変換開始、進捗表示、判定結果表示、失敗時案内
 - 方針: ボタン追加なし、自動判定のみ
 

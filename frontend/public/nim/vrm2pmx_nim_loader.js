@@ -115,11 +115,19 @@ function encodeUtf16Le(text) {
 }
 
 function normalizePmxHeaderComments(pmxBytes, versionName) {
-  if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24 || !versionName) {
+  if (
+    !(pmxBytes instanceof Uint8Array) ||
+    pmxBytes.length < 24 ||
+    !versionName
+  ) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
   if (
     pmxBytes[0] !== 0x50 || // P
     pmxBytes[1] !== 0x4d || // M
@@ -198,7 +206,11 @@ function normalizePmxTextureSeparators(pmxBytes) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
   if (
     pmxBytes[0] !== 0x50 || // P
     pmxBytes[1] !== 0x4d || // M
@@ -332,7 +344,11 @@ function normalizePmxBoneFlags(pmxBytes) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
   if (
     pmxBytes[0] !== 0x50 || // P
     pmxBytes[1] !== 0x4d || // M
@@ -473,10 +489,10 @@ function normalizePmxBoneFlags(pmxBytes) {
       const az = view.getFloat32(ambientOffset + 8, true);
       const drawFlag = pmxBytes[offset + 44];
       if (
-        drawFlag === 0x0f
-        && Math.abs(ax - 0.45) < 1e-6
-        && Math.abs(ay - 0.45) < 1e-6
-        && Math.abs(az - 0.45) < 1e-6
+        drawFlag === 0x0f &&
+        Math.abs(ax - 0.45) < 1e-6 &&
+        Math.abs(ay - 0.45) < 1e-6 &&
+        Math.abs(az - 0.45) < 1e-6
       ) {
         view.setFloat32(ambientOffset, 0.0, true);
         view.setFloat32(ambientOffset + 4, 0.0, true);
@@ -624,8 +640,12 @@ export async function createRuntimeBridge(options = {}) {
   const wasi = createWasiImports();
 
   function getMemory() {
-    if (!(runtimeExports && runtimeExports.memory instanceof WebAssembly.Memory)) {
-      throw new Error("NIM_RUNTIME_NOT_INITIALIZED: memory export is not available.");
+    if (
+      !(runtimeExports && runtimeExports.memory instanceof WebAssembly.Memory)
+    ) {
+      throw new Error(
+        "NIM_RUNTIME_NOT_INITIALIZED: memory export is not available.",
+      );
     }
     return runtimeExports.memory;
   }
@@ -646,10 +666,19 @@ export async function createRuntimeBridge(options = {}) {
     }
 
     try {
-      const copied = Number(runtimeExports.nim_wasm_copy_last_error(errorPtr, length));
+      const copied = Number(
+        runtimeExports.nim_wasm_copy_last_error(errorPtr, length),
+      );
       const actualLength = copied > 0 ? copied : length;
-      const bytes = new Uint8Array(getMemory().buffer, errorPtr, actualLength).slice();
-      return decodeUtf8(bytes).replace(/\0+$/, "").trim() || "Unknown Nim runtime error";
+      const bytes = new Uint8Array(
+        getMemory().buffer,
+        errorPtr,
+        actualLength,
+      ).slice();
+      return (
+        decodeUtf8(bytes).replace(/\0+$/, "").trim() ||
+        "Unknown Nim runtime error"
+      );
     } finally {
       runtimeExports.nim_wasm_free(errorPtr);
     }
@@ -658,12 +687,16 @@ export async function createRuntimeBridge(options = {}) {
   return {
     async initialize() {
       if (!wasmUrl) {
-        throw new Error("NIM_WASM_UNAVAILABLE: Nim runtime manifest does not declare entryWasm.");
+        throw new Error(
+          "NIM_WASM_UNAVAILABLE: Nim runtime manifest does not declare entryWasm.",
+        );
       }
 
       const response = await fetch(wasmUrl);
       if (!response.ok) {
-        throw new Error(`NIM_WASM_FETCH_FAILED: Nim wasm asset could not be fetched from ${wasmUrl} (status=${response.status}).`);
+        throw new Error(
+          `NIM_WASM_FETCH_FAILED: Nim wasm asset could not be fetched from ${wasmUrl} (status=${response.status}).`,
+        );
       }
 
       const bytes = await response.arrayBuffer();
@@ -695,13 +728,18 @@ export async function createRuntimeBridge(options = {}) {
 
     async convert(request = {}) {
       if (!runtimeExports) {
-        throw new Error("NIM_RUNTIME_NOT_INITIALIZED: Nim bridge convert() was called before initialize().");
+        throw new Error(
+          "NIM_RUNTIME_NOT_INITIALIZED: Nim bridge convert() was called before initialize().",
+        );
       }
 
       const fileName = request.fileName || "<unknown>";
-      const input = request.input instanceof Uint8Array ? request.input : new Uint8Array(0);
+      const input =
+        request.input instanceof Uint8Array ? request.input : new Uint8Array(0);
       if (input.length === 0) {
-        throw new Error(`NIM_CONVERT_INVALID_INPUT: Empty input for file=${fileName}.`);
+        throw new Error(
+          `NIM_CONVERT_INVALID_INPUT: Empty input for file=${fileName}.`,
+        );
       }
 
       const metaSize = 16;
@@ -715,7 +753,9 @@ export async function createRuntimeBridge(options = {}) {
         if (metaPtr) {
           runtimeExports.nim_wasm_free(metaPtr);
         }
-        throw new Error("NIM_WASM_ALLOC_FAILED: Could not allocate input/meta buffers in Nim Wasm heap.");
+        throw new Error(
+          "NIM_WASM_ALLOC_FAILED: Could not allocate input/meta buffers in Nim Wasm heap.",
+        );
       }
 
       let outPtr = 0;
@@ -727,7 +767,9 @@ export async function createRuntimeBridge(options = {}) {
         metaView.setInt32(8, 0, true);
         metaView.setInt32(12, 0, true);
 
-        const resultCode = Number(runtimeExports.nim_wasm_convert(inPtr, input.length, metaPtr));
+        const resultCode = Number(
+          runtimeExports.nim_wasm_convert(inPtr, input.length, metaPtr),
+        );
         const resultView = new DataView(getMemory().buffer, metaPtr, metaSize);
         outPtr = resultView.getUint32(0, true);
         const outLen = resultView.getInt32(4, true);
@@ -736,11 +778,15 @@ export async function createRuntimeBridge(options = {}) {
 
         if (resultCode !== 0 || status !== 0) {
           const reason = readLastError();
-          throw new Error(`NIM_CONVERT_FAILED: file=${fileName}, errorCode=${errorCode}, message=${reason}`);
+          throw new Error(
+            `NIM_CONVERT_FAILED: file=${fileName}, errorCode=${errorCode}, message=${reason}`,
+          );
         }
 
         if (!outPtr || outLen <= 0) {
-          throw new Error(`NIM_CONVERT_EMPTY_OUTPUT: file=${fileName}, outPtr=${outPtr}, outLen=${outLen}`);
+          throw new Error(
+            `NIM_CONVERT_EMPTY_OUTPUT: file=${fileName}, outPtr=${outPtr}, outLen=${outLen}`,
+          );
         }
 
         let output = new Uint8Array(getMemory().buffer, outPtr, outLen).slice();

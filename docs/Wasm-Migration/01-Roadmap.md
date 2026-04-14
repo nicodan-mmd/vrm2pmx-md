@@ -1,5 +1,7 @@
 # Roadmap
 
+<!-- markdownlint-disable MD024 -->
+
 ## Goal
 
 - サーバー常設なしで、VRM から PMX 変換をブラウザ上で完結させる。

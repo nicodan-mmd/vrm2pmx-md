@@ -23,7 +23,7 @@ Rust 経路は現時点の検証結果を踏まえて非推奨扱いとし、継
 
 ## 参考メモ
 
-- プロジェクト外メモ: D:\Users\maedashingo\Documents\_MyDocument\Dev\_MyWork\vrm2pmx-md\Material\Note\Nim-Convertion.txt
+- プロジェクト外メモ: D:\Users\maedashingo\Documents_MyDocument\Dev_MyWork\vrm2pmx-md\Material\Note\Nim-Convertion.txt
 - 反映済み要点:
   - バイナリ構造体のアライメントずれ防止（packed 指定）
   - リトルエンディアン厳守

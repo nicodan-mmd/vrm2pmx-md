@@ -41,16 +41,20 @@ async function main() {
       "nim-wasm-alloc",
       "nim-wasm-free",
       "nim-wasm-convert",
-      "pmx-output"
+      "pmx-output",
     ],
     notes: [
       "Generated from frontend/public/nim/vrm2pmx_nim_runtime.wat via wabt.",
       "Browser worker calls Nim C ABI exports directly and receives PMX bytes.",
-      "This runtime is fully client-side and does not require the local Nim exe."
-    ]
+      "This runtime is fully client-side and does not require the local Nim exe.",
+    ],
   };
 
-  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await fs.writeFile(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
   module.destroy();
 
   const stat = await fs.stat(targetWasmPath);

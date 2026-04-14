@@ -1,5 +1,7 @@
 # Nim Conversion Roadmap
 
+<!-- markdownlint-disable MD024 -->
+
 ## Phase 0: 計測基盤の固定
 
 - Python 現行経路で比較用メトリクスを出力できる状態を作る

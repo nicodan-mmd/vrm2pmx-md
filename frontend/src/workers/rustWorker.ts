@@ -7,7 +7,8 @@ import type {
   WorkerResponse,
 } from "../types/convert";
 
-const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+const workerSelf: DedicatedWorkerGlobalScope =
+  self as DedicatedWorkerGlobalScope;
 let activeRequestId: string | null = null;
 
 function postLog(level: WorkerLogResponse["level"], args: string[]): void {
@@ -52,7 +53,9 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const { manifest, bridge } = await loadRustRuntimeBridge();
     postLog("info", [`Rust loader status: ${manifest.status}`]);
     postLog("info", [`Rust loader entryJs: ${manifest.entryJs}`]);
-    postLog("info", [`Rust loader entryWasm: ${manifest.entryWasm || "<empty>"}`]);
+    postLog("info", [
+      `Rust loader entryWasm: ${manifest.entryWasm || "<empty>"}`,
+    ]);
 
     await bridge.initialize();
     postLog("info", ["Rust bridge initialized; invoking convert()..."]);
@@ -72,14 +75,17 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     };
     workerSelf.postMessage(successResponse);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "Unknown Rust worker error";
+    const detail =
+      error instanceof Error ? error.message : "Unknown Rust worker error";
     postLog("warn", [detail]);
 
     const errorCode = detail.startsWith("RUST_RUNTIME_UNAVAILABLE")
       ? "RUST_RUNTIME_UNAVAILABLE"
-      : detail.startsWith("RUST_BRIDGE_UNAVAILABLE") || detail.startsWith("RUST_BRIDGE_INVALID")
+      : detail.startsWith("RUST_BRIDGE_UNAVAILABLE") ||
+          detail.startsWith("RUST_BRIDGE_INVALID")
         ? "RUST_BRIDGE_UNAVAILABLE"
-        : detail.startsWith("RUST_WASM_UNAVAILABLE") || detail.startsWith("RUST_WASM_NOT_IMPLEMENTED")
+        : detail.startsWith("RUST_WASM_UNAVAILABLE") ||
+            detail.startsWith("RUST_WASM_NOT_IMPLEMENTED")
           ? "RUST_WASM_UNAVAILABLE"
           : "RUST_CONVERT_NOT_IMPLEMENTED";
 

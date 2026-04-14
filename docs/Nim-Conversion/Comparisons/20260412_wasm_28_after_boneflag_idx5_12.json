@@ -2,9 +2,7 @@
   "search_path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid",
   "mode": "wasm",
   "target_path": "frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
-  "exclude_bitperfect_path": [
-    "VRoid Hub/トクオタケル公式"
-  ],
+  "exclude_bitperfect_path": ["VRoid Hub/トクオタケル公式"],
   "nim_exe": null,
   "wasm": "frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
   "nim_environment": {

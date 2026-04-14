@@ -4,17 +4,16 @@
 Multi-model VRM conversion validation.
 Automatically discovers VRM files and measures conversion metrics.
 """
+
 import json
 import sys
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "frontend" / "public" / "py_src"))
 
-from python_vrm_counters import run_python_conversion, extract_pmx_counts
+from python_vrm_counters import run_python_conversion
 
 
 def find_vrm_files(search_path: str, max_count: int = 10) -> list[str]:
@@ -32,11 +31,15 @@ def find_vrm_files(search_path: str, max_count: int = 10) -> list[str]:
     return vrm_files
 
 
-def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None) -> dict:
+def run_multiple_validations(
+    vrm_paths: list[str], output_dir: str | None = None
+) -> dict:
     """Run validation on multiple VRM files."""
     results = {}
 
-    output_dir_path = Path(output_dir) if output_dir else Path("tmp") / "multi_model_validation"
+    output_dir_path = (
+        Path(output_dir) if output_dir else Path("tmp") / "multi_model_validation"
+    )
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
     for idx, vrm_path in enumerate(vrm_paths, 1):
@@ -74,17 +77,18 @@ def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None
             }
 
     # Save results
-    results_file = output_dir_path / f"validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    results_file = (
+        output_dir_path / f"validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     results_file.write_text(
-        json.dumps(results, indent=2, ensure_ascii=False),
-        encoding='utf-8'
+        json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
     print(f"\n\nResults saved to: {results_file}")
 
     # Summary
     successful = [r for r in results.values() if r["status"] == "ok"]
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Total models: {len(vrm_paths)}")
     print(f"Successful:   {len(successful)}")
     print(f"Failed:       {len(results) - len(successful)}")
@@ -112,7 +116,7 @@ def main():
         if idx + 1 < len(sys.argv):
             max_count = int(sys.argv[idx + 1])
 
-    print(f"VRM Multi-Model Validation")
+    print("VRM Multi-Model Validation")
     print(f"Search: {search_path}")
     print(f"Max count: {max_count}")
     print()

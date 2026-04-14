@@ -9,10 +9,10 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from mmd.PmxData import Bone, PmxModel
-from mmd.VrmData import VrmModel
-from mmd.VrmReader import VrmReader
-from module.MMath import MVector3D
+from mmd.PmxData import Bone, PmxModel  # noqa: E402
+from mmd.VrmData import VrmModel  # noqa: E402
+from mmd.VrmReader import VrmReader  # noqa: E402
+from module.MMath import MVector3D  # noqa: E402
 
 
 class VrmReaderProfileTestCase(unittest.TestCase):
@@ -23,7 +23,9 @@ class VrmReaderProfileTestCase(unittest.TestCase):
         pmx = PmxModel()
         pmx.bones["腰"] = Bone("腰", "hips", MVector3D(0, 10, 0), -1, 0, 0)
         pmx.bones["左足"] = Bone("左足", "leftLeg", MVector3D(0, 4, 0), -1, 0, 0)
-        pmx.bones["左ひざ"] = Bone("左ひざ", "leftLowerLeg", MVector3D(0, 2, 0), -1, 0, 0)
+        pmx.bones["左ひざ"] = Bone(
+            "左ひざ", "leftLowerLeg", MVector3D(0, 2, 0), -1, 0, 0
+        )
 
         actual = self.reader._resolve_center_position(pmx, "vroid")
 
@@ -51,7 +53,9 @@ class VrmReaderProfileTestCase(unittest.TestCase):
             "Eye",
         )
         self.assertEqual(
-            self.reader._resolve_material_key("N00_000_FaceEye_00", "OPAQUE", "generic"),
+            self.reader._resolve_material_key(
+                "N00_000_FaceEye_00", "OPAQUE", "generic"
+            ),
             "OPAQUE",
         )
 
@@ -109,7 +113,9 @@ class VrmReaderProfileTestCase(unittest.TestCase):
         pmx = PmxModel()
         pmx.bones["腰"] = Bone("腰", "hips", MVector3D(0, 10, 0), -1, 0, 0)
         pmx.bones["左足"] = Bone("左足", "leftLeg", MVector3D(0, 4, 0), -1, 0, 0)
-        pmx.bones["左ひざ"] = Bone("左ひざ", "leftLowerLeg", MVector3D(0, 2, 0), -1, 0, 0)
+        pmx.bones["左ひざ"] = Bone(
+            "左ひざ", "leftLowerLeg", MVector3D(0, 2, 0), -1, 0, 0
+        )
 
         actual = self.reader._resolve_center_position(pmx, "generic")
 
@@ -120,7 +126,9 @@ class VrmReaderProfileTestCase(unittest.TestCase):
     def test_resolve_material_key_generic_ignores_vroid_rules(self):
         """Test that generic profile ignores VRoid-specific material ordering"""
         self.assertEqual(
-            self.reader._resolve_material_key("N00_000_FaceEye_00", "OPAQUE", "generic"),
+            self.reader._resolve_material_key(
+                "N00_000_FaceEye_00", "OPAQUE", "generic"
+            ),
             "OPAQUE",  # Should use as-is for generic
         )
         self.assertEqual(

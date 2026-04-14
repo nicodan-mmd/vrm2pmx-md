@@ -78,7 +78,10 @@ def linear_to_srgb_color(linear_color: list | tuple) -> list:
         else:
             return 1.055 * pow(c, 1.0 / 2.4) - 0.055
 
-    srgb = [channel_linear_to_srgb(linear_color[i]) for i in range(min(3, len(linear_color)))]
+    srgb = [
+        channel_linear_to_srgb(linear_color[i])
+        for i in range(min(3, len(linear_color)))
+    ]
     # アルファチャンネルがあれば保持
     if len(linear_color) > 3:
         srgb.append(linear_color[3])
@@ -238,9 +241,8 @@ class VrmReader(PmxReader):
                 base_color_texture = candidate
 
         if not base_color_texture:
-            mtoon_ext = (
-                vrm_material.get("extensions", {})
-                .get("VRMC_materials_mtoon", {})
+            mtoon_ext = vrm_material.get("extensions", {}).get(
+                "VRMC_materials_mtoon", {}
             )
             if isinstance(mtoon_ext, dict):
                 lit_multiply_texture = mtoon_ext.get("litMultiplyTexture", {})
@@ -255,7 +257,9 @@ class VrmReader(PmxReader):
             return -1, "baseColorTexture_index_missing"
 
         textures = json_data.get("textures", [])
-        if not isinstance(textures, list) or not (0 <= gltf_texture_index < len(textures)):
+        if not isinstance(textures, list) or not (
+            0 <= gltf_texture_index < len(textures)
+        ):
             return -1, "baseColorTexture_index_out_of_range"
 
         texture_info = textures[gltf_texture_index]
@@ -264,7 +268,9 @@ class VrmReader(PmxReader):
 
         source_index = texture_info.get("source")
         if not isinstance(source_index, int):
-            khr_basisu = texture_info.get("extensions", {}).get("KHR_texture_basisu", {})
+            khr_basisu = texture_info.get("extensions", {}).get(
+                "KHR_texture_basisu", {}
+            )
             if isinstance(khr_basisu, dict):
                 source_index = khr_basisu.get("source")
         if not isinstance(source_index, int):
@@ -475,17 +481,22 @@ class VrmReader(PmxReader):
                                             )
                                         else:
                                             normals = [
-                                                MVector3D(0, 1, 0) for _ in range(len(positions))
+                                                MVector3D(0, 1, 0)
+                                                for _ in range(len(positions))
                                             ]
 
                                         # UVデータ
                                         if "TEXCOORD_0" in primitive["attributes"]:
                                             uvs = self.read_from_accessor(
-                                                vrm, primitive["attributes"]["TEXCOORD_0"]
+                                                vrm,
+                                                primitive["attributes"]["TEXCOORD_0"],
                                             )
                                         else:
                                             # テクスチャ座標がない場合、デフォルト値を使用
-                                            uvs = [MVector2D() for _ in range(len(positions))]
+                                            uvs = [
+                                                MVector2D()
+                                                for _ in range(len(positions))
+                                            ]
 
                                         # ジョイントデータ(MMDのジョイントとは異なる)
                                         if "JOINTS_0" in primitive["attributes"]:
@@ -531,7 +542,9 @@ class VrmReader(PmxReader):
                                                 skin_inverse_bind_matrices = (
                                                     self.read_mat4_from_accessor(
                                                         vrm,
-                                                        skin_data["inverseBindMatrices"],
+                                                        skin_data[
+                                                            "inverseBindMatrices"
+                                                        ],
                                                     )
                                                 )
                                         except Exception as e:
@@ -790,10 +803,6 @@ class VrmReader(PmxReader):
                                         diffuse_color_data = vrm_material[
                                             "pbrMetallicRoughness"
                                         ]["baseColorFactor"]
-                                        # Linear → sRGB ガンマ補正を適用（色の薄さ改善）
-                                        diffuse_color_data_srgb = linear_to_srgb_color(
-                                            diffuse_color_data
-                                        )
                                         # 拡散色は常に（1,1,1）に統一してテクスチャから色を取得
                                         diffuse_color = MVector3D(1.0, 1.0, 1.0)
                                         # 非透過度
@@ -853,15 +862,15 @@ class VrmReader(PmxReader):
                                         ):
                                             edge_color_data = [0, 0, 0, 1]
                                         edge_color = MVector4D(edge_color_data)
-                                        edge_size = float_props.get(
-                                            "_OutlineWidth", 0
-                                        )
+                                        edge_size = float_props.get("_OutlineWidth", 0)
 
-                                        texture_index, texture_index_source = self._resolve_main_texture_index(
-                                            vrm_material,
-                                            texture_props,
-                                            vrm.json_data,
-                                            len(pmx.textures),
+                                        texture_index, texture_index_source = (
+                                            self._resolve_main_texture_index(
+                                                vrm_material,
+                                                texture_props,
+                                                vrm.json_data,
+                                                len(pmx.textures),
+                                            )
                                         )
                                         if texture_index < 0:
                                             self.has_texture_missing = True
@@ -994,8 +1003,10 @@ class VrmReader(PmxReader):
                                             candidate_sphere_index = (
                                                 texture_props["_SphereAdd"] + 1
                                             )
-                                            if 0 <= candidate_sphere_index < len(
-                                                pmx.textures
+                                            if (
+                                                0
+                                                <= candidate_sphere_index
+                                                < len(pmx.textures)
                                             ):
                                                 sphere_texture_index = (
                                                     candidate_sphere_index
@@ -1072,7 +1083,9 @@ class VrmReader(PmxReader):
                                             len(indices),
                                         )
 
-                                        material_by_name[vrm_material["name"]] = material
+                                        material_by_name[vrm_material["name"]] = (
+                                            material
+                                        )
                                         material_creation_order.append(
                                             vrm_material["name"]
                                         )
@@ -1128,7 +1141,9 @@ class VrmReader(PmxReader):
                                 morph.offsets.append(
                                     GroupMorphData(
                                         bind["index"],
-                                        self._normalize_morph_weight(bind.get("weight")),
+                                        self._normalize_morph_weight(
+                                            bind.get("weight")
+                                        ),
                                     )
                                 )
 
@@ -1161,10 +1176,9 @@ class VrmReader(PmxReader):
 
                 logger.info("-- グループモーフデータ解析")
 
-                enable_optional_physics = (
-                    not self._is_vroid_profile(profile_name)
-                    or self._has_optional_physics_source(vrm)
-                )
+                enable_optional_physics = not self._is_vroid_profile(
+                    profile_name
+                ) or self._has_optional_physics_source(vrm)
                 if not enable_optional_physics:
                     self.has_physics_skip = True
                     logger.warning(
@@ -1769,7 +1783,9 @@ class VrmReader(PmxReader):
         parent_rigidbody = None
         target_bone = bone.copy()
         while target_bone.parent_index > -1:
-            matched = [b for b in pmx.bones.values() if b.index == target_bone.parent_index]
+            matched = [
+                b for b in pmx.bones.values() if b.index == target_bone.parent_index
+            ]
             if not matched:
                 break
             parent_bone = matched[0]
@@ -2211,7 +2227,9 @@ class VrmReader(PmxReader):
         # 尻は下半身に統合
         if "腰" in pmx.bones and "下半身" in pmx.bones:
             dest_joints = np.where(
-                dest_joints == pmx.bones["腰"].index, pmx.bones["下半身"].index, dest_joints
+                dest_joints == pmx.bones["腰"].index,
+                pmx.bones["下半身"].index,
+                dest_joints,
             )
 
         for direction in ["右", "左"]:
@@ -2376,19 +2394,25 @@ class VrmReader(PmxReader):
 
         joint_data = joint.data().astype(np.int64)
         weight_data = node_weight.data().astype(np.float64)
-        source = np.array([position.x(), position.y(), position.z(), 1.0], dtype=np.float64)
+        source = np.array(
+            [position.x(), position.y(), position.z(), 1.0], dtype=np.float64
+        )
 
         skinned = np.zeros(4, dtype=np.float64)
         total_weight = 0.0
 
-        for jidx, weight in zip(joint_data.tolist(), weight_data.tolist(), strict=False):
+        for jidx, weight in zip(
+            joint_data.tolist(), weight_data.tolist(), strict=False
+        ):
             if weight <= 0:
                 continue
             if jidx < 0 or jidx >= len(skin_joints):
                 continue
 
             skin_joint_node_idx = skin_joints[jidx]
-            if skin_joint_node_idx < 0 or skin_joint_node_idx >= len(node_world_matrices):
+            if skin_joint_node_idx < 0 or skin_joint_node_idx >= len(
+                node_world_matrices
+            ):
                 continue
 
             bind_matrix = (
@@ -2397,7 +2421,9 @@ class VrmReader(PmxReader):
                 else np.identity(4, dtype=np.float64)
             )
 
-            skinned += weight * (node_world_matrices[skin_joint_node_idx] @ (bind_matrix @ source))
+            skinned += weight * (
+                node_world_matrices[skin_joint_node_idx] @ (bind_matrix @ source)
+            )
             total_weight += weight
 
         if total_weight <= 0:
@@ -2440,13 +2466,22 @@ class VrmReader(PmxReader):
         for idx in range(len(nodes)):
             resolve_world(idx)
 
-        return [m if m is not None else np.identity(4, dtype=np.float64) for m in world_matrices]
+        return [
+            m if m is not None else np.identity(4, dtype=np.float64)
+            for m in world_matrices
+        ]
 
     def get_node_local_matrix(self, node: dict[str, Any]) -> np.ndarray:
-        if "matrix" in node and isinstance(node["matrix"], list) and len(node["matrix"]) == 16:
+        if (
+            "matrix" in node
+            and isinstance(node["matrix"], list)
+            and len(node["matrix"]) == 16
+        ):
             return np.array(node["matrix"], dtype=np.float64).reshape((4, 4), order="F")
 
-        translation = np.array(node.get("translation", [0.0, 0.0, 0.0]), dtype=np.float64)
+        translation = np.array(
+            node.get("translation", [0.0, 0.0, 0.0]), dtype=np.float64
+        )
         rotation = node.get("rotation", [0.0, 0.0, 0.0, 1.0])
         if len(rotation) < 4:
             rotation = [0.0, 0.0, 0.0, 1.0]
@@ -2459,9 +2494,21 @@ class VrmReader(PmxReader):
 
         rot = np.array(
             [
-                [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
-                [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
-                [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
+                [
+                    1 - 2 * (qy * qy + qz * qz),
+                    2 * (qx * qy - qz * qw),
+                    2 * (qx * qz + qy * qw),
+                ],
+                [
+                    2 * (qx * qy + qz * qw),
+                    1 - 2 * (qx * qx + qz * qz),
+                    2 * (qy * qz - qx * qw),
+                ],
+                [
+                    2 * (qx * qz - qy * qw),
+                    2 * (qy * qz + qx * qw),
+                    1 - 2 * (qx * qx + qy * qy),
+                ],
             ],
             dtype=np.float64,
         )
@@ -2665,9 +2712,7 @@ class VrmReader(PmxReader):
         ):
             # VRM0.x: [{"bone": "hips", "node": 0}, ...]
             human_nodes = [
-                b
-                for b in _vrm0_humanoid["humanBones"]
-                if b.get("node") == node_idx
+                b for b in _vrm0_humanoid["humanBones"] if b.get("node") == node_idx
             ]
         elif "humanBones" in _vrm1_humanoid and isinstance(
             _vrm1_humanoid["humanBones"], dict
@@ -2696,10 +2741,7 @@ class VrmReader(PmxReader):
         node_pairs[node_idx] = jp_bone_name
 
         # 位置: 回転を反映したワールド座標を優先して使用する
-        if (
-            node_world_matrices is not None
-            and 0 <= node_idx < len(node_world_matrices)
-        ):
+        if node_world_matrices is not None and 0 <= node_idx < len(node_world_matrices):
             world_matrix = node_world_matrices[node_idx]
             position = (
                 MVector3D(

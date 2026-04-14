@@ -22,7 +22,9 @@ const { values } = parseArgs({
 });
 
 if (!values.vrm || !values.wasm || !values.out) {
-  process.stderr.write("Usage: node scripts/frontend_wasm_dump_runner.mjs --vrm <path> --wasm <path> --out <path>\n");
+  process.stderr.write(
+    "Usage: node scripts/frontend_wasm_dump_runner.mjs --vrm <path> --wasm <path> --out <path>\n",
+  );
   process.exit(1);
 }
 
@@ -43,11 +45,19 @@ function encodeUtf16Le(text) {
 }
 
 function normalizePmxHeaderComments(pmxBytes, versionName) {
-  if (!(pmxBytes instanceof Uint8Array) || pmxBytes.length < 24 || !versionName) {
+  if (
+    !(pmxBytes instanceof Uint8Array) ||
+    pmxBytes.length < 24 ||
+    !versionName
+  ) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
   if (
     pmxBytes[0] !== 0x50 || // P
     pmxBytes[1] !== 0x4d || // M
@@ -125,7 +135,11 @@ function normalizePmxTextureSeparators(pmxBytes) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
   if (
     pmxBytes[0] !== 0x50 || // P
     pmxBytes[1] !== 0x4d || // M
@@ -259,7 +273,11 @@ function normalizePmxBoneFlags(pmxBytes) {
     return pmxBytes;
   }
 
-  const view = new DataView(pmxBytes.buffer, pmxBytes.byteOffset, pmxBytes.byteLength);
+  const view = new DataView(
+    pmxBytes.buffer,
+    pmxBytes.byteOffset,
+    pmxBytes.byteLength,
+  );
 
   // Validate PMX header
   if (
@@ -322,14 +340,25 @@ function normalizePmxBoneFlags(pmxBytes) {
       const deformType = pmxBytes[offset];
       offset += 1;
       switch (deformType) {
-        case 0: offset += boneIndexSize; break;
-        case 1: offset += boneIndexSize * 2 + 4; break;
-        case 2: offset += boneIndexSize * 4 + 16; break;
-        case 3: offset += boneIndexSize * 2 + 4 + 36; break;
-        case 4: offset += boneIndexSize * 4 + 16; break;
-        default: return pmxBytes;
+        case 0:
+          offset += boneIndexSize;
+          break;
+        case 1:
+          offset += boneIndexSize * 2 + 4;
+          break;
+        case 2:
+          offset += boneIndexSize * 4 + 16;
+          break;
+        case 3:
+          offset += boneIndexSize * 2 + 4 + 36;
+          break;
+        case 4:
+          offset += boneIndexSize * 4 + 16;
+          break;
+        default:
+          return pmxBytes;
       }
-      offset += 4;  // edge factor
+      offset += 4; // edge factor
       if (offset > pmxBytes.length) {
         return pmxBytes;
       }
@@ -393,10 +422,10 @@ function normalizePmxBoneFlags(pmxBytes) {
         const az = view.getFloat32(ambientOffset + 8, true);
         const drawFlag = pmxBytes[offset + 44];
         if (
-          drawFlag === 0x0f
-          && Math.abs(ax - 0.45) < 1e-6
-          && Math.abs(ay - 0.45) < 1e-6
-          && Math.abs(az - 0.45) < 1e-6
+          drawFlag === 0x0f &&
+          Math.abs(ax - 0.45) < 1e-6 &&
+          Math.abs(ay - 0.45) < 1e-6 &&
+          Math.abs(az - 0.45) < 1e-6
         ) {
           view.setFloat32(ambientOffset, 0.0, true);
           view.setFloat32(ambientOffset + 4, 0.0, true);
@@ -524,7 +553,6 @@ function normalizePmxBoneFlags(pmxBytes) {
         return pmxBytes;
       }
     }
-
   } catch (e) {
     return pmxBytes;
   }
@@ -542,7 +570,9 @@ const importObject = {
   },
   wasi_snapshot_preview1: {
     proc_exit(code) {
-      throw new Error(`NIM_WASM_PROC_EXIT:${code}:${runtimeRef.lastMessage.trim()}`);
+      throw new Error(
+        `NIM_WASM_PROC_EXIT:${code}:${runtimeRef.lastMessage.trim()}`,
+      );
     },
     fd_write(fd, iovsPtr, iovsLen, nwrittenPtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
@@ -564,9 +594,15 @@ const importObject = {
       if (nreadPtr) dv.setUint32(nreadPtr, 0, true);
       return 0;
     },
-    fd_seek() { return 70; },
-    fd_close() { return 0; },
-    fd_fdstat_get() { return 0; },
+    fd_seek() {
+      return 70;
+    },
+    fd_close() {
+      return 0;
+    },
+    fd_fdstat_get() {
+      return 0;
+    },
     environ_get(environPtr, environBufPtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
       dv.setUint32(environPtr, 0, true);
@@ -579,7 +615,9 @@ const importObject = {
       dv.setUint32(sizePtr, 0, true);
       return 0;
     },
-    args_get() { return 0; },
+    args_get() {
+      return 0;
+    },
     args_sizes_get(argcPtr, argvBufSizePtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
       dv.setUint32(argcPtr, 0, true);
@@ -619,7 +657,14 @@ async function run() {
     normalizePmxBoneFlags(out);
     writeFileSync(values.out, out);
     ex.nim_wasm_free(outPtr);
-    process.stdout.write(JSON.stringify({ status: "ok", elapsed_ms: elapsedMs, output_size: outLen, out: values.out }) + "\n");
+    process.stdout.write(
+      JSON.stringify({
+        status: "ok",
+        elapsed_ms: elapsedMs,
+        output_size: outLen,
+        out: values.out,
+      }) + "\n",
+    );
   } else {
     const errLen = ex.nim_wasm_last_error_len();
     let errorMsg = `rc=${rc} status=${status}`;
@@ -629,7 +674,13 @@ async function run() {
       errorMsg = textDecoder.decode(readMemBytes(errPtr, errLen));
       ex.nim_wasm_free(errPtr);
     }
-    process.stdout.write(JSON.stringify({ status: "error", elapsed_ms: elapsedMs, error: errorMsg }) + "\n");
+    process.stdout.write(
+      JSON.stringify({
+        status: "error",
+        elapsed_ms: elapsedMs,
+        error: errorMsg,
+      }) + "\n",
+    );
   }
 
   ex.nim_wasm_free(inputPtr);
@@ -637,6 +688,9 @@ async function run() {
 }
 
 run().catch((err) => {
-  process.stdout.write(JSON.stringify({ status: "error", elapsed_ms: 0, error: String(err) }) + "\n");
+  process.stdout.write(
+    JSON.stringify({ status: "error", elapsed_ms: 0, error: String(err) }) +
+      "\n",
+  );
   process.exit(0);
 });

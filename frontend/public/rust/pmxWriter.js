@@ -146,7 +146,11 @@ function buildTexturePathMap(gltfJson) {
     const image = images[i] || {};
     const extension = inferTextureExtension(image.mimeType);
     const baseName = normalizeTextureBaseName(
-      typeof image.name === "string" ? image.name : typeof image.uri === "string" ? image.uri : "",
+      typeof image.name === "string"
+        ? image.name
+        : typeof image.uri === "string"
+          ? image.uri
+          : "",
       `texture_${i}`,
     );
 
@@ -165,24 +169,39 @@ function buildTexturePathMap(gltfJson) {
   return { paths, imageIndexToTextureIndex };
 }
 
-function resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex) {
+function resolvePrimitiveTextureIndex(
+  gltfJson,
+  prim,
+  imageIndexToTextureIndex,
+) {
   const matIdx = prim && typeof prim.material === "number" ? prim.material : -1;
   if (matIdx < 0) return -1;
-  const mat = Array.isArray(gltfJson.materials) ? gltfJson.materials[matIdx] : null;
+  const mat = Array.isArray(gltfJson.materials)
+    ? gltfJson.materials[matIdx]
+    : null;
   if (!mat || typeof mat !== "object") return -1;
 
   const pbr = mat.pbrMetallicRoughness;
-  const baseColor = pbr && typeof pbr === "object" ? pbr.baseColorTexture : null;
-  const texIndex = baseColor && typeof baseColor === "object" ? baseColor.index : null;
+  const baseColor =
+    pbr && typeof pbr === "object" ? pbr.baseColorTexture : null;
+  const texIndex =
+    baseColor && typeof baseColor === "object" ? baseColor.index : null;
   if (typeof texIndex !== "number") return -1;
 
-  const tex = Array.isArray(gltfJson.textures) ? gltfJson.textures[texIndex] : null;
-  if (!tex || typeof tex !== "object" || typeof tex.source !== "number") return -1;
+  const tex = Array.isArray(gltfJson.textures)
+    ? gltfJson.textures[texIndex]
+    : null;
+  if (!tex || typeof tex !== "object" || typeof tex.source !== "number")
+    return -1;
 
   return imageIndexToTextureIndex.get(tex.source) ?? -1;
 }
 
-function resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex) {
+function resolvePrimitiveMaterialInfo(
+  gltfJson,
+  prim,
+  imageIndexToTextureIndex,
+) {
   const defaults = {
     textureIndex: -1,
     diffuse: [1.0, 1.0, 1.0, 1.0],
@@ -193,22 +212,31 @@ function resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex) 
   const matIdx = prim && typeof prim.material === "number" ? prim.material : -1;
   if (matIdx < 0) return defaults;
 
-  const mat = Array.isArray(gltfJson.materials) ? gltfJson.materials[matIdx] : null;
+  const mat = Array.isArray(gltfJson.materials)
+    ? gltfJson.materials[matIdx]
+    : null;
   if (!mat || typeof mat !== "object") return defaults;
 
-  const pbr = mat.pbrMetallicRoughness && typeof mat.pbrMetallicRoughness === "object"
-    ? mat.pbrMetallicRoughness
-    : {};
-  const factor = Array.isArray(pbr.baseColorFactor) ? pbr.baseColorFactor : [1, 1, 1, 1];
-  const alphaMode = typeof mat.alphaMode === "string" ? mat.alphaMode.toUpperCase() : "OPAQUE";
+  const pbr =
+    mat.pbrMetallicRoughness && typeof mat.pbrMetallicRoughness === "object"
+      ? mat.pbrMetallicRoughness
+      : {};
+  const factor = Array.isArray(pbr.baseColorFactor)
+    ? pbr.baseColorFactor
+    : [1, 1, 1, 1];
+  const alphaMode =
+    typeof mat.alphaMode === "string" ? mat.alphaMode.toUpperCase() : "OPAQUE";
   const rawAlpha = Number(factor[3] ?? 1.0);
   // OPAQUE/MASK は不透明。BLEND のみ baseColorFactor.a を反映。
-  const alpha = alphaMode === "BLEND"
-    ? Math.min(1.0, Math.max(0.0, rawAlpha))
-    : 1.0;
+  const alpha =
+    alphaMode === "BLEND" ? Math.min(1.0, Math.max(0.0, rawAlpha)) : 1.0;
 
   return {
-    textureIndex: resolvePrimitiveTextureIndex(gltfJson, prim, imageIndexToTextureIndex),
+    textureIndex: resolvePrimitiveTextureIndex(
+      gltfJson,
+      prim,
+      imageIndexToTextureIndex,
+    ),
     // テクスチャ色をそのまま使うため、材質色の乗算は無効化。
     diffuse: [1.0, 1.0, 1.0, alpha],
     ambient: [0.5, 0.5, 0.5],
@@ -220,7 +248,9 @@ function buildNodeParentIndices(gltfJson) {
   const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
   const parents = new Array(nodes.length).fill(-1);
   for (let i = 0; i < nodes.length; i++) {
-    const children = Array.isArray(nodes[i] && nodes[i].children) ? nodes[i].children : [];
+    const children = Array.isArray(nodes[i] && nodes[i].children)
+      ? nodes[i].children
+      : [];
     for (const child of children) {
       if (typeof child === "number" && child >= 0 && child < nodes.length) {
         parents[child] = i;
@@ -262,9 +292,12 @@ function buildHumanoidNameMaps(gltfJson) {
   const nodeToJp = new Map();
   const nodeToEn = new Map();
 
-  const extensions = gltfJson && typeof gltfJson === "object" ? gltfJson.extensions : null;
-  const vrm0 = extensions && typeof extensions === "object" ? extensions.VRM : null;
-  const vrm1 = extensions && typeof extensions === "object" ? extensions.VRMC_vrm : null;
+  const extensions =
+    gltfJson && typeof gltfJson === "object" ? gltfJson.extensions : null;
+  const vrm0 =
+    extensions && typeof extensions === "object" ? extensions.VRM : null;
+  const vrm1 =
+    extensions && typeof extensions === "object" ? extensions.VRMC_vrm : null;
 
   const vrm0Bones =
     vrm0 &&
@@ -296,7 +329,10 @@ function buildHumanoidNameMaps(gltfJson) {
 
   for (const key of Object.keys(vrm1HumanBones)) {
     const item = vrm1HumanBones[key];
-    const node = item && typeof item === "object" && typeof item.node === "number" ? item.node : -1;
+    const node =
+      item && typeof item === "object" && typeof item.node === "number"
+        ? item.node
+        : -1;
     if (node < 0) continue;
     nodeToJp.set(node, VRM_TO_MMD_BONE_NAME_JP[key] || key);
     nodeToEn.set(node, key);
@@ -311,10 +347,22 @@ function identityMat4() {
 
 function invertMat4(m) {
   const out = new Array(16);
-  const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
-  const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
-  const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
-  const a30 = m[12], a31 = m[13], a32 = m[14], a33 = m[15];
+  const a00 = m[0],
+    a01 = m[1],
+    a02 = m[2],
+    a03 = m[3];
+  const a10 = m[4],
+    a11 = m[5],
+    a12 = m[6],
+    a13 = m[7];
+  const a20 = m[8],
+    a21 = m[9],
+    a22 = m[10],
+    a23 = m[11];
+  const a30 = m[12],
+    a31 = m[13],
+    a32 = m[14],
+    a33 = m[15];
 
   const b00 = a00 * a11 - a01 * a10;
   const b01 = a00 * a12 - a02 * a10;
@@ -329,7 +377,8 @@ function invertMat4(m) {
   const b10 = a21 * a33 - a23 * a31;
   const b11 = a22 * a33 - a23 * a32;
 
-  let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  let det =
+    b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
   if (!det || !Number.isFinite(det)) {
     return null;
   }
@@ -481,7 +530,12 @@ function toPmxPosFromGlbWorld(worldMat) {
   ];
 }
 
-function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "current") {
+function buildRigFromSkins(
+  gltfJson,
+  binBuffer,
+  usedSkinIndices,
+  poseMode = "current",
+) {
   const centerBone = {
     nameJp: "\u30bb\u30f3\u30bf\u30fc",
     nameEn: "center",
@@ -505,11 +559,14 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
   const jointBindPosByNode = new Map();
 
   for (const skinIndex of usedSkinIndices) {
-    const skin = Array.isArray(gltfJson.skins) ? gltfJson.skins[skinIndex] : null;
-    const joints = Array.isArray(skin && skin.joints) ? skin.joints : [];
-    const ibmAccessor = skin && typeof skin.inverseBindMatrices === "number"
-      ? skin.inverseBindMatrices
+    const skin = Array.isArray(gltfJson.skins)
+      ? gltfJson.skins[skinIndex]
       : null;
+    const joints = Array.isArray(skin && skin.joints) ? skin.joints : [];
+    const ibmAccessor =
+      skin && typeof skin.inverseBindMatrices === "number"
+        ? skin.inverseBindMatrices
+        : null;
     if (ibmAccessor == null) continue;
 
     const ibm = readAcc(gltfJson, binBuffer, ibmAccessor);
@@ -517,7 +574,8 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
 
     for (let i = 0; i < joints.length; i++) {
       const nodeIdx = joints[i];
-      if (typeof nodeIdx !== "number" || nodeIdx < 0 || nodeIdx >= nodes.length) continue;
+      if (typeof nodeIdx !== "number" || nodeIdx < 0 || nodeIdx >= nodes.length)
+        continue;
       const start = i * 16;
       if (start + 15 >= ibm.length) continue;
       const invBind = ibm.slice(start, start + 16).map((v) => Number(v));
@@ -559,7 +617,10 @@ function buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, poseMode = "cur
     const bindPos = jointBindPosByNode.get(nodeIndex) || null;
     const currentPos = toPmxPosFromGlbWorld(world[nodeIndex] || identityMat4());
 
-    const fallbackName = typeof node.name === "string" && node.name ? node.name : `bone_${nodeIndex}`;
+    const fallbackName =
+      typeof node.name === "string" && node.name
+        ? node.name
+        : `bone_${nodeIndex}`;
     bones.push({
       nameJp: nodeToJp.get(nodeIndex) || fallbackName,
       nameEn: nodeToEn.get(nodeIndex) || fallbackName,
@@ -601,10 +662,17 @@ function extendBonesWithMmdControls(bones) {
       if (typeof out[i].parent === "number" && out[i].parent >= 0) {
         out[i].parent += 1;
       }
-      if (typeof out[i].tailBoneIndex === "number" && out[i].tailBoneIndex >= 0) {
+      if (
+        typeof out[i].tailBoneIndex === "number" &&
+        out[i].tailBoneIndex >= 0
+      ) {
         out[i].tailBoneIndex += 1;
       }
-      if (out[i].ik && typeof out[i].ik.targetIndex === "number" && out[i].ik.targetIndex >= 0) {
+      if (
+        out[i].ik &&
+        typeof out[i].ik.targetIndex === "number" &&
+        out[i].ik.targetIndex >= 0
+      ) {
         out[i].ik.targetIndex += 1;
       }
       if (out[i].ik && Array.isArray(out[i].ik.links)) {
@@ -633,11 +701,15 @@ function extendBonesWithMmdControls(bones) {
   }
 
   if (!nameToIndex.has("\u8170")) {
-    const grooveIndex = nameToIndex.get("\u30b0\u30eb\u30fc\u30d6") ?? centerIndex;
+    const grooveIndex =
+      nameToIndex.get("\u30b0\u30eb\u30fc\u30d6") ?? centerIndex;
     const lowerBodyIndex = nameToIndex.get("\u4e0b\u534a\u8eab");
-    const waistPos = lowerBodyIndex != null && out[lowerBodyIndex]
-      ? out[lowerBodyIndex].pos.slice()
-      : (out[grooveIndex] ? out[grooveIndex].pos.slice() : [0, 0, 0]);
+    const waistPos =
+      lowerBodyIndex != null && out[lowerBodyIndex]
+        ? out[lowerBodyIndex].pos.slice()
+        : out[grooveIndex]
+          ? out[grooveIndex].pos.slice()
+          : [0, 0, 0];
     out.push({
       nameJp: "\u8170",
       nameEn: "waist",
@@ -662,7 +734,12 @@ function extendBonesWithMmdControls(bones) {
     }
     const legName = `${side}\u8db3`;
     const legIndex = nameToIndex.get(legName);
-    const pos = legIndex != null && out[legIndex] ? out[legIndex].pos.slice() : (out[waistIndex] ? out[waistIndex].pos.slice() : [0, 0, 0]);
+    const pos =
+      legIndex != null && out[legIndex]
+        ? out[legIndex].pos.slice()
+        : out[waistIndex]
+          ? out[waistIndex].pos.slice()
+          : [0, 0, 0];
     out.push({
       nameJp: cancelName,
       nameEn: `${side === "\u5de6" ? "left" : "right"}_waist_cancel`,
@@ -845,15 +922,23 @@ function extendBonesWithMmdControls(bones) {
 }
 
 function buildSkinPoseData(gltfJson, binBuffer, skinIndex, worldMatrices) {
-  if (!Array.isArray(gltfJson.skins) || skinIndex < 0 || skinIndex >= gltfJson.skins.length) {
+  if (
+    !Array.isArray(gltfJson.skins) ||
+    skinIndex < 0 ||
+    skinIndex >= gltfJson.skins.length
+  ) {
     return null;
   }
   const skin = gltfJson.skins[skinIndex];
   const joints = Array.isArray(skin && skin.joints) ? skin.joints : null;
   if (!joints || joints.length === 0) return null;
 
-  const ibmAccessor = typeof skin.inverseBindMatrices === "number" ? skin.inverseBindMatrices : null;
-  const ibm = ibmAccessor != null ? readAcc(gltfJson, binBuffer, ibmAccessor) : null;
+  const ibmAccessor =
+    typeof skin.inverseBindMatrices === "number"
+      ? skin.inverseBindMatrices
+      : null;
+  const ibm =
+    ibmAccessor != null ? readAcc(gltfJson, binBuffer, ibmAccessor) : null;
   if (!ibm) return null;
 
   const jointMatrices = new Array(joints.length);
@@ -928,12 +1013,15 @@ function resolveVertexDeform(
   for (let k = 0; k < 4; k++) {
     const jointLocal = Number(jointsRaw[vertIndex * 4 + k] ?? -1);
     const weight = Number(weightsRaw[vertIndex * 4 + k] ?? 0);
-    if (jointLocal < 0 || jointLocal >= skinJoints.length || weight <= 0) continue;
+    if (jointLocal < 0 || jointLocal >= skinJoints.length || weight <= 0)
+      continue;
     const nodeIdx = skinJoints[jointLocal];
     const rawBoneIdx = boneIndexByNodeIndex.get(nodeIdx);
     if (typeof rawBoneIdx !== "number") continue;
     // Python版と同じ方式：D系骨へリダイレクト（deformRedirectMap の場合）
-    const boneIdx = deformRedirectMap.has(rawBoneIdx) ? deformRedirectMap.get(rawBoneIdx) : rawBoneIdx;
+    const boneIdx = deformRedirectMap.has(rawBoneIdx)
+      ? deformRedirectMap.get(rawBoneIdx)
+      : rawBoneIdx;
     inf.push({ boneIdx, weight });
   }
 
@@ -947,7 +1035,10 @@ function resolveVertexDeform(
   for (const item of inf) {
     merged.set(item.boneIdx, (merged.get(item.boneIdx) ?? 0) + item.weight);
   }
-  const mergedInf = Array.from(merged.entries()).map(([boneIdx, weight]) => ({ boneIdx, weight }));
+  const mergedInf = Array.from(merged.entries()).map(([boneIdx, weight]) => ({
+    boneIdx,
+    weight,
+  }));
 
   mergedInf.sort((a, b) => b.weight - a.weight);
   const top = mergedInf.slice(0, 4);
@@ -960,7 +1051,12 @@ function resolveVertexDeform(
     return { type: 0, bone0: top[0].boneIdx };
   }
   if (top.length === 2) {
-    return { type: 1, bone0: top[0].boneIdx, bone1: top[1].boneIdx, weight0: top[0].weight };
+    return {
+      type: 1,
+      bone0: top[0].boneIdx,
+      bone1: top[1].boneIdx,
+      weight0: top[0].weight,
+    };
   }
 
   while (top.length < 4) {
@@ -1025,7 +1121,8 @@ function readAcc(gltfJson, binBuffer, accessorIndex) {
 export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const modelName = opts.modelName || "VRM Model";
 
-  const { paths: texturePaths, imageIndexToTextureIndex } = buildTexturePathMap(gltfJson);
+  const { paths: texturePaths, imageIndexToTextureIndex } =
+    buildTexturePathMap(gltfJson);
   const nodes = Array.isArray(gltfJson.nodes) ? gltfJson.nodes : [];
   const meshes = Array.isArray(gltfJson.meshes) ? gltfJson.meshes : [];
   const parentIndices = buildNodeParentIndices(gltfJson);
@@ -1034,7 +1131,11 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   const meshBindings = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i] || {};
-    if (typeof node.mesh === "number" && node.mesh >= 0 && node.mesh < meshes.length) {
+    if (
+      typeof node.mesh === "number" &&
+      node.mesh >= 0 &&
+      node.mesh < meshes.length
+    ) {
       meshBindings.push({
         nodeIndex: i,
         meshIndex: node.mesh,
@@ -1053,8 +1154,14 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       .map((b) => b.skinIndex)
       .filter((v) => typeof v === "number" && v >= 0),
   );
-  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(gltfJson, binBuffer, usedSkinIndices, "current");
-  const { bones: finalBones, deformRedirectMap } = extendBonesWithMmdControls(bones);
+  const { bones, boneIndexByNodeIndex } = buildRigFromSkins(
+    gltfJson,
+    binBuffer,
+    usedSkinIndices,
+    "current",
+  );
+  const { bones: finalBones, deformRedirectMap } =
+    extendBonesWithMmdControls(bones);
 
   // ── 1. Collect vertices and faces from all mesh primitives ──────────────
 
@@ -1065,9 +1172,16 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
   for (const binding of meshBindings) {
     const mesh = meshes[binding.meshIndex];
     const skin =
-      binding.skinIndex >= 0 && Array.isArray(gltfJson.skins) ? gltfJson.skins[binding.skinIndex] : null;
+      binding.skinIndex >= 0 && Array.isArray(gltfJson.skins)
+        ? gltfJson.skins[binding.skinIndex]
+        : null;
     const skinJoints = Array.isArray(skin && skin.joints) ? skin.joints : null;
-    const skinPoseData = buildSkinPoseData(gltfJson, binBuffer, binding.skinIndex, worldMatrices);
+    const skinPoseData = buildSkinPoseData(
+      gltfJson,
+      binBuffer,
+      binding.skinIndex,
+      worldMatrices,
+    );
 
     for (const prim of mesh.primitives || []) {
       const baseVertex = vertices.length;
@@ -1095,7 +1209,14 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
               Number(normals[i * 3 + 2] ?? 0),
             ]
           : [0, 1, 0];
-        const skinned = skinVertexPose(srcPos, srcNrm, joints, weights, i, skinPoseData);
+        const skinned = skinVertexPose(
+          srcPos,
+          srcNrm,
+          joints,
+          weights,
+          i,
+          skinPoseData,
+        );
 
         // Position: glTF right-hand → PMX left-hand (X flip) + MMD unit scale
         const px = skinned.pos[0] * MIKU_METER * -1;
@@ -1115,7 +1236,14 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
           pos: [px, py, pz],
           nrm: [nx, ny, nz],
           uv: [u, v],
-          deform: resolveVertexDeform(joints, weights, i, skinJoints, boneIndexByNodeIndex, deformRedirectMap),
+          deform: resolveVertexDeform(
+            joints,
+            weights,
+            i,
+            skinJoints,
+            boneIndexByNodeIndex,
+            deformRedirectMap,
+          ),
         });
       }
 
@@ -1135,7 +1263,11 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
       materials.push({
         nameJp: mesh.name || `Material_${materials.length}`,
         faceVertCount: primFaceCount,
-        ...resolvePrimitiveMaterialInfo(gltfJson, prim, imageIndexToTextureIndex),
+        ...resolvePrimitiveMaterialInfo(
+          gltfJson,
+          prim,
+          imageIndexToTextureIndex,
+        ),
       });
     }
   }
@@ -1280,11 +1412,17 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
     w.f32(bone.pos[2]);
     w.idx(typeof bone.parent === "number" ? bone.parent : -1, bIdxSz);
     w.i32(0); // layer
-    const flags = typeof bone.flags === "number" ? bone.flags : 0x0002 | 0x0004 | 0x0008 | 0x0010;
+    const flags =
+      typeof bone.flags === "number"
+        ? bone.flags
+        : 0x0002 | 0x0004 | 0x0008 | 0x0010;
     w.i16(flags);
 
     if (flags & 0x0001) {
-      w.idx(typeof bone.tailBoneIndex === "number" ? bone.tailBoneIndex : -1, bIdxSz);
+      w.idx(
+        typeof bone.tailBoneIndex === "number" ? bone.tailBoneIndex : -1,
+        bIdxSz,
+      );
     } else {
       const tail = Array.isArray(bone.tailOffset) ? bone.tailOffset : [0, 1, 0];
       w.f32(Number(tail[0] ?? 0));
@@ -1294,7 +1432,10 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
 
     // 付与親設定（回転付与/移動付与）
     if (flags & 0x0100 || flags & 0x0200) {
-      w.idx(typeof bone.effectIndex === "number" ? bone.effectIndex : -1, bIdxSz);
+      w.idx(
+        typeof bone.effectIndex === "number" ? bone.effectIndex : -1,
+        bIdxSz,
+      );
       w.f32(typeof bone.effectFactor === "number" ? bone.effectFactor : 0);
     }
 
@@ -1308,8 +1449,12 @@ export function buildPmxFromGltf(gltfJson, binBuffer, opts = {}) {
 
     // ローカル座標
     if (flags & 0x0800) {
-      const localX = Array.isArray(bone.localAxisX) ? bone.localAxisX : [1, 0, 0];
-      const localZ = Array.isArray(bone.localAxisZ) ? bone.localAxisZ : [0, 0, 1];
+      const localX = Array.isArray(bone.localAxisX)
+        ? bone.localAxisX
+        : [1, 0, 0];
+      const localZ = Array.isArray(bone.localAxisZ)
+        ? bone.localAxisZ
+        : [0, 0, 1];
       w.f32(Number(localX[0] ?? 1));
       w.f32(Number(localX[1] ?? 0));
       w.f32(Number(localX[2] ?? 0));

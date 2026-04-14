@@ -13,7 +13,7 @@ Requirements:
 
 import json
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -35,7 +35,9 @@ def run_sentry_cli() -> str:
         "--show-tags",
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(  # nosec B603
+            cmd, capture_output=True, text=True, check=True
+        )
         return result.stdout
     except subprocess.CalledProcessError as e:
         print(f"Error running sentry-cli: {e.stderr}", file=sys.stderr)
@@ -63,10 +65,7 @@ def parse_events(output: str) -> list[dict]:
             # Save previous event
             if current_event and current_event.get("tags"):
                 events.append(current_event)
-            current_event = {
-                "event_id": uuid_match.group(1),
-                "tags": {}
-            }
+            current_event = {"event_id": uuid_match.group(1), "tags": {}}
             continue
 
         # Tag lines: "key: value" format
@@ -75,9 +74,15 @@ def parse_events(output: str) -> list[dict]:
             parts = line.split("|")
             for part in parts:
                 part = part.strip()
-                if not part or part == "Date" or "Event ID" in part or "Title" in part or "Tags" in part:
+                if (
+                    not part
+                    or part == "Date"
+                    or "Event ID" in part
+                    or "Title" in part
+                    or "Tags" in part
+                ):
                     continue
-                
+
                 # Look for "key: value" pattern
                 if ": " in part:
                     key, value = part.split(": ", 1)
@@ -180,7 +185,9 @@ def main():
             print(f"  {source}: {count}")
 
         print("\n--- By Mode ---")
-        for mode, count in sorted(stats["by_mode"].items(), key=lambda x: x[1], reverse=True):
+        for mode, count in sorted(
+            stats["by_mode"].items(), key=lambda x: x[1], reverse=True
+        ):
             print(f"  {mode}: {count}")
 
         print("\n--- By Result ---")
@@ -202,7 +209,12 @@ def main():
                 print(f"    {source}: {count}")
 
     # Save JSON report
-    report_path = Path(__file__).parent.parent.parent / "docs" / "Sentry-Reports" / f"quality-stats-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    report_path = (
+        Path(__file__).parent.parent.parent
+        / "docs"
+        / "Sentry-Reports"
+        / f"quality-stats-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(report_path, "w", encoding="utf-8") as f:

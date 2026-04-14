@@ -4,10 +4,10 @@
 Validate VRM conversion using actual Vrm2PmxExportService (Python backend).
 Measures conversion time and output counts.
 """
-import json
+
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -22,6 +22,7 @@ from utils.MLogger import MLogger
 @dataclass
 class CountResult:
     """Single conversion result with counts."""
+
     run_index: int
     elapsed_ms: int
     counts: dict
@@ -30,6 +31,7 @@ class CountResult:
 @dataclass
 class ValidationRun:
     """Full validation run with multiple iterations."""
+
     input_name: str
     input_path: str
     timestamp: str
@@ -39,8 +41,8 @@ class ValidationRun:
 
 def extract_pmx_counts(pmx_bytes: bytes) -> dict:
     """Extract geometry counts from PMX binary data."""
-    import tempfile
     import shutil
+    import tempfile
 
     # Write to temp file
     tmp_dir = Path(tempfile.mkdtemp())
@@ -64,18 +66,22 @@ def extract_pmx_counts(pmx_bytes: bytes) -> dict:
             }
 
         # Count vertices (by looking at indices)
-        index_count = len(pmx_data.indices) if hasattr(pmx_data, 'indices') else 0
+        index_count = len(pmx_data.indices) if hasattr(pmx_data, "indices") else 0
         vertex_count = index_count + 1 if index_count > 0 else 0
 
         return {
             "vertices": vertex_count,
-            "faces": len(pmx_data.indices) // 3 if hasattr(pmx_data, 'indices') else 0,
-            "bones": len(pmx_data.bones) if hasattr(pmx_data, 'bones') else 0,
-            "morphs": len(pmx_data.morphs) if hasattr(pmx_data, 'morphs') else 0,
-            "materials": len(pmx_data.materials) if hasattr(pmx_data, 'materials') else 0,
-            "textures": len(pmx_data.textures) if hasattr(pmx_data, 'textures') else 0,
-            "rigidbodies": len(pmx_data.rigidbodies) if hasattr(pmx_data, 'rigidbodies') else 0,
-            "joints": len(pmx_data.joints) if hasattr(pmx_data, 'joints') else 0,
+            "faces": len(pmx_data.indices) // 3 if hasattr(pmx_data, "indices") else 0,
+            "bones": len(pmx_data.bones) if hasattr(pmx_data, "bones") else 0,
+            "morphs": len(pmx_data.morphs) if hasattr(pmx_data, "morphs") else 0,
+            "materials": (
+                len(pmx_data.materials) if hasattr(pmx_data, "materials") else 0
+            ),
+            "textures": len(pmx_data.textures) if hasattr(pmx_data, "textures") else 0,
+            "rigidbodies": (
+                len(pmx_data.rigidbodies) if hasattr(pmx_data, "rigidbodies") else 0
+            ),
+            "joints": len(pmx_data.joints) if hasattr(pmx_data, "joints") else 0,
         }
 
     finally:
@@ -109,8 +115,8 @@ def run_python_conversion(vrm_path: str, num_runs: int = 1) -> ValidationRun:
             elapsed_ms = int((time.time() - start) * 1000)
 
             # Extract PMX from zip and count
-            import zipfile
             import io
+            import zipfile
 
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
                 pmx_entry = None
@@ -169,7 +175,7 @@ def main():
         if idx + 1 < len(sys.argv):
             num_runs = int(sys.argv[idx + 1])
 
-    print(f"VRM Conversion Counter (Python Backend)")
+    print("VRM Conversion Counter (Python Backend)")
     print(f"File: {vrm_path}")
     print(f"Runs: {num_runs}")
     print()
@@ -194,10 +200,12 @@ def main():
         print(f"  Joints: {run.counts.get('joints', 0)}")
         print()
 
-    print(f"Summary:")
+    print("Summary:")
     print(f"  Counts Stable: {result.summary['counts_stable']}")
-    elapsed = result.summary['elapsed_ms']
-    print(f"  Elapsed Time: {elapsed['min']}ms ~ {elapsed['max']}ms (mean={elapsed['mean']:.1f}ms)")
+    elapsed = result.summary["elapsed_ms"]
+    print(
+        f"  Elapsed Time: {elapsed['min']}ms ~ {elapsed['max']}ms (mean={elapsed['mean']:.1f}ms)"
+    )
 
 
 if __name__ == "__main__":

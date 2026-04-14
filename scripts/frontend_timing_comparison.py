@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from datetime import datetime
@@ -41,14 +41,18 @@ def find_vrm_files(search_root: Path, max_count: int) -> list[Path]:
 def measure_nim_exe(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict:
     out_path = work_dir / f"{vrm_path.stem}_nim.pmx"
     started = time.perf_counter()
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603
         [str(nim_exe), str(vrm_path), str(out_path)],
         capture_output=True,
         timeout=120,
     )
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     if proc.returncode == 0 and out_path.exists():
-        return {"status": "ok", "elapsed_ms": elapsed_ms, "output_size": out_path.stat().st_size}
+        return {
+            "status": "ok",
+            "elapsed_ms": elapsed_ms,
+            "output_size": out_path.stat().st_size,
+        }
     return {
         "status": "error",
         "elapsed_ms": elapsed_ms,
@@ -59,8 +63,13 @@ def measure_nim_exe(vrm_path: Path, nim_exe: Path, work_dir: Path) -> dict:
 
 def measure_wasm(vrm_path: Path, wasm_path: Path, runner_script: Path) -> dict:
     if not wasm_path.exists():
-        return {"status": "skip", "elapsed_ms": 0, "output_size": 0, "error": "wasm not found"}
-    proc = subprocess.run(
+        return {
+            "status": "skip",
+            "elapsed_ms": 0,
+            "output_size": 0,
+            "error": "wasm not found",
+        }
+    proc = subprocess.run(  # nosec
         ["node", str(runner_script), "--vrm", str(vrm_path), "--wasm", str(wasm_path)],
         capture_output=True,
         timeout=120,
@@ -86,7 +95,9 @@ def format_size(n: int) -> str:
     return f"{n} B"
 
 
-def build_md(rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_path: Path | None) -> str:
+def build_md(
+    rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_path: Path | None
+) -> str:
     date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines: list[str] = [
         f"# Frontend Timing Comparison ({date_str})",
@@ -115,13 +126,25 @@ def build_md(rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_pat
         wasm = r["wasm"]
 
         py_ms = py.get("elapsed_ms", 0) if py.get("status") == "ok" else "-"
-        py_pmx = format_size(py.get("output_size", 0)) if py.get("status") == "ok" else "-"
+        py_pmx = (
+            format_size(py.get("output_size", 0)) if py.get("status") == "ok" else "-"
+        )
 
         nim_ms = nim.get("elapsed_ms", 0) if nim.get("status") == "ok" else "-"
-        nim_pmx = format_size(nim.get("output_size", 0)) if nim.get("status") == "ok" else "-"
+        nim_pmx = (
+            format_size(nim.get("output_size", 0)) if nim.get("status") == "ok" else "-"
+        )
 
-        wasm_ms = wasm.get("elapsed_ms", 0) if wasm.get("status") == "ok" else f'skip({wasm.get("status")})'
-        wasm_pmx = format_size(wasm.get("output_size", 0)) if wasm.get("status") == "ok" else "-"
+        wasm_ms = (
+            wasm.get("elapsed_ms", 0)
+            if wasm.get("status") == "ok"
+            else f'skip({wasm.get("status")})'
+        )
+        wasm_pmx = (
+            format_size(wasm.get("output_size", 0))
+            if wasm.get("status") == "ok"
+            else "-"
+        )
 
         def speedup(py_t, lane_t) -> str:
             if isinstance(py_t, int) and isinstance(lane_t, int) and lane_t > 0:
@@ -141,7 +164,11 @@ def build_md(rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_pat
         "",
     ]
 
-    ok_rows = [r for r in rows if r["python"].get("status") == "ok" and r["nim_exe"].get("status") == "ok"]
+    ok_rows = [
+        r
+        for r in rows
+        if r["python"].get("status") == "ok" and r["nim_exe"].get("status") == "ok"
+    ]
     if ok_rows:
         avg_py = sum(r["python"]["elapsed_ms"] for r in ok_rows) / len(ok_rows)
         avg_nim = sum(r["nim_exe"]["elapsed_ms"] for r in ok_rows) / len(ok_rows)
@@ -150,7 +177,11 @@ def build_md(rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_pat
         if avg_nim > 0:
             lines.append(f"- Avg Nim-exe speedup: **{avg_py/avg_nim:.1f}x**")
 
-    wasm_ok = [r for r in rows if r["wasm"].get("status") == "ok" and r["python"].get("status") == "ok"]
+    wasm_ok = [
+        r
+        for r in rows
+        if r["wasm"].get("status") == "ok" and r["python"].get("status") == "ok"
+    ]
     if wasm_ok:
         avg_wasm = sum(r["wasm"]["elapsed_ms"] for r in wasm_ok) / len(wasm_ok)
         avg_py_w = sum(r["python"]["elapsed_ms"] for r in wasm_ok) / len(wasm_ok)
@@ -163,11 +194,15 @@ def build_md(rows: list[dict], search_root: Path, nim_exe: Path | None, wasm_pat
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="3-lane timing comparison: Python / Nim-exe / Wasm")
+    parser = argparse.ArgumentParser(
+        description="3-lane timing comparison: Python / Nim-exe / Wasm"
+    )
     parser.add_argument("search_path", help="Root directory to search for VRM files")
     parser.add_argument("--max-count", type=int, default=26)
     parser.add_argument("--nim-exe", default="tmp/nim/pmx_lite_main.exe")
-    parser.add_argument("--wasm", default="frontend/public/nim/vrm2pmx_nim_runtime.wasm")
+    parser.add_argument(
+        "--wasm", default="frontend/public/nim/vrm2pmx_nim_runtime.wasm"
+    )
     parser.add_argument("--output-dir", default="docs/Nim-Conversion/Comparisons")
     args = parser.parse_args()
 
@@ -192,7 +227,11 @@ def main() -> int:
 
     rows: list[dict] = []
     for idx, vrm_path in enumerate(vrm_paths, 1):
-        rel = vrm_path.relative_to(search_root) if vrm_path.is_relative_to(search_root) else vrm_path.name
+        rel = (
+            vrm_path.relative_to(search_root)
+            if vrm_path.is_relative_to(search_root)
+            else vrm_path.name
+        )
         print(f"[{idx}/{len(vrm_paths)}] {rel}")
 
         vrm_size = vrm_path.stat().st_size
@@ -207,7 +246,12 @@ def main() -> int:
                 "output_size": len(py_bytes),
             }
         except Exception as exc:
-            py_result = {"status": "error", "elapsed_ms": 0, "output_size": 0, "error": str(exc)[:200]}
+            py_result = {
+                "status": "error",
+                "elapsed_ms": 0,
+                "output_size": 0,
+                "error": str(exc)[:200],
+            }
         print(f"{py_result.get('elapsed_ms', '-')} ms")
 
         # --- Nim exe ---
@@ -216,10 +260,20 @@ def main() -> int:
             try:
                 nim_result = measure_nim_exe(vrm_path, nim_exe, work_dir)
             except Exception as exc:
-                nim_result = {"status": "error", "elapsed_ms": 0, "output_size": 0, "error": str(exc)[:200]}
+                nim_result = {
+                    "status": "error",
+                    "elapsed_ms": 0,
+                    "output_size": 0,
+                    "error": str(exc)[:200],
+                }
             print(f"{nim_result.get('elapsed_ms', '-')} ms")
         else:
-            nim_result = {"status": "skip", "elapsed_ms": 0, "output_size": 0, "error": "exe not found"}
+            nim_result = {
+                "status": "skip",
+                "elapsed_ms": 0,
+                "output_size": 0,
+                "error": "exe not found",
+            }
             print("  Nim-exe: skip (not found)")
 
         # --- Wasm ---
@@ -227,7 +281,12 @@ def main() -> int:
         try:
             wasm_result = measure_wasm(vrm_path, wasm_path, runner_script)
         except Exception as exc:
-            wasm_result = {"status": "error", "elapsed_ms": 0, "output_size": 0, "error": str(exc)[:200]}
+            wasm_result = {
+                "status": "error",
+                "elapsed_ms": 0,
+                "output_size": 0,
+                "error": str(exc)[:200],
+            }
         print(f"{wasm_result.get('elapsed_ms', '-')} ms ({wasm_result.get('status')})")
 
         rows.append(
@@ -253,7 +312,9 @@ def main() -> int:
         "wasm_path": str(wasm_path),
         "rows": rows,
     }
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     md_text = build_md(rows, search_root, nim_exe, wasm_path)
     md_path.write_text(md_text, encoding="utf-8")
@@ -263,17 +324,29 @@ def main() -> int:
     print(f"MD:   {md_path}")
 
     # Quick summary to stdout
-    ok = [r for r in rows if r["python"].get("status") == "ok" and r["nim_exe"].get("status") == "ok"]
+    ok = [
+        r
+        for r in rows
+        if r["python"].get("status") == "ok" and r["nim_exe"].get("status") == "ok"
+    ]
     if ok:
         avg_py = sum(r["python"]["elapsed_ms"] for r in ok) / len(ok)
         avg_nim = sum(r["nim_exe"]["elapsed_ms"] for r in ok) / len(ok)
-        print(f"\nAvg Python: {avg_py:.0f} ms  Nim-exe: {avg_nim:.0f} ms  speedup: {avg_py/max(avg_nim,1):.1f}x")
+        print(
+            f"\nAvg Python: {avg_py:.0f} ms  Nim-exe: {avg_nim:.0f} ms  speedup: {avg_py/max(avg_nim,1):.1f}x"
+        )
 
-    wasm_ok = [r for r in rows if r["wasm"].get("status") == "ok" and r["python"].get("status") == "ok"]
+    wasm_ok = [
+        r
+        for r in rows
+        if r["wasm"].get("status") == "ok" and r["python"].get("status") == "ok"
+    ]
     if wasm_ok:
         avg_wasm = sum(r["wasm"]["elapsed_ms"] for r in wasm_ok) / len(wasm_ok)
         avg_py2 = sum(r["python"]["elapsed_ms"] for r in wasm_ok) / len(wasm_ok)
-        print(f"Avg Wasm: {avg_wasm:.0f} ms  speedup: {avg_py2/max(avg_wasm,1):.1f}x ({len(wasm_ok)} models)")
+        print(
+            f"Avg Wasm: {avg_wasm:.0f} ms  speedup: {avg_py2/max(avg_wasm,1):.1f}x ({len(wasm_ok)} models)"
+        )
 
     return 0
 

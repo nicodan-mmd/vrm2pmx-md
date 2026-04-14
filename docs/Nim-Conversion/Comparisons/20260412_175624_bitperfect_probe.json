@@ -50,10 +50,7 @@
         "vertex_index": 4532,
         "deform_type": 2,
         "field": "weight2",
-        "vertex_range": [
-          182207,
-          182268
-        ]
+        "vertex_range": [182207, 182268]
       }
     },
     {
@@ -75,10 +72,7 @@
         "vertex_index": 4645,
         "deform_type": 2,
         "field": "weight1",
-        "vertex_range": [
-          187848,
-          187909
-        ]
+        "vertex_range": [187848, 187909]
       }
     },
     {
@@ -280,10 +274,7 @@
         "vertex_index": 0,
         "deform_type": 2,
         "field": "unknown",
-        "vertex_range": [
-          863,
-          924
-        ]
+        "vertex_range": [863, 924]
       }
     },
     {
@@ -305,10 +296,7 @@
         "vertex_index": 0,
         "deform_type": 0,
         "field": "unknown",
-        "vertex_range": [
-          905,
-          944
-        ]
+        "vertex_range": [905, 944]
       }
     },
     {
@@ -330,10 +318,7 @@
         "vertex_index": 0,
         "deform_type": 2,
         "field": "unknown",
-        "vertex_range": [
-          869,
-          930
-        ]
+        "vertex_range": [869, 930]
       }
     },
     {
@@ -355,10 +340,7 @@
         "vertex_index": 3878,
         "deform_type": 2,
         "field": "unknown",
-        "vertex_range": [
-          152129,
-          152190
-        ]
+        "vertex_range": [152129, 152190]
       }
     },
     {
@@ -380,10 +362,7 @@
         "vertex_index": 4523,
         "deform_type": 2,
         "field": "weight0",
-        "vertex_range": [
-          181832,
-          181893
-        ]
+        "vertex_range": [181832, 181893]
       }
     },
     {
@@ -450,10 +429,7 @@
         "vertex_index": 4532,
         "deform_type": 2,
         "field": "weight2",
-        "vertex_range": [
-          182207,
-          182268
-        ]
+        "vertex_range": [182207, 182268]
       }
     },
     {

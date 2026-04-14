@@ -7,7 +7,7 @@ import argparse
 import hashlib
 import json
 import struct
-import subprocess
+import subprocess  # nosec B404
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +16,6 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nim_bitperfect_validation import build_report, run_python_baseline
-
 
 BROWSER_PYTHON_VERSION_NAME = "1.5.3"
 
@@ -31,9 +30,15 @@ def sha256_file(path: Path) -> str:
 
 def run_command_capture(args: list[str]) -> dict[str, Any]:
     try:
-        proc = subprocess.run(args, capture_output=True, text=True, timeout=10)
-        stdout_lines = [line for line in (proc.stdout or "").splitlines() if line.strip()]
-        stderr_lines = [line for line in (proc.stderr or "").splitlines() if line.strip()]
+        proc = subprocess.run(  # nosec B603
+            args, capture_output=True, text=True, timeout=10
+        )
+        stdout_lines = [
+            line for line in (proc.stdout or "").splitlines() if line.strip()
+        ]
+        stderr_lines = [
+            line for line in (proc.stderr or "").splitlines() if line.strip()
+        ]
         return {
             "ok": proc.returncode == 0,
             "returncode": proc.returncode,
@@ -73,7 +78,9 @@ def verify_nim_lock(expected: dict[str, Any], actual: dict[str, Any]) -> list[st
 
     expected_compiler_line = str(expected.get("nim_compiler_version_line", "")).strip()
     if expected_compiler_line:
-        actual_compiler_line = str(actual.get("nim_compiler_version_probe", {}).get("stdout_first_line", "")).strip()
+        actual_compiler_line = str(
+            actual.get("nim_compiler_version_probe", {}).get("stdout_first_line", "")
+        ).strip()
         if actual_compiler_line != expected_compiler_line:
             mismatches.append("nim_compiler_version_line mismatch")
 
@@ -133,7 +140,9 @@ def write_markdown_summary(output_md: Path, payload: dict[str, Any]) -> None:
         first_diff = comparison.get("first_diff_offset", "")
         size_delta = ""
         if comparison.get("status") == "ok":
-            size_delta = int(comparison.get("nim_size_bytes", 0)) - int(comparison.get("baseline_size_bytes", 0))
+            size_delta = int(comparison.get("nim_size_bytes", 0)) - int(
+                comparison.get("baseline_size_bytes", 0)
+            )
 
         location = item.get("first_diff_location", {})
         section = location.get("section", "")
@@ -180,7 +189,7 @@ def run_wasm_dump(
     output_path: Path,
     version_name: str,
 ) -> None:
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec
         [
             "node",
             str(wasm_runner),
@@ -372,7 +381,11 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for texture_idx in range(texture_count):
         if first_diff < offset + 4:
-            return {"section": "texture", "texture_index": texture_idx, "field": "length"}
+            return {
+                "section": "texture",
+                "texture_index": texture_idx,
+                "field": "length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
             return {"section": "texture", "texture_index": texture_idx, "field": "path"}
@@ -384,17 +397,33 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for material_idx in range(material_count):
         if first_diff < offset + 4:
-            return {"section": "material", "material_index": material_idx, "field": "name_length"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "material", "material_index": material_idx, "field": "name"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "name",
+            }
         offset = next_offset
 
         if first_diff < offset + 4:
-            return {"section": "material", "material_index": material_idx, "field": "english_name_length"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "material", "material_index": material_idx, "field": "english_name"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "english_name",
+            }
         offset = next_offset
 
         fixed_len = 65
@@ -409,17 +438,33 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
         offset += fixed_len
 
         if first_diff < offset + texture_index_size:
-            return {"section": "material", "material_index": material_idx, "field": "texture_index"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "texture_index",
+            }
         offset += texture_index_size
         if first_diff < offset + texture_index_size:
-            return {"section": "material", "material_index": material_idx, "field": "sphere_texture_index"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "sphere_texture_index",
+            }
         offset += texture_index_size
         if first_diff < offset + 1:
-            return {"section": "material", "material_index": material_idx, "field": "sphere_mode"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "sphere_mode",
+            }
         sphere_mode = data[offset]
         offset += 1
         if first_diff < offset + 1:
-            return {"section": "material", "material_index": material_idx, "field": "toon_sharing_flag"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "toon_sharing_flag",
+            }
         toon_flag = data[offset]
         offset += 1
 
@@ -435,14 +480,26 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
         offset += toon_size
 
         if first_diff < offset + 4:
-            return {"section": "material", "material_index": material_idx, "field": "comment_length"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "comment_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "material", "material_index": material_idx, "field": "comment"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "comment",
+            }
         offset = next_offset
 
         if first_diff < offset + 4:
-            return {"section": "material", "material_index": material_idx, "field": "vertex_count"}
+            return {
+                "section": "material",
+                "material_index": material_idx,
+                "field": "vertex_count",
+            }
         offset += 4
 
     if first_diff < offset + 4:
@@ -458,7 +515,11 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
         offset = next_offset
 
         if first_diff < offset + 4:
-            return {"section": "bone", "bone_index": bone_idx, "field": "english_name_length"}
+            return {
+                "section": "bone",
+                "bone_index": bone_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
             return {"section": "bone", "bone_index": bone_idx, "field": "english_name"}
@@ -480,61 +541,120 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
 
         if (flag & 0x0001) != 0:
             if offset <= first_diff < offset + bone_index_size:
-                return {"section": "bone", "bone_index": bone_idx, "field": "tail_index"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "tail_index",
+                }
             _, offset = read_idx(data, offset, bone_index_size)
         else:
             if offset <= first_diff < offset + 12:
-                return {"section": "bone", "bone_index": bone_idx, "field": "tail_position"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "tail_position",
+                }
             offset += 12
 
         if (flag & 0x0300) != 0:
             if offset <= first_diff < offset + bone_index_size:
-                return {"section": "bone", "bone_index": bone_idx, "field": "append_bone_index"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "append_bone_index",
+                }
             _, offset = read_idx(data, offset, bone_index_size)
             if offset <= first_diff < offset + 4:
-                return {"section": "bone", "bone_index": bone_idx, "field": "append_ratio"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "append_ratio",
+                }
             offset += 4
 
         if (flag & 0x0400) != 0:
             if offset <= first_diff < offset + 12:
-                return {"section": "bone", "bone_index": bone_idx, "field": "fixed_axis"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "fixed_axis",
+                }
             offset += 12
 
         if (flag & 0x0800) != 0:
             if offset <= first_diff < offset + 24:
-                return {"section": "bone", "bone_index": bone_idx, "field": "local_axis"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "local_axis",
+                }
             offset += 24
 
         if (flag & 0x2000) != 0:
             if offset <= first_diff < offset + 4:
-                return {"section": "bone", "bone_index": bone_idx, "field": "external_key"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "external_key",
+                }
             offset += 4
 
         if (flag & 0x0020) != 0:
             if offset <= first_diff < offset + bone_index_size:
-                return {"section": "bone", "bone_index": bone_idx, "field": "ik_target_index"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "ik_target_index",
+                }
             _, offset = read_idx(data, offset, bone_index_size)
             if offset <= first_diff < offset + 4:
-                return {"section": "bone", "bone_index": bone_idx, "field": "ik_loop_count"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "ik_loop_count",
+                }
             offset += 4
             if offset <= first_diff < offset + 4:
-                return {"section": "bone", "bone_index": bone_idx, "field": "ik_limit_radian"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "ik_limit_radian",
+                }
             offset += 4
             if offset <= first_diff < offset + 4:
-                return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_count"}
+                return {
+                    "section": "bone",
+                    "bone_index": bone_idx,
+                    "field": "ik_link_count",
+                }
             ik_link_count = struct.unpack_from("<i", data, offset)[0]
             offset += 4
             for link_idx in range(ik_link_count):
                 if offset <= first_diff < offset + bone_index_size:
-                    return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_bone_index", "ik_link": link_idx}
+                    return {
+                        "section": "bone",
+                        "bone_index": bone_idx,
+                        "field": "ik_link_bone_index",
+                        "ik_link": link_idx,
+                    }
                 _, offset = read_idx(data, offset, bone_index_size)
                 if offset <= first_diff < offset + 1:
-                    return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_limit_angle", "ik_link": link_idx}
+                    return {
+                        "section": "bone",
+                        "bone_index": bone_idx,
+                        "field": "ik_link_limit_angle",
+                        "ik_link": link_idx,
+                    }
                 limit_angle = data[offset]
                 offset += 1
                 if limit_angle != 0:
                     if offset <= first_diff < offset + 24:
-                        return {"section": "bone", "bone_index": bone_idx, "field": "ik_link_limit", "ik_link": link_idx}
+                        return {
+                            "section": "bone",
+                            "bone_index": bone_idx,
+                            "field": "ik_link_limit",
+                            "ik_link": link_idx,
+                        }
                     offset += 24
 
     if first_diff < offset + 4:
@@ -543,37 +663,68 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for morph_idx in range(morph_count):
         if first_diff < offset + 4:
-            return {"section": "morph", "morph_index": morph_idx, "field": "name_length"}
+            return {
+                "section": "morph",
+                "morph_index": morph_idx,
+                "field": "name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
             return {"section": "morph", "morph_index": morph_idx, "field": "name"}
         offset = next_offset
         if first_diff < offset + 4:
-            return {"section": "morph", "morph_index": morph_idx, "field": "english_name_length"}
+            return {
+                "section": "morph",
+                "morph_index": morph_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "morph", "morph_index": morph_idx, "field": "english_name"}
+            return {
+                "section": "morph",
+                "morph_index": morph_idx,
+                "field": "english_name",
+            }
         offset = next_offset
         if offset <= first_diff < offset + 2:
-            return {"section": "morph", "morph_index": morph_idx, "field": "panel_or_type"}
+            return {
+                "section": "morph",
+                "morph_index": morph_idx,
+                "field": "panel_or_type",
+            }
         panel = data[offset]
         morph_type = data[offset + 1]
         offset += 2
         if offset <= first_diff < offset + 4:
-            return {"section": "morph", "morph_index": morph_idx, "field": "offset_count"}
+            return {
+                "section": "morph",
+                "morph_index": morph_idx,
+                "field": "offset_count",
+            }
         morph_offset_count = struct.unpack_from("<i", data, offset)[0]
         offset += 4
         if morph_type == 1:
             unit = vertex_index_size + 12
             if offset <= first_diff < offset + (morph_offset_count * unit):
                 rel = first_diff - offset
-                return {"section": "morph", "morph_index": morph_idx, "field": "vertex_offset", "offset_index": rel // max(1, unit)}
+                return {
+                    "section": "morph",
+                    "morph_index": morph_idx,
+                    "field": "vertex_offset",
+                    "offset_index": rel // max(1, unit),
+                }
             offset += morph_offset_count * unit
         else:
             unit = morph_index_size + 4
             if offset <= first_diff < offset + (morph_offset_count * unit):
                 rel = first_diff - offset
-                return {"section": "morph", "morph_index": morph_idx, "field": "group_offset", "offset_index": rel // max(1, unit), "panel": panel}
+                return {
+                    "section": "morph",
+                    "morph_index": morph_idx,
+                    "field": "group_offset",
+                    "offset_index": rel // max(1, unit),
+                    "panel": panel,
+                }
             offset += morph_offset_count * unit
 
     if first_diff < offset + 4:
@@ -582,32 +733,67 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for display_idx in range(display_count):
         if first_diff < offset + 4:
-            return {"section": "display_slot", "display_index": display_idx, "field": "name_length"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "display_slot", "display_index": display_idx, "field": "name"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "name",
+            }
         offset = next_offset
         if first_diff < offset + 4:
-            return {"section": "display_slot", "display_index": display_idx, "field": "english_name_length"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "display_slot", "display_index": display_idx, "field": "english_name"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "english_name",
+            }
         offset = next_offset
         if offset <= first_diff < offset + 1:
-            return {"section": "display_slot", "display_index": display_idx, "field": "special_flag"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "special_flag",
+            }
         offset += 1
         if offset <= first_diff < offset + 4:
-            return {"section": "display_slot", "display_index": display_idx, "field": "ref_count"}
+            return {
+                "section": "display_slot",
+                "display_index": display_idx,
+                "field": "ref_count",
+            }
         ref_count = struct.unpack_from("<i", data, offset)[0]
         offset += 4
         for ref_idx in range(ref_count):
             if offset <= first_diff < offset + 1:
-                return {"section": "display_slot", "display_index": display_idx, "field": "ref_target_type", "ref_index": ref_idx}
+                return {
+                    "section": "display_slot",
+                    "display_index": display_idx,
+                    "field": "ref_target_type",
+                    "ref_index": ref_idx,
+                }
             target_type = data[offset]
             offset += 1
             ref_size = bone_index_size if target_type == 0 else morph_index_size
             if offset <= first_diff < offset + ref_size:
-                return {"section": "display_slot", "display_index": display_idx, "field": "ref_index", "ref_target_type": target_type, "ref_pos": ref_idx}
+                return {
+                    "section": "display_slot",
+                    "display_index": display_idx,
+                    "field": "ref_index",
+                    "ref_target_type": target_type,
+                    "ref_pos": ref_idx,
+                }
             offset += ref_size
 
     if first_diff < offset + 4:
@@ -616,20 +802,36 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for rigid_idx in range(rigid_count):
         if first_diff < offset + 4:
-            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "name_length"}
+            return {
+                "section": "rigidbody",
+                "rigid_index": rigid_idx,
+                "field": "name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
             return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "name"}
         offset = next_offset
         if first_diff < offset + 4:
-            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "english_name_length"}
+            return {
+                "section": "rigidbody",
+                "rigid_index": rigid_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "english_name"}
+            return {
+                "section": "rigidbody",
+                "rigid_index": rigid_idx,
+                "field": "english_name",
+            }
         offset = next_offset
         rigid_fixed = bone_index_size + 1 + 2 + 1 + 12 + 12 + 12 + 20 + 1
         if offset <= first_diff < offset + rigid_fixed:
-            return {"section": "rigidbody", "rigid_index": rigid_idx, "field": "payload"}
+            return {
+                "section": "rigidbody",
+                "rigid_index": rigid_idx,
+                "field": "payload",
+            }
         offset += rigid_fixed
 
     if first_diff < offset + 4:
@@ -638,16 +840,28 @@ def locate_first_diff(data: bytes, first_diff: int) -> dict[str, Any]:
     offset += 4
     for joint_idx in range(joint_count):
         if first_diff < offset + 4:
-            return {"section": "joint", "joint_index": joint_idx, "field": "name_length"}
+            return {
+                "section": "joint",
+                "joint_index": joint_idx,
+                "field": "name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
             return {"section": "joint", "joint_index": joint_idx, "field": "name"}
         offset = next_offset
         if first_diff < offset + 4:
-            return {"section": "joint", "joint_index": joint_idx, "field": "english_name_length"}
+            return {
+                "section": "joint",
+                "joint_index": joint_idx,
+                "field": "english_name_length",
+            }
         text_len, next_offset = read_text(data, offset)
         if offset + 4 <= first_diff < offset + 4 + text_len:
-            return {"section": "joint", "joint_index": joint_idx, "field": "english_name"}
+            return {
+                "section": "joint",
+                "joint_index": joint_idx,
+                "field": "english_name",
+            }
         offset = next_offset
         joint_fixed = 1 + (2 * rigidbody_index_size) + (6 * 12)
         if offset <= first_diff < offset + joint_fixed:
@@ -666,18 +880,26 @@ def probe_model(
     wasm_runner: Path | None,
     exclude_bitperfect_path: list[str],
 ) -> dict[str, Any]:
-    baseline_version_name = BROWSER_PYTHON_VERSION_NAME if mode == "wasm" else "nim-bitperfect-baseline"
+    baseline_version_name = (
+        BROWSER_PYTHON_VERSION_NAME if mode == "wasm" else "nim-bitperfect-baseline"
+    )
     nim_pmx_path = work_dir / f"{vrm_path.stem}_nim.pmx"
     if mode == "nim-exe":
         if nim_exe is None:
             raise RuntimeError("nim_exe is required for nim-exe mode")
-        subprocess.run([str(nim_exe), str(vrm_path), str(nim_pmx_path)], check=True)
+        subprocess.run(  # nosec B603
+            [str(nim_exe), str(vrm_path), str(nim_pmx_path)], check=True
+        )
     else:
         if wasm_path is None or wasm_runner is None:
             raise RuntimeError("wasm_path/wasm_runner are required for wasm mode")
-        run_wasm_dump(vrm_path, wasm_path, wasm_runner, nim_pmx_path, baseline_version_name)
+        run_wasm_dump(
+            vrm_path, wasm_path, wasm_runner, nim_pmx_path, baseline_version_name
+        )
 
-    baseline_bytes, baseline_runs = run_python_baseline(vrm_path, 1, version_name=baseline_version_name)
+    baseline_bytes, baseline_runs = run_python_baseline(
+        vrm_path, 1, version_name=baseline_version_name
+    )
     report = build_report(vrm_path, baseline_bytes, baseline_runs, nim_pmx_path)
     comparison = report.get("nim_comparison", {})
 
@@ -685,7 +907,9 @@ def probe_model(
         "model": vrm_path.stem,
         "path": str(vrm_path),
         "nim_comparison": comparison,
-        "bitperfect_excluded": is_bitperfect_excluded(vrm_path, exclude_bitperfect_path),
+        "bitperfect_excluded": is_bitperfect_excluded(
+            vrm_path, exclude_bitperfect_path
+        ),
     }
 
     if isinstance(comparison, dict) and comparison.get("status") == "ok":
@@ -696,13 +920,32 @@ def probe_model(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Probe first diff patterns across multiple VRM models")
+    parser = argparse.ArgumentParser(
+        description="Probe first diff patterns across multiple VRM models"
+    )
     parser.add_argument("search_path", help="Root directory to search for VRM files")
-    parser.add_argument("--mode", choices=["nim-exe", "wasm"], default="nim-exe", help="Probe target mode")
-    parser.add_argument("--nim-exe", default=None, help="Path to compiled Nim converter executable")
-    parser.add_argument("--wasm", default="frontend/public/nim/vrm2pmx_nim_runtime.wasm", help="Path to Nim Wasm binary")
-    parser.add_argument("--wasm-runner", default="scripts/frontend_wasm_dump_runner.mjs", help="Node runner script for Wasm")
-    parser.add_argument("--max-count", type=int, default=5, help="Maximum number of VRM files to probe")
+    parser.add_argument(
+        "--mode",
+        choices=["nim-exe", "wasm"],
+        default="nim-exe",
+        help="Probe target mode",
+    )
+    parser.add_argument(
+        "--nim-exe", default=None, help="Path to compiled Nim converter executable"
+    )
+    parser.add_argument(
+        "--wasm",
+        default="frontend/public/nim/vrm2pmx_nim_runtime.wasm",
+        help="Path to Nim Wasm binary",
+    )
+    parser.add_argument(
+        "--wasm-runner",
+        default="scripts/frontend_wasm_dump_runner.mjs",
+        help="Node runner script for Wasm",
+    )
+    parser.add_argument(
+        "--max-count", type=int, default=5, help="Maximum number of VRM files to probe"
+    )
     parser.add_argument(
         "--output-json",
         default="tmp/multi_model_validation/nim_firstdiff_probe.json",
@@ -775,10 +1018,14 @@ def main() -> int:
         lock_out.parent.mkdir(parents=True, exist_ok=True)
         lock_payload = {
             "nim_exe_sha256": nim_env["nim_exe_sha256"],
-            "nim_compiler_version_line": nim_env.get("nim_compiler_version_probe", {}).get("stdout_first_line", ""),
+            "nim_compiler_version_line": nim_env.get(
+                "nim_compiler_version_probe", {}
+            ).get("stdout_first_line", ""),
             "nim_exe_path": nim_env["nim_exe_path"],
         }
-        lock_out.write_text(json.dumps(lock_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        lock_out.write_text(
+            json.dumps(lock_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     lock_result: dict[str, Any] = {
         "checked": False,
@@ -839,16 +1086,20 @@ def main() -> int:
                 }
             )
 
-    preview_ok = sum(1 for item in results if item.get("nim_comparison", {}).get("status") == "ok")
+    preview_ok = sum(
+        1 for item in results if item.get("nim_comparison", {}).get("status") == "ok"
+    )
     target_items = [
         item
         for item in results
-        if item.get("nim_comparison", {}).get("status") == "ok" and not item.get("bitperfect_excluded", False)
+        if item.get("nim_comparison", {}).get("status") == "ok"
+        and not item.get("bitperfect_excluded", False)
     ]
     excluded_items = [
         item
         for item in results
-        if item.get("nim_comparison", {}).get("status") == "ok" and item.get("bitperfect_excluded", False)
+        if item.get("nim_comparison", {}).get("status") == "ok"
+        and item.get("bitperfect_excluded", False)
     ]
 
     summary = {
@@ -857,8 +1108,16 @@ def main() -> int:
         "preview_ok": preview_ok,
         "bitperfect_target_models": len(target_items),
         "excluded_models": len(excluded_items),
-        "bit_perfect": sum(1 for item in target_items if item.get("nim_comparison", {}).get("bit_perfect")),
-        "non_bit_perfect": sum(1 for item in target_items if not item.get("nim_comparison", {}).get("bit_perfect")),
+        "bit_perfect": sum(
+            1
+            for item in target_items
+            if item.get("nim_comparison", {}).get("bit_perfect")
+        ),
+        "non_bit_perfect": sum(
+            1
+            for item in target_items
+            if not item.get("nim_comparison", {}).get("bit_perfect")
+        ),
         "errors": sum(1 for item in results if "error" in item),
         "vertex_weight0": sum(
             1
@@ -868,7 +1127,9 @@ def main() -> int:
         ),
     }
     if summary["bitperfect_target_models"] > 0:
-        summary["bit_perfect_ratio_percent"] = round(summary["bit_perfect"] / summary["bitperfect_target_models"] * 100, 1)
+        summary["bit_perfect_ratio_percent"] = round(
+            summary["bit_perfect"] / summary["bitperfect_target_models"] * 100, 1
+        )
     else:
         summary["bit_perfect_ratio_percent"] = 0.0
 
@@ -884,7 +1145,9 @@ def main() -> int:
         "summary": summary,
         "results": results,
     }
-    output_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_json.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     if args.output_md:
         output_md = Path(args.output_md)
         output_md.parent.mkdir(parents=True, exist_ok=True)

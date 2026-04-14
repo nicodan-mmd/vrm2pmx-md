@@ -25,9 +25,7 @@
     ]
   },
   "files": {
-    "new": [
-      "frontend/public/rust/pmxWriter.js"
-    ],
+    "new": ["frontend/public/rust/pmxWriter.js"],
     "modified": [
       "frontend/public/rust/vrm2pmx_rust_loader.js",
       "frontend/public/rust/vrm2pmx_rust_manifest.json"

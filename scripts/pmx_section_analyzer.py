@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import argparse
 import struct
-import sys
 from pathlib import Path
 
 
@@ -87,7 +86,9 @@ def analyze_sections(ref_path: Path, cand_path: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Analyze PMX binary structure differences")
+    parser = argparse.ArgumentParser(
+        description="Analyze PMX binary structure differences"
+    )
     parser.add_argument("reference", help="Reference PMX file")
     parser.add_argument("candidate", help="Candidate PMX file")
     args = parser.parse_args()

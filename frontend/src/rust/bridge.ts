@@ -1,4 +1,8 @@
-import { getRustRuntimeAvailability, resolveRustAssetUrl, type RustRuntimeManifest } from "./runtime";
+import {
+  getRustRuntimeAvailability,
+  resolveRustAssetUrl,
+  type RustRuntimeManifest,
+} from "./runtime";
 
 export type RustBridgeOptions = {
   wasmUrl: string;
@@ -15,7 +19,9 @@ export type RustConvertResult = {
 };
 
 type RustBridgeModule = {
-  createRuntimeBridge?: (options: RustBridgeOptions) => Promise<RustRuntimeBridge> | RustRuntimeBridge;
+  createRuntimeBridge?: (
+    options: RustBridgeOptions,
+  ) => Promise<RustRuntimeBridge> | RustRuntimeBridge;
 };
 
 export type RustRuntimeBridge = {
@@ -29,11 +35,16 @@ export async function loadRustRuntimeBridge(): Promise<{
 }> {
   const availability = await getRustRuntimeAvailability();
   if (!availability.available || !availability.manifest) {
-    throw new Error(availability.reason ?? "RUST_RUNTIME_UNAVAILABLE: Rust runtime manifest is missing.");
+    throw new Error(
+      availability.reason ??
+        "RUST_RUNTIME_UNAVAILABLE: Rust runtime manifest is missing.",
+    );
   }
 
   if (!availability.manifest.entryJs) {
-    throw new Error("RUST_BRIDGE_UNAVAILABLE: Rust runtime manifest does not declare entryJs.");
+    throw new Error(
+      "RUST_BRIDGE_UNAVAILABLE: Rust runtime manifest does not declare entryJs.",
+    );
   }
 
   const entryJsUrl = resolveRustAssetUrl(availability.manifest.entryJs);
@@ -41,9 +52,13 @@ export async function loadRustRuntimeBridge(): Promise<{
     ? resolveRustAssetUrl(availability.manifest.entryWasm)
     : "";
 
-  const module = (await import(/* @vite-ignore */ entryJsUrl)) as RustBridgeModule;
+  const module = (await import(
+    /* @vite-ignore */ entryJsUrl
+  )) as RustBridgeModule;
   if (typeof module.createRuntimeBridge !== "function") {
-    throw new Error(`RUST_BRIDGE_INVALID: createRuntimeBridge export was not found in ${entryJsUrl}`);
+    throw new Error(
+      `RUST_BRIDGE_INVALID: createRuntimeBridge export was not found in ${entryJsUrl}`,
+    );
   }
 
   const bridge = await module.createRuntimeBridge({ wasmUrl: entryWasmUrl });

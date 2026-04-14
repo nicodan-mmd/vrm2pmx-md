@@ -1,7 +1,10 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
 import { convertViaRustWorker } from "../rust/workerClient";
 import { convertViaNimWorker } from "../nim/workerClient";
-import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
+import type {
+  WorkerLogResponse,
+  WorkerProgressResponse,
+} from "../types/convert";
 
 export type ConvertMode = "auto" | "backend" | "wasm" | "rust" | "nim";
 export type ConvertExecutionMode = Exclude<ConvertMode, "auto">;
@@ -80,7 +83,10 @@ export function toUserFriendlyConvertError(
     return "Wasm conversion failed and backend fallback is disabled in this build.";
   }
 
-  if (normalized.includes("no known package") || normalized.includes("pillow")) {
+  if (
+    normalized.includes("no known package") ||
+    normalized.includes("pillow")
+  ) {
     return "Pyodide package initialization failed. Reload the page and retry. If it persists, check network access to cdn.jsdelivr.net.";
   }
 
@@ -92,11 +98,17 @@ export function toUserFriendlyConvertError(
     return "Python runtime manifest could not be loaded. Run npm run dev/build again to regenerate synced py_src files.";
   }
 
-  if (normalized.includes("invalid vrm") || normalized.includes("file_suffix")) {
+  if (
+    normalized.includes("invalid vrm") ||
+    normalized.includes("file_suffix")
+  ) {
     return "The selected file format is not supported or the VRM/GLB content is invalid.";
   }
 
-  if (normalized.includes("wasm_convert_failed") || normalized.includes("pyodide")) {
+  if (
+    normalized.includes("wasm_convert_failed") ||
+    normalized.includes("pyodide")
+  ) {
     return "Wasm runtime error occurred during conversion. Reload the page and try again.";
   }
 
@@ -150,7 +162,9 @@ async function convertViaWasm(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -176,7 +190,9 @@ async function convertViaRust(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -202,7 +218,9 @@ async function convertViaNim(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -258,7 +276,8 @@ export async function convertWithMode(
         throw error;
       }
 
-      const fallbackReason = error instanceof Error ? error.message : "Unknown rust error";
+      const fallbackReason =
+        error instanceof Error ? error.message : "Unknown rust error";
       console.warn(
         JSON.stringify({
           event: "convert.rust.unavailable",
@@ -306,7 +325,8 @@ export async function convertWithMode(
         throw error;
       }
 
-      const fallbackReason = error instanceof Error ? error.message : "Unknown nim error";
+      const fallbackReason =
+        error instanceof Error ? error.message : "Unknown nim error";
       console.warn(
         JSON.stringify({
           event: "convert.nim.failed",

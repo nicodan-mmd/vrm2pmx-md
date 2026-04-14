@@ -33,11 +33,18 @@ export function useUiSettings() {
   const [rustEnabled, setRustEnabled] = useState(false);
   const [turboLabsEnabled, setTurboLabsEnabled] = useState(false);
   const [nimEnabled, setNimEnabled] = useState(false);
-  const [worldCounterParticipationEnabled, setWorldCounterParticipationEnabled] = useState(true);
+  const [
+    worldCounterParticipationEnabled,
+    setWorldCounterParticipationEnabled,
+  ] = useState(true);
   const [gridEnabled, setGridEnabled] = useState(false);
   const gridEnabledRef = useRef(false);
-  const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
-  const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
+  const [pmxBrightnessScale, setPmxBrightnessScale] = useState(
+    PMX_LIGHT_DEFAULT_INTENSITY_SCALE,
+  );
+  const [pmxContrastFactor, setPmxContrastFactor] = useState(
+    PMX_LIGHT_DEFAULT_CONTRAST_FACTOR,
+  );
   const [isUiSettingsHydrated, setIsUiSettingsHydrated] = useState(false);
   const skipNextSettingsPersistRef = useRef(false);
 
@@ -66,10 +73,17 @@ export function useUiSettings() {
       const raw = window.localStorage.getItem(UI_SETTINGS_STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<UiSettingsSnapshot>;
-        if (saved.mode === "wasm" || saved.mode === "auto" || saved.mode === "backend") {
+        if (
+          saved.mode === "wasm" ||
+          saved.mode === "auto" ||
+          saved.mode === "backend"
+        ) {
           setMode(saved.mode);
         }
-        if (typeof saved.taPoseAngle === "number" && Number.isFinite(saved.taPoseAngle)) {
+        if (
+          typeof saved.taPoseAngle === "number" &&
+          Number.isFinite(saved.taPoseAngle)
+        ) {
           const snapped = Math.round(clamp(saved.taPoseAngle, 0, 90) / 5) * 5;
           setTaPoseAngle(snapped);
         }
@@ -82,18 +96,29 @@ export function useUiSettings() {
         if (typeof saved.rustEnabled === "boolean") {
           setRustEnabled(saved.rustEnabled);
         }
-        const savedTurboLabsEnabled = typeof saved.turboLabsEnabled === "boolean" ? saved.turboLabsEnabled : false;
+        const savedTurboLabsEnabled =
+          typeof saved.turboLabsEnabled === "boolean"
+            ? saved.turboLabsEnabled
+            : false;
         setTurboLabsEnabled(savedTurboLabsEnabled);
         if (typeof saved.nimEnabled === "boolean") {
           setNimEnabled(savedTurboLabsEnabled ? saved.nimEnabled : false);
         }
         if (typeof saved.worldCounterParticipationEnabled === "boolean") {
-          setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
+          setWorldCounterParticipationEnabled(
+            saved.worldCounterParticipationEnabled,
+          );
         }
-        if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
+        if (
+          typeof saved.pmxBrightnessScale === "number" &&
+          Number.isFinite(saved.pmxBrightnessScale)
+        ) {
           setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
         }
-        if (typeof saved.pmxContrastFactor === "number" && Number.isFinite(saved.pmxContrastFactor)) {
+        if (
+          typeof saved.pmxContrastFactor === "number" &&
+          Number.isFinite(saved.pmxContrastFactor)
+        ) {
           setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.4));
         }
       }
@@ -134,7 +159,10 @@ export function useUiSettings() {
     };
 
     try {
-      window.localStorage.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(
+        UI_SETTINGS_STORAGE_KEY,
+        JSON.stringify(snapshot),
+      );
     } catch (error) {
       console.warn("Failed to persist UI settings to localStorage", error);
     }

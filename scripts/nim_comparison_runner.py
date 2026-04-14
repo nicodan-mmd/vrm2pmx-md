@@ -108,8 +108,12 @@ def make_summary(runs: list[RunResult]) -> dict[str, Any]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run repeated conversion comparison for Nim PoC planning")
-    parser.add_argument("--model", required=True, help="Absolute path to target VRM/GLB model")
+    parser = argparse.ArgumentParser(
+        description="Run repeated conversion comparison for Nim PoC planning"
+    )
+    parser.add_argument(
+        "--model", required=True, help="Absolute path to target VRM/GLB model"
+    )
     parser.add_argument("--runs", type=int, default=3, help="Number of repeated runs")
     parser.add_argument(
         "--out-dir",
@@ -158,7 +162,9 @@ def main() -> None:
     }
 
     json_path = out_dir / f"{timestamp}_{slug}_nim-validation.json"
-    json_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     md_lines: list[str] = []
     md_lines.append(f"# Nim Comparison Run - {model_path.name}")
@@ -166,7 +172,9 @@ def main() -> None:
     md_lines.append(f"- input_path: {model_path}")
     md_lines.append("- requested_mode: nim")
     md_lines.append("- actual_mode: wasm")
-    md_lines.append("- fallback_reason: Nim experimental converter is not available in this build yet.")
+    md_lines.append(
+        "- fallback_reason: Nim experimental converter is not available in this build yet."
+    )
     md_lines.append(f"- run_count: {summary['run_count']}")
     md_lines.append("")
     md_lines.append("## Elapsed (ms)")
@@ -179,7 +187,9 @@ def main() -> None:
     md_lines.append("## Count Stability")
     md_lines.append("")
     md_lines.append(f"- counts_stable: {summary['counts_stable']}")
-    md_lines.append(f"- reference_counts: {json.dumps(summary['reference_counts'], ensure_ascii=False)}")
+    md_lines.append(
+        f"- reference_counts: {json.dumps(summary['reference_counts'], ensure_ascii=False)}"
+    )
     md_lines.append("")
     md_lines.append("## Per Run")
     md_lines.append("")

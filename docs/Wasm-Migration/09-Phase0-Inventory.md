@@ -11,10 +11,12 @@
 ### 直接的な阻害点
 
 1. backend が form 層の定数へ依存
+
 - `backend/app/main.py`
 - `from form.panel.BonePanel import BONE_PAIRS, RIGIDBODY_PAIRS`
 
 2. 変換コアが form 層の定数へ依存
+
 - `src/mmd/VrmReader.py`
 - `from form.panel.BonePanel import MORPH_PAIRS`
 
@@ -76,9 +78,11 @@ AssetFile:
 ## 3.3 段階導入
 
 1. Step A
+
 - `package_mode="pmx"` のみ実装し、`pmx_bytes` を返す。
 
 2. Step B
+
 - `assets` を返せるようにして `zip` 生成責務を分離する。
 - ZIP 生成は Python 側と JS 側のどちらでも成立する設計にする。
 
@@ -91,15 +95,19 @@ AssetFile:
 ## 5. Phase 1 着手タスク
 
 1. 設定定数の移設
+
 - `BONE_PAIRS`, `RIGIDBODY_PAIRS`, `MORPH_PAIRS` を GUI 非依存モジュールへ移動
 
 2. backend import 切替
+
 - `backend/app/main.py` の form 依存を除去
 
 3. core import 切替
+
 - `src/mmd/VrmReader.py` の form 依存を除去
 
 4. 変換 entrypoint 追加
+
 - `bytes -> bytes` API の最小実装（PMX 単体）
 
 ## 6. Phase 1 進捗（2026-03-23）
@@ -158,22 +166,22 @@ AssetFile:
 
 ### ファイル①: 和風リメイクあかおに.vrm
 
-| 項目 | 値 |
-|---|---|
-| input_bytes | 18,650,692 (17.7 MB) |
-| output_bytes | 3,318,594 (3.2 MB) |
-| elapsed_sec | **6.447** |
-| 結果 | 成功 |
+| 項目         | 値                   |
+| ------------ | -------------------- |
+| input_bytes  | 18,650,692 (17.7 MB) |
+| output_bytes | 3,318,594 (3.2 MB)   |
+| elapsed_sec  | **6.447**            |
+| 結果         | 成功                 |
 
-### ファイル②: プロレスラー_リンリン.vrm
+### ファイル②: プロレスラー\_リンリン.vrm
 
-| 項目 | 値 |
-|---|---|
-| input_bytes | 21,938,004 (20.9 MB) |
-| output_bytes | 6,652,871 (6.3 MB) |
-| elapsed_sec | **9.038** |
+| 項目           | 値                              |
+| -------------- | ------------------------------- |
+| input_bytes    | 21,938,004 (20.9 MB)            |
+| output_bytes   | 6,652,871 (6.3 MB)              |
+| elapsed_sec    | **9.038**                       |
 | peak_memory_mb | **182.6 MB** (tracemalloc 計測) |
-| 結果 | 成功 |
+| 結果           | 成功                            |
 
 ### スケーリング観測
 

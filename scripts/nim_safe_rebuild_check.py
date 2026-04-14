@@ -7,8 +7,7 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess
-import sys
+import subprocess  # nosec B404: intended local process execution for build/verify flow
 from pathlib import Path
 
 
@@ -21,7 +20,9 @@ def sha256_file(path: Path) -> str:
 
 
 def run_checked(cmd: list[str]) -> None:
-    proc = subprocess.run(cmd, text=True)
+    proc = subprocess.run(
+        cmd, text=True
+    )  # nosec B603: fixed commands/validated local paths only
     if proc.returncode != 0:
         raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(cmd)}")
 
@@ -40,10 +41,22 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build Nim candidate exe safely and compare with reference output before replacement"
     )
-    parser.add_argument("model_path", help="Input VRM/GLB path used for A/B verification")
-    parser.add_argument("--nim-source", default="src/nim/pmx_lite_main.nim", help="Nim entry source")
-    parser.add_argument("--reference-exe", default="src/nim/pmx_lite_main.exe", help="Existing trusted exe")
-    parser.add_argument("--candidate-exe", default="tmp/nim/pmx_lite_main_candidate.exe", help="Temporary candidate exe")
+    parser.add_argument(
+        "model_path", help="Input VRM/GLB path used for A/B verification"
+    )
+    parser.add_argument(
+        "--nim-source", default="src/nim/pmx_lite_main.nim", help="Nim entry source"
+    )
+    parser.add_argument(
+        "--reference-exe",
+        default="src/nim/pmx_lite_main.exe",
+        help="Existing trusted exe",
+    )
+    parser.add_argument(
+        "--candidate-exe",
+        default="tmp/nim/pmx_lite_main_candidate.exe",
+        help="Temporary candidate exe",
+    )
     parser.add_argument(
         "--replace-reference",
         action="store_true",
@@ -117,7 +130,9 @@ def main() -> int:
         report["replaced_reference"] = True
 
     report_json.parent.mkdir(parents=True, exist_ok=True)
-    report_json.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    report_json.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
     return 0 if outputs_equal else 2

@@ -1,7 +1,17 @@
 import * as Sentry from "@sentry/react";
 import { BlobReader, BlobWriter, ZipReader, ZipWriter } from "@zip.js/zip.js";
 import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
-import { type ChangeEvent, type DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  type ChangeEvent,
+  type DragEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
 import { CiMaximize2 } from "react-icons/ci";
@@ -11,10 +21,15 @@ import CountUp from "react-countup";
 import Swal from "sweetalert2";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
+import {
+  GLTFLoader,
+  type GLTFParser,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MMDLoader } from "three-stdlib";
 import { useReactPWAInstall } from "react-pwa-install";
-import AboutDialog, { type TabId as AboutTabId } from "./components/AboutDialog";
+import AboutDialog, {
+  type TabId as AboutTabId,
+} from "./components/AboutDialog";
 import Dialog from "./components/Dialog";
 import { APP_VERSION } from "./constants/appInfo";
 import {
@@ -25,7 +40,10 @@ import {
 } from "./services/convertClient";
 import type { WorkerLogResponse, WorkerProgressStage } from "./types/convert";
 import { poseUpperArmsInGlb, poseDebug } from "./features/preview/lib/glbPose";
-import { computePmxLightPreset, applyPmxLightTuning } from "./features/preview/lib/pmxLight";
+import {
+  computePmxLightPreset,
+  applyPmxLightTuning,
+} from "./features/preview/lib/pmxLight";
 import {
   detectQualityRiskSignals,
   createConversionReportId,
@@ -35,9 +53,20 @@ import {
   detectProfileFromFile,
   type ProfileDetectionResult,
 } from "./features/convert/services/profileDetection";
-import { getWorldCounterFromFirestore, incrementWorldCounterOnFirestore } from "./services/worldCounter";
-import { useUiSettings, PMX_LIGHT_DEFAULT_INTENSITY_SCALE, PMX_LIGHT_DEFAULT_CONTRAST_FACTOR } from "./features/settings/hooks/useUiSettings";
-import { getRuntimeLogLevel, shouldCaptureLog, type ConsoleLogLevel } from "./utils/logging";
+import {
+  getWorldCounterFromFirestore,
+  incrementWorldCounterOnFirestore,
+} from "./services/worldCounter";
+import {
+  useUiSettings,
+  PMX_LIGHT_DEFAULT_INTENSITY_SCALE,
+  PMX_LIGHT_DEFAULT_CONTRAST_FACTOR,
+} from "./features/settings/hooks/useUiSettings";
+import {
+  getRuntimeLogLevel,
+  shouldCaptureLog,
+  type ConsoleLogLevel,
+} from "./utils/logging";
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -169,7 +198,11 @@ type AppI18n = {
   errorReportingModalDescription2: string;
   errorReportingEnable: string;
   errorReportingNotNow: string;
-  fallbackReportConfirm: (requestedMode: ConvertMode, usedMode: ConvertMode, reason: string) => string;
+  fallbackReportConfirm: (
+    requestedMode: ConvertMode,
+    usedMode: ConvertMode,
+    reason: string,
+  ) => string;
   fallbackReportSubmittedMessage: string;
   qualityReportButton: string;
   qualityReportConfirm: string;
@@ -218,10 +251,17 @@ const MAX_USER_CONVERT_LOG_LINES = 10;
 const NIM_VERTEX_RATIO_LIMIT = 1.05;
 const NIM_BONE_RATIO_TOLERANCE = 0.01;
 const NIM_MORPH_RATIO_TOLERANCE = 0.01;
-const HEART_SLACK_WEBHOOK_URL = (import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined)?.trim() ?? "";
-const HEART_GAS_WEB_APP_URL = (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ?? "";
+const HEART_SLACK_WEBHOOK_URL =
+  (
+    import.meta.env.VITE_HEART_SLACK_WEBHOOK_URL as string | undefined
+  )?.trim() ?? "";
+const HEART_GAS_WEB_APP_URL =
+  (import.meta.env.VITE_HEART_GAS_WEB_APP_URL as string | undefined)?.trim() ??
+  "";
 
-function toOutputCountMetrics(diagnostics: PmxPreviewDiagnostics): OutputCountMetrics {
+function toOutputCountMetrics(
+  diagnostics: PmxPreviewDiagnostics,
+): OutputCountMetrics {
   return {
     vertices: diagnostics.vertexCount,
     faces: diagnostics.triangleCount,
@@ -250,12 +290,30 @@ function buildOutputCountDiff(
   };
 
   const ratio: OutputCountDiff["ratio"] = {
-    vertices: baseline.vertices > 0 ? Number((current.vertices / baseline.vertices).toFixed(6)) : null,
-    faces: baseline.faces > 0 ? Number((current.faces / baseline.faces).toFixed(6)) : null,
-    bones: baseline.bones > 0 ? Number((current.bones / baseline.bones).toFixed(6)) : null,
-    morphs: baseline.morphs > 0 ? Number((current.morphs / baseline.morphs).toFixed(6)) : null,
-    materials: baseline.materials > 0 ? Number((current.materials / baseline.materials).toFixed(6)) : null,
-    textures: baseline.textures > 0 ? Number((current.textures / baseline.textures).toFixed(6)) : null,
+    vertices:
+      baseline.vertices > 0
+        ? Number((current.vertices / baseline.vertices).toFixed(6))
+        : null,
+    faces:
+      baseline.faces > 0
+        ? Number((current.faces / baseline.faces).toFixed(6))
+        : null,
+    bones:
+      baseline.bones > 0
+        ? Number((current.bones / baseline.bones).toFixed(6))
+        : null,
+    morphs:
+      baseline.morphs > 0
+        ? Number((current.morphs / baseline.morphs).toFixed(6))
+        : null,
+    materials:
+      baseline.materials > 0
+        ? Number((current.materials / baseline.materials).toFixed(6))
+        : null,
+    textures:
+      baseline.textures > 0
+        ? Number((current.textures / baseline.textures).toFixed(6))
+        : null,
   };
 
   return { delta, ratio };
@@ -266,17 +324,29 @@ function evaluateNimQualityGate(diff: OutputCountDiff): QualityGateResult {
 
   const vertexRatio = diff.ratio.vertices;
   if (vertexRatio !== null && vertexRatio > NIM_VERTEX_RATIO_LIMIT) {
-    reasons.push(`vertices_ratio=${vertexRatio.toFixed(6)} > ${NIM_VERTEX_RATIO_LIMIT}`);
+    reasons.push(
+      `vertices_ratio=${vertexRatio.toFixed(6)} > ${NIM_VERTEX_RATIO_LIMIT}`,
+    );
   }
 
   const boneRatio = diff.ratio.bones;
-  if (boneRatio !== null && Math.abs(boneRatio - 1) > NIM_BONE_RATIO_TOLERANCE) {
-    reasons.push(`bones_ratio=${boneRatio.toFixed(6)} outside +/-${NIM_BONE_RATIO_TOLERANCE}`);
+  if (
+    boneRatio !== null &&
+    Math.abs(boneRatio - 1) > NIM_BONE_RATIO_TOLERANCE
+  ) {
+    reasons.push(
+      `bones_ratio=${boneRatio.toFixed(6)} outside +/-${NIM_BONE_RATIO_TOLERANCE}`,
+    );
   }
 
   const morphRatio = diff.ratio.morphs;
-  if (morphRatio !== null && Math.abs(morphRatio - 1) > NIM_MORPH_RATIO_TOLERANCE) {
-    reasons.push(`morphs_ratio=${morphRatio.toFixed(6)} outside +/-${NIM_MORPH_RATIO_TOLERANCE}`);
+  if (
+    morphRatio !== null &&
+    Math.abs(morphRatio - 1) > NIM_MORPH_RATIO_TOLERANCE
+  ) {
+    reasons.push(
+      `morphs_ratio=${morphRatio.toFixed(6)} outside +/-${NIM_MORPH_RATIO_TOLERANCE}`,
+    );
   }
 
   return {
@@ -310,15 +380,19 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     qualityAutoReportConfirm: (signals) =>
       `変換は成功しましたが、品質崩れの可能性があるログを検出しました。\n\n検出シグナル: ${signals}\n\n匿名レポートを送信しますか？\n送信すると、将来このケースが改善される可能性があります。`,
     allResetConfirmTitle: "リセット確認",
-    allResetConfirmMessage: "すべての設定をリセットし、ローカルストレージをクリアしますか？",
+    allResetConfirmMessage:
+      "すべての設定をリセットし、ローカルストレージをクリアしますか？",
     allResetCounterLabel: "変換カウンターもリセットする",
-    taPoseZeroConfirm: "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
+    taPoseZeroConfirm:
+      "T/A Pose が 0 度に設定されています。このまま変換を続けますか？",
     taPoseZeroCanceled: "0 度のポーズ設定により変換をキャンセルしました。",
     turboLabsLabel: "Turbo (Labs)",
-    turboLabsEnableInSettingTooltip: "有効にするにはセッティングを変更してください。",
+    turboLabsEnableInSettingTooltip:
+      "有効にするにはセッティングを変更してください。",
     turboLabsSettingLabel: "Turbo: 爆速化を有効にする",
     installButtonLabel: "Install",
-    installUnsupportedHint: "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
+    installUnsupportedHint:
+      "ブラウザの共有メニューから「ホーム画面に追加」を選んでください。",
     installDialogTitle: "アプリをインストール",
     installDialogDescription: "デスクトップやホーム画面からすぐ起動できます。",
     restrictedRedistributionModificationConfirm:
@@ -365,13 +439,16 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     allResetConfirmTitle: "Confirm Reset",
     allResetConfirmMessage: "Reset all settings and clear local storage?",
     allResetCounterLabel: "Also reset the conversion counter",
-    taPoseZeroConfirm: "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
+    taPoseZeroConfirm:
+      "T/A Pose Convert is set to 0 degrees. Do you want to continue conversion?",
     taPoseZeroCanceled: "Conversion canceled at 0 degree pose setting.",
     turboLabsLabel: "Turbo (Labs)",
-    turboLabsEnableInSettingTooltip: "To enable this, please change the setting.",
+    turboLabsEnableInSettingTooltip:
+      "To enable this, please change the setting.",
     turboLabsSettingLabel: "Turbo: Enable high-speed mode",
     installButtonLabel: "Install",
-    installUnsupportedHint: "Use your browser menu and choose \"Add to Home Screen\".",
+    installUnsupportedHint:
+      'Use your browser menu and choose "Add to Home Screen".',
     installDialogTitle: "Install App",
     installDialogDescription: "Launch quickly from your home screen.",
     restrictedRedistributionModificationConfirm:
@@ -380,7 +457,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     restrictedRedistributionModificationProceed: "Proceed",
     previewShaderErrorTitle: "PMX Preview Error",
     previewShaderErrorMessage:
-      "Conversion succeeded, and ZIP download is available, but PMX preview rendering failed.\nSending a report via \"Report quality issue\" helps future improvements.",
+      'Conversion succeeded, and ZIP download is available, but PMX preview rendering failed.\nSending a report via "Report quality issue" helps future improvements.',
     previewShaderErrorOk: "OK",
     heartButtonAriaLabel: "Send a heart to the developer",
     heartDialogTitle: "Send a heart to the developer",
@@ -409,8 +486,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
       "转换完成，但外观存在问题。是否发送匿名报告？\n发送后，该情况可能在未来版本中得到改善。",
     qualityReportDialogSend: "发送",
     qualityReportDialogCancel: "取消",
-    qualityReportSubmittedMessage:
-      "已发送匿名报告。这有助于未来改善转换质量。",
+    qualityReportSubmittedMessage: "已发送匿名报告。这有助于未来改善转换质量。",
     qualityReportEnableHint:
       "启用错误报告功能，可匿名报告转换成功但质量有问题的情况。",
     qualityAutoReportConfirm: (signals) =>
@@ -458,7 +534,10 @@ function detectAppLocale(language: string | undefined): AppLocale {
   return "en";
 }
 
-function localizeAllowDisallow(value: string, locale: AppLocale): { text: string; isNg: boolean } {
+function localizeAllowDisallow(
+  value: string,
+  locale: AppLocale,
+): { text: string; isNg: boolean } {
   const normalized = value.trim().toLowerCase();
   if (locale === "en") {
     return {
@@ -644,7 +723,6 @@ function getStageProgressPercent(stage: WorkerProgressStage): number {
   }
 }
 
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -683,15 +761,14 @@ function normalizeAssetPath(path: string): string {
   }
 
   const decoded = decodeURIComponent(noQuery);
-  return decoded
-    .replace(/\\/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/^\/+/, "");
+  return decoded.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
 }
 
 function buildAssetLookupCandidates(path: string): string[] {
   const normalized = normalizeAssetPath(path);
-  const segments = normalized.split("/").filter((segment) => segment.length > 0);
+  const segments = normalized
+    .split("/")
+    .filter((segment) => segment.length > 0);
   const candidates = new Set<string>();
 
   if (normalized) {
@@ -783,7 +860,9 @@ function pushInfoRow(rows: InfoRow[], label: string, value: unknown) {
 }
 
 function extractVrmInfoData(gltf: unknown): VrmInfoData {
-  const parserJson = asRecord((gltf as { parser?: { json?: unknown } })?.parser?.json);
+  const parserJson = asRecord(
+    (gltf as { parser?: { json?: unknown } })?.parser?.json,
+  );
   const extensions = asRecord(parserJson.extensions);
   const asset = asRecord(parserJson.asset);
   const vrm1 = asRecord(extensions.VRMC_vrm);
@@ -801,7 +880,11 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
       summaryRows.push(createInfoRow("Author", authors.join(", ")));
     }
 
-    pushInfoRow(summaryRows, "Version", vrm1Meta.version || vrm1.specVersion || asset.version);
+    pushInfoRow(
+      summaryRows,
+      "Version",
+      vrm1Meta.version || vrm1.specVersion || asset.version,
+    );
 
     pushInfoRow(summaryRows, "Contact", vrm1Meta.contactInformation);
     pushInfoRow(summaryRows, "Copyright", vrm1Meta.copyrightInformation);
@@ -815,14 +898,38 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
     pushInfoRow(licenseRows, "Commercial Usage", vrm1Meta.commercialUsage);
     pushInfoRow(licenseRows, "Credit Notation", vrm1Meta.creditNotation);
     pushInfoRow(licenseRows, "Modification", vrm1Meta.modification);
-    pushInfoRow(licenseRows, "Allow Redistribution", vrm1Meta.allowRedistribution);
-    pushInfoRow(licenseRows, "Allow Violent Usage", vrm1Meta.allowExcessivelyViolentUsage);
-    pushInfoRow(licenseRows, "Allow Sexual Usage", vrm1Meta.allowExcessivelySexualUsage);
-    pushInfoRow(licenseRows, "Allow Political/Religious", vrm1Meta.allowPoliticalOrReligiousUsage);
-    pushInfoRow(licenseRows, "Allow Antisocial/Hate", vrm1Meta.allowAntisocialOrHateUsage);
+    pushInfoRow(
+      licenseRows,
+      "Allow Redistribution",
+      vrm1Meta.allowRedistribution,
+    );
+    pushInfoRow(
+      licenseRows,
+      "Allow Violent Usage",
+      vrm1Meta.allowExcessivelyViolentUsage,
+    );
+    pushInfoRow(
+      licenseRows,
+      "Allow Sexual Usage",
+      vrm1Meta.allowExcessivelySexualUsage,
+    );
+    pushInfoRow(
+      licenseRows,
+      "Allow Political/Religious",
+      vrm1Meta.allowPoliticalOrReligiousUsage,
+    );
+    pushInfoRow(
+      licenseRows,
+      "Allow Antisocial/Hate",
+      vrm1Meta.allowAntisocialOrHateUsage,
+    );
     pushInfoRow(licenseRows, "License URL", vrm1Meta.licenseUrl);
     pushInfoRow(licenseRows, "Other License URL", vrm1Meta.otherLicenseUrl);
-    pushInfoRow(licenseRows, "Third Party Licenses", vrm1Meta.thirdPartyLicenses);
+    pushInfoRow(
+      licenseRows,
+      "Third Party Licenses",
+      vrm1Meta.thirdPartyLicenses,
+    );
 
     return { summaryRows, licenseRows };
   }
@@ -853,10 +960,20 @@ function extractVrmInfoData(gltf: unknown): VrmInfoData {
 
   const licenseNameText = asString(vrm0Meta.licenseName);
   const licenseNameNormalized = licenseNameText.toLowerCase();
-  if (!redistributionFromUrl && licenseNameNormalized.includes("redistribution_prohibited")) {
-    pushInfoRow(licenseRows, "Allow Redistribution", "redistribution_prohibited");
+  if (
+    !redistributionFromUrl &&
+    licenseNameNormalized.includes("redistribution_prohibited")
+  ) {
+    pushInfoRow(
+      licenseRows,
+      "Allow Redistribution",
+      "redistribution_prohibited",
+    );
   }
-  if (!modificationFromUrl && licenseNameNormalized.includes("modification_prohibited")) {
+  if (
+    !modificationFromUrl &&
+    licenseNameNormalized.includes("modification_prohibited")
+  ) {
     pushInfoRow(licenseRows, "Modification", "modification_prohibited");
   }
 
@@ -871,7 +988,13 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
   const lines: string[] = [];
 
   if (infoData.summaryRows.length > 0) {
-    lines.push(locale === "ja" ? "=== 基本情報 ===" : locale === "zh" ? "=== 基本信息 ===" : "=== Basic Information ===");
+    lines.push(
+      locale === "ja"
+        ? "=== 基本情報 ==="
+        : locale === "zh"
+          ? "=== 基本信息 ==="
+          : "=== Basic Information ===",
+    );
     infoData.summaryRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
       lines.push(`${localizedLabel}: ${row.value}`);
@@ -880,7 +1003,13 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
   }
 
   if (infoData.licenseRows.length > 0) {
-    lines.push(locale === "ja" ? "=== ライセンス情報 ===" : locale === "zh" ? "=== 许可证信息 ===" : "=== License Information ===");
+    lines.push(
+      locale === "ja"
+        ? "=== ライセンス情報 ==="
+        : locale === "zh"
+          ? "=== 许可证信息 ==="
+          : "=== License Information ===",
+    );
     infoData.licenseRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
       const localizedValue = localizeAllowDisallow(row.value, locale).text;
@@ -909,7 +1038,12 @@ async function addLicenseToZip(
       lastModDate?: Date;
       comment?: string;
     };
-    if (current.directory || !current.filename || current.filename === "license.txt" || !current.getData) {
+    if (
+      current.directory ||
+      !current.filename ||
+      current.filename === "license.txt" ||
+      !current.getData
+    ) {
       continue;
     }
 
@@ -920,7 +1054,10 @@ async function addLicenseToZip(
     });
   }
 
-  await writer.add("license.txt", new BlobReader(new Blob([licenseText], { type: "text/plain" })));
+  await writer.add(
+    "license.txt",
+    new BlobReader(new Blob([licenseText], { type: "text/plain" })),
+  );
   await zipReader.close();
   const newZipBlob = await writer.close();
   return newZipBlob;
@@ -993,7 +1130,9 @@ async function buildPmxZipFromVrm(
   const sourceBuffer = await sourceVrmFile.arrayBuffer();
   const view = new DataView(sourceBuffer);
   if (sourceBuffer.byteLength < 12 || view.getUint32(0, true) !== GLB_MAGIC) {
-    throw new Error("RUST_PMX_ZIP_FAILED: Input file is not a valid GLB container.");
+    throw new Error(
+      "RUST_PMX_ZIP_FAILED: Input file is not a valid GLB container.",
+    );
   }
 
   let jsonChunkBytes: Uint8Array | null = null;
@@ -1018,20 +1157,31 @@ async function buildPmxZipFromVrm(
 
   const extractedTextures: ExtractedTextureAsset[] = [];
   if (jsonChunkBytes) {
-    const jsonText = new TextDecoder().decode(jsonChunkBytes).replace(/\u0000+$/g, "").trimEnd();
+    const jsonText = new TextDecoder()
+      .decode(jsonChunkBytes)
+      .replace(/\u0000+$/g, "")
+      .trimEnd();
     const gltfJson = JSON.parse(jsonText) as {
-      images?: Array<{ name?: string; mimeType?: string; bufferView?: number; uri?: string }>;
+      images?: Array<{
+        name?: string;
+        mimeType?: string;
+        bufferView?: number;
+        uri?: string;
+      }>;
       bufferViews?: Array<{ byteOffset?: number; byteLength?: number }>;
     };
 
     const images = Array.isArray(gltfJson.images) ? gltfJson.images : [];
-    const bufferViews = Array.isArray(gltfJson.bufferViews) ? gltfJson.bufferViews : [];
+    const bufferViews = Array.isArray(gltfJson.bufferViews)
+      ? gltfJson.bufferViews
+      : [];
     const usedNames = new Set<string>();
 
     for (let i = 0; i < images.length; i++) {
       const image = images[i] || {};
       let bytes: Uint8Array | null = null;
-      let mimeType: string | null = typeof image.mimeType === "string" ? image.mimeType : null;
+      let mimeType: string | null =
+        typeof image.mimeType === "string" ? image.mimeType : null;
 
       if (
         typeof image.bufferView === "number" &&
@@ -1046,7 +1196,10 @@ async function buildPmxZipFromVrm(
         if (length > 0 && end <= binChunkBytes.byteLength) {
           bytes = binChunkBytes.slice(start, end);
         }
-      } else if (typeof image.uri === "string" && image.uri.startsWith("data:")) {
+      } else if (
+        typeof image.uri === "string" &&
+        image.uri.startsWith("data:")
+      ) {
         const decoded = decodeDataUri(image.uri);
         if (decoded) {
           bytes = decoded.bytes;
@@ -1062,7 +1215,11 @@ async function buildPmxZipFromVrm(
 
       const extension = inferTextureExtension(mimeType);
       const baseName = normalizeTextureBaseName(
-        typeof image.name === "string" ? image.name : typeof image.uri === "string" ? image.uri : "",
+        typeof image.name === "string"
+          ? image.name
+          : typeof image.uri === "string"
+            ? image.uri
+            : "",
         `texture_${i}`,
       );
 
@@ -1079,7 +1236,9 @@ async function buildPmxZipFromVrm(
 
       extractedTextures.push({
         fileName: candidate,
-        blob: new Blob([blobBytes.buffer], { type: mimeType || "application/octet-stream" }),
+        blob: new Blob([blobBytes.buffer], {
+          type: mimeType || "application/octet-stream",
+        }),
       });
     }
   }
@@ -1100,14 +1259,20 @@ async function buildPmxZipFromVrm(
 }
 
 function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
-  const geometry = mesh.geometry as THREE.BufferGeometry & { userData?: unknown };
+  const geometry = mesh.geometry as THREE.BufferGeometry & {
+    userData?: unknown;
+  };
   const mmd = asRecord(asRecord(geometry.userData).MMD);
   const metadata = asRecord(mmd.metadata);
 
   const summaryRows: InfoRow[] = [];
   const licenseRows: InfoRow[] = [];
 
-  pushInfoRow(summaryRows, "Model Name", metadata.modelName || metadata.name || mesh.name);
+  pushInfoRow(
+    summaryRows,
+    "Model Name",
+    metadata.modelName || metadata.name || mesh.name,
+  );
   pushInfoRow(summaryRows, "Model Name EN", metadata.englishModelName);
   pushInfoRow(summaryRows, "Comment", metadata.comment);
   pushInfoRow(summaryRows, "Comment EN", metadata.englishComment);
@@ -1122,8 +1287,10 @@ function extractPmxInfoData(mesh: THREE.SkinnedMesh): PmxInfoData {
   pushInfoRow(licenseRows, "License", metadata.licenseName);
   pushInfoRow(licenseRows, "Copyright", metadata.copyright);
 
-  const commentUrls = [asString(metadata.comment), asString(metadata.englishComment)]
-    .flatMap((comment) => extractUrls(comment));
+  const commentUrls = [
+    asString(metadata.comment),
+    asString(metadata.englishComment),
+  ].flatMap((comment) => extractUrls(comment));
   commentUrls.forEach((url, index) => {
     licenseRows.push(createInfoRow(`Reference URL ${index + 1}`, url));
   });
@@ -1136,14 +1303,23 @@ function isRedistributionOrModificationNG(infoData: VrmInfoData): boolean {
     const label = row.label.toLowerCase();
     const value = row.value.toLowerCase();
     if (
-      (label.includes("redistribution") || label.includes("allow redistribution")) &&
-      (value === "ng" || value === "disallow" || value === "prohibited" || value === "=再配布禁止=" || value.includes("prohibited"))
+      (label.includes("redistribution") ||
+        label.includes("allow redistribution")) &&
+      (value === "ng" ||
+        value === "disallow" ||
+        value === "prohibited" ||
+        value === "=再配布禁止=" ||
+        value.includes("prohibited"))
     ) {
       return true;
     }
     if (
       (label.includes("modification") || label === "改変の許可") &&
-      (value === "ng" || value === "disallow" || value === "prohibited" || value === "改変禁止" || value.includes("prohibited"))
+      (value === "ng" ||
+        value === "disallow" ||
+        value === "prohibited" ||
+        value === "改変禁止" ||
+        value.includes("prohibited"))
     ) {
       return true;
     }
@@ -1151,7 +1327,9 @@ function isRedistributionOrModificationNG(infoData: VrmInfoData): boolean {
   return false;
 }
 
-function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean {
+function hasTextureImageData(
+  texture: THREE.Texture | null | undefined,
+): boolean {
   if (!texture) {
     return false;
   }
@@ -1162,7 +1340,9 @@ function hasTextureImageData(texture: THREE.Texture | null | undefined): boolean
   return Boolean(tex.image || tex.source?.data);
 }
 
-function hasPendingTextureCallback(texture: THREE.Texture | null | undefined): boolean {
+function hasPendingTextureCallback(
+  texture: THREE.Texture | null | undefined,
+): boolean {
   if (!texture) {
     return false;
   }
@@ -1172,7 +1352,9 @@ function hasPendingTextureCallback(texture: THREE.Texture | null | undefined): b
   return Array.isArray(tex.readyCallbacks);
 }
 
-function getMaterialColorTexture(material: THREE.Material | null | undefined): THREE.Texture | null {
+function getMaterialColorTexture(
+  material: THREE.Material | null | undefined,
+): THREE.Texture | null {
   if (!material) {
     return null;
   }
@@ -1212,7 +1394,10 @@ function collectMeshMaterials(root: THREE.Object3D): THREE.Material[] {
   return materials;
 }
 
-async function waitForTextureReady(texture: THREE.Texture, timeoutMs: number): Promise<void> {
+async function waitForTextureReady(
+  texture: THREE.Texture,
+  timeoutMs: number,
+): Promise<void> {
   if (hasTextureImageData(texture) || !hasPendingTextureCallback(texture)) {
     return;
   }
@@ -1235,7 +1420,10 @@ async function waitForTextureReady(texture: THREE.Texture, timeoutMs: number): P
   });
 }
 
-async function waitForMeshColorTextures(root: THREE.Object3D, timeoutMs: number): Promise<void> {
+async function waitForMeshColorTextures(
+  root: THREE.Object3D,
+  timeoutMs: number,
+): Promise<void> {
   const uniqueTextures = new Set<THREE.Texture>();
   for (const material of collectMeshMaterials(root)) {
     const texture = getMaterialColorTexture(material);
@@ -1244,7 +1432,11 @@ async function waitForMeshColorTextures(root: THREE.Object3D, timeoutMs: number)
     }
   }
 
-  await Promise.all([...uniqueTextures].map((texture) => waitForTextureReady(texture, timeoutMs)));
+  await Promise.all(
+    [...uniqueTextures].map((texture) =>
+      waitForTextureReady(texture, timeoutMs),
+    ),
+  );
 }
 
 async function captureCanvasSnapshotDataUrl(
@@ -1307,7 +1499,9 @@ function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
 
   const onInstallClick = () => {
     if (!supported()) {
-      window.alert(`${i18n.installDialogTitle}\n\n${i18n.installUnsupportedHint}`);
+      window.alert(
+        `${i18n.installDialogTitle}\n\n${i18n.installUnsupportedHint}`,
+      );
       return;
     }
 
@@ -1320,7 +1514,11 @@ function PwaInstallControl({ i18n }: { i18n: AppI18n }) {
   };
 
   return (
-    <button type="button" className="footer-action-button footer-install-button" onClick={onInstallClick}>
+    <button
+      type="button"
+      className="footer-action-button footer-install-button"
+      onClick={onInstallClick}
+    >
       {i18n.installButtonLabel}
     </button>
   );
@@ -1375,7 +1573,12 @@ function HeartThanksDialog({
         }
       }}
     >
-      <section className="heart-modal" role="dialog" aria-modal="true" aria-labelledby="heart-title">
+      <section
+        className="heart-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="heart-title"
+      >
         <header className="heart-modal-header">
           <h2 id="heart-title">{i18n.heartDialogTitle}</h2>
         </header>
@@ -1388,13 +1591,25 @@ function HeartThanksDialog({
             placeholder={i18n.heartDialogPlaceholder}
             onChange={(event) => onMessageChange(event.target.value)}
           />
-          <p className="heart-remaining">{i18n.heartDialogRemaining(remaining)}</p>
+          <p className="heart-remaining">
+            {i18n.heartDialogRemaining(remaining)}
+          </p>
         </div>
         <footer className="heart-modal-actions">
-          <button type="button" className="footer-action-button" onClick={onClose} disabled={isSubmitting}>
+          <button
+            type="button"
+            className="footer-action-button"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             {i18n.heartDialogCancel}
           </button>
-          <button type="button" className="footer-action-button heart-submit-button" onClick={onSubmit} disabled={isSubmitting}>
+          <button
+            type="button"
+            className="footer-action-button heart-submit-button"
+            onClick={onSubmit}
+            disabled={isSubmitting}
+          >
             {heartSubmitText.length > 0 ? `${heartSubmitText} ` : ""}
             <span className="heart-submit-icon" aria-hidden="true">
               ❤
@@ -1420,21 +1635,37 @@ function formatCounterValue(count: number, minDigits: number): string {
 }
 
 export default function App() {
-  const [maximizedPreview, setMaximizedPreview] = useState<"vrm" | "pmx" | null>(null);
+  const [maximizedPreview, setMaximizedPreview] = useState<
+    "vrm" | "pmx" | null
+  >(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const {
-    mode, setMode,
-    taPoseAngle, setTaPoseAngle,
-    orbitSyncEnabled, setOrbitSyncEnabled, orbitSyncEnabledRef,
-    logEnabled, setLogEnabled, logEnabledRef,
-    rustEnabled, setRustEnabled,
-    turboLabsEnabled, setTurboLabsEnabled,
-    nimEnabled, setNimEnabled,
-    worldCounterParticipationEnabled, setWorldCounterParticipationEnabled,
-    gridEnabled, setGridEnabled, gridEnabledRef,
-    pmxBrightnessScale, setPmxBrightnessScale,
-    pmxContrastFactor, setPmxContrastFactor,
+    mode,
+    setMode,
+    taPoseAngle,
+    setTaPoseAngle,
+    orbitSyncEnabled,
+    setOrbitSyncEnabled,
+    orbitSyncEnabledRef,
+    logEnabled,
+    setLogEnabled,
+    logEnabledRef,
+    rustEnabled,
+    setRustEnabled,
+    turboLabsEnabled,
+    setTurboLabsEnabled,
+    nimEnabled,
+    setNimEnabled,
+    worldCounterParticipationEnabled,
+    setWorldCounterParticipationEnabled,
+    gridEnabled,
+    setGridEnabled,
+    gridEnabledRef,
+    pmxBrightnessScale,
+    setPmxBrightnessScale,
+    pmxContrastFactor,
+    setPmxContrastFactor,
     isUiSettingsHydrated,
     resetToDefaults,
   } = useUiSettings();
@@ -1444,7 +1675,9 @@ export default function App() {
   const logLinesRef = useRef<string[]>([]);
   const convertUiLogCountRef = useRef(0);
   const convertUiLogSeenRef = useRef<Set<string>>(new Set());
-  const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">(
+    "idle",
+  );
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [aboutDefaultTab, setAboutDefaultTab] = useState<AboutTabId>("about");
   const [isHeartDialogOpen, setIsHeartDialogOpen] = useState(false);
@@ -1466,13 +1699,15 @@ export default function App() {
   const [localCounter, setLocalCounter] = useState<number>(() => {
     try {
       const raw = window.localStorage.getItem(LOCAL_COUNTER_KEY);
-      return raw ? (parseInt(raw, 10) || 0) : 0;
+      return raw ? parseInt(raw, 10) || 0 : 0;
     } catch {
       return 0;
     }
   });
   const [worldCounter, setWorldCounter] = useState(0);
-  const [counterDisplayMode, setCounterDisplayMode] = useState<"local" | "world">(() => {
+  const [counterDisplayMode, setCounterDisplayMode] = useState<
+    "local" | "world"
+  >(() => {
     try {
       const raw = window.localStorage.getItem(COUNTER_DISPLAY_MODE_KEY);
       return raw === "world" ? "world" : "local";
@@ -1488,9 +1723,18 @@ export default function App() {
   const [hasVrmSkeleton, setHasVrmSkeleton] = useState(false);
   const [pmxBonesVisible, setPmxBonesVisible] = useState(false);
   const [hasPmxSkeleton, setHasPmxSkeleton] = useState(false);
-  const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({ summaryRows: [], licenseRows: [] });
-  const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({ summaryRows: [], licenseRows: [] });
-  const [isVrmRedistributionOrModificationNG, setIsVrmRedistributionOrModificationNG] = useState(false);
+  const [vrmInfoData, setVrmInfoData] = useState<VrmInfoData>({
+    summaryRows: [],
+    licenseRows: [],
+  });
+  const [pmxInfoData, setPmxInfoData] = useState<PmxInfoData>({
+    summaryRows: [],
+    licenseRows: [],
+  });
+  const [
+    isVrmRedistributionOrModificationNG,
+    setIsVrmRedistributionOrModificationNG,
+  ] = useState(false);
   const logAreaRef = useRef<HTMLDivElement | null>(null);
   const [isVrmReady, setIsVrmReady] = useState(false);
   const [message, setMessage] = useState("VRM file is not selected yet.");
@@ -1498,16 +1742,27 @@ export default function App() {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
-  const [convertProgressStage, setConvertProgressStage] = useState<WorkerProgressStage | "done" | null>(null);
-  const [convertedOutput, setConvertedOutput] = useState<ConvertedOutput | null>(null);
-  const [detectedProfileResult, setDetectedProfileResult] = useState<ProfileDetectionResult | null>(null);
-  const [detectedQualityRiskSignals, setDetectedQualityRiskSignals] = useState<string[]>([]);
+  const [convertProgressStage, setConvertProgressStage] = useState<
+    WorkerProgressStage | "done" | null
+  >(null);
+  const [convertedOutput, setConvertedOutput] =
+    useState<ConvertedOutput | null>(null);
+  const [detectedProfileResult, setDetectedProfileResult] =
+    useState<ProfileDetectionResult | null>(null);
+  const [detectedQualityRiskSignals, setDetectedQualityRiskSignals] = useState<
+    string[]
+  >([]);
   const runtimeQualitySignalsRef = useRef<Set<string>>(new Set());
   const profileDetectionRequestIdRef = useRef(0);
-  const [lastRequestedMode, setLastRequestedMode] = useState<ConvertMode | null>(null);
+  const [lastRequestedMode, setLastRequestedMode] =
+    useState<ConvertMode | null>(null);
   const [lastUsedMode, setLastUsedMode] = useState<ConvertMode | null>(null);
-  const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(null);
-  const [lastConversionReportId, setLastConversionReportId] = useState<string | null>(null);
+  const [lastFallbackReason, setLastFallbackReason] = useState<string | null>(
+    null,
+  );
+  const [lastConversionReportId, setLastConversionReportId] = useState<
+    string | null
+  >(null);
   const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
@@ -1529,8 +1784,12 @@ export default function App() {
     baseDistance: number;
     anchorTarget: THREE.Vector3;
   } | null>(null);
-  const vrmIdleManagerRef = useRef<ReturnType<typeof createIdleRotationManager> | null>(null);
-  const pmxIdleManagerRef = useRef<ReturnType<typeof createIdleRotationManager> | null>(null);
+  const vrmIdleManagerRef = useRef<ReturnType<
+    typeof createIdleRotationManager
+  > | null>(null);
+  const pmxIdleManagerRef = useRef<ReturnType<
+    typeof createIdleRotationManager
+  > | null>(null);
   const pmxLightRuntimeRef = useRef<{
     ambientLight: THREE.AmbientLight;
     keyLight: THREE.DirectionalLight;
@@ -1553,8 +1812,16 @@ export default function App() {
     };
     isConverting: boolean;
   }>({
-    vrmState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
-    pmxState: { isRotating: false, rotationDirection: 1, inactivityTimeoutId: null },
+    vrmState: {
+      isRotating: false,
+      rotationDirection: 1,
+      inactivityTimeoutId: null,
+    },
+    pmxState: {
+      isRotating: false,
+      rotationDirection: 1,
+      inactivityTimeoutId: null,
+    },
     isConverting: false,
   });
   const upperArmStateRef = useRef<UpperArmState>({
@@ -1567,18 +1834,26 @@ export default function App() {
   const [isInstalledState, setIsInstalledState] = useState(false);
   const backendEnabled = isBackendFallbackEnabled();
   const appLocale = useMemo(
-    () => detectAppLocale(typeof navigator !== "undefined" ? navigator.language : "en"),
+    () =>
+      detectAppLocale(
+        typeof navigator !== "undefined" ? navigator.language : "en",
+      ),
     [],
   );
   const i18n = APP_I18N[appLocale];
-  const isHeartLocked = heartLockUntil !== null && heartLockUntil - 5000 > Date.now();
+  const isHeartLocked =
+    heartLockUntil !== null && heartLockUntil - 5000 > Date.now();
   const isWorldCounterDisplayed = counterDisplayMode === "world";
   const formatWorldCountUpValue = useCallback((value: number) => {
     return formatCounterValue(Math.floor(value), 9);
   }, []);
 
   const reportWorldCounterError = useCallback(
-    (action: "fetch" | "increment", error: unknown, context: Record<string, string>) => {
+    (
+      action: "fetch" | "increment",
+      error: unknown,
+      context: Record<string, string>,
+    ) => {
       Sentry.withScope((scope) => {
         scope.setLevel("warning");
         scope.setTag("feature", "world_counter");
@@ -1586,7 +1861,9 @@ export default function App() {
         Object.entries(context).forEach(([key, value]) => {
           scope.setContext(key, { value });
         });
-        Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+        Sentry.captureException(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       });
     },
     [],
@@ -1607,9 +1884,12 @@ export default function App() {
 
   useEffect(() => {
     refreshWorldCounter("startup");
-    const intervalId = window.setInterval(() => {
-      refreshWorldCounter("interval_5min");
-    }, 5 * 60 * 1000);
+    const intervalId = window.setInterval(
+      () => {
+        refreshWorldCounter("interval_5min");
+      },
+      5 * 60 * 1000,
+    );
     return () => {
       window.clearInterval(intervalId);
     };
@@ -1668,7 +1948,10 @@ export default function App() {
   // Record last_launch_date and open About/History on version change
   useEffect(() => {
     try {
-      window.localStorage.setItem(LAST_LAUNCH_DATE_KEY, new Date().toISOString());
+      window.localStorage.setItem(
+        LAST_LAUNCH_DATE_KEY,
+        new Date().toISOString(),
+      );
       const savedVersion = window.localStorage.getItem(LAST_BOOT_VERSION_KEY);
       if (savedVersion !== APP_VERSION) {
         window.localStorage.setItem(LAST_BOOT_VERSION_KEY, APP_VERSION);
@@ -1704,13 +1987,17 @@ export default function App() {
     const trimmed = heartMessage.trim();
     const feedbackUserId = (() => {
       try {
-        const existing = window.localStorage.getItem(HEART_FEEDBACK_USER_ID_KEY)?.trim();
+        const existing = window.localStorage
+          .getItem(HEART_FEEDBACK_USER_ID_KEY)
+          ?.trim();
         if (existing) {
           return existing;
         }
-        const nextId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `fallback-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        const nextId =
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `fallback-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
         window.localStorage.setItem(HEART_FEEDBACK_USER_ID_KEY, nextId);
         return nextId;
       } catch {
@@ -1718,7 +2005,10 @@ export default function App() {
       }
     })();
 
-    const lines = ["❤ A user sent a heart from VRM to MMD Converter.", `feedbackUserId: ${feedbackUserId}`];
+    const lines = [
+      "❤ A user sent a heart from VRM to MMD Converter.",
+      `feedbackUserId: ${feedbackUserId}`,
+    ];
     if (trimmed.length > 0) {
       lines.push("Message:");
       lines.push(trimmed);
@@ -1817,7 +2107,9 @@ export default function App() {
       return "Local";
     }
 
-    const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const iosStandalone = Boolean(
+      (navigator as Navigator & { standalone?: boolean }).standalone,
+    );
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       iosStandalone ||
@@ -1843,11 +2135,17 @@ export default function App() {
     [convertedOutput, status],
   );
   const pmxSummaryRowsForDisplay = useMemo(
-    () => (pmxInfoData.summaryRows.length > 0 ? pmxInfoData.summaryRows : vrmInfoData.summaryRows),
+    () =>
+      pmxInfoData.summaryRows.length > 0
+        ? pmxInfoData.summaryRows
+        : vrmInfoData.summaryRows,
     [pmxInfoData.summaryRows, vrmInfoData.summaryRows],
   );
   const pmxLicenseRowsForDisplay = useMemo(
-    () => (pmxInfoData.licenseRows.length > 0 ? pmxInfoData.licenseRows : vrmInfoData.licenseRows),
+    () =>
+      pmxInfoData.licenseRows.length > 0
+        ? pmxInfoData.licenseRows
+        : vrmInfoData.licenseRows,
     [pmxInfoData.licenseRows, vrmInfoData.licenseRows],
   );
   const logText = useMemo(() => logLines.join("\n"), [logLines]);
@@ -1903,22 +2201,42 @@ export default function App() {
 
     const normalized = joined.toLowerCase();
     if (log.level === "error") {
-      appendUserConvertLog("[ERROR] 変換中にエラーが発生しました。詳細はコンソールを確認してください。", "error");
+      appendUserConvertLog(
+        "[ERROR] 変換中にエラーが発生しました。詳細はコンソールを確認してください。",
+        "error",
+      );
       return;
     }
     if (log.level === "warn") {
-      appendUserConvertLog("[WARN] 変換中に注意メッセージがありました。", "warn");
+      appendUserConvertLog(
+        "[WARN] 変換中に注意メッセージがありました。",
+        "warn",
+      );
     }
 
     if (normalized.includes("bone")) {
       appendUserConvertLog("[INFO] ボーン変換中...");
-    } else if (normalized.includes("morph") || normalized.includes("expression")) {
+    } else if (
+      normalized.includes("morph") ||
+      normalized.includes("expression")
+    ) {
       appendUserConvertLog("[INFO] モーフ変換中...");
-    } else if (normalized.includes("material") || normalized.includes("texture")) {
+    } else if (
+      normalized.includes("material") ||
+      normalized.includes("texture")
+    ) {
       appendUserConvertLog("[INFO] 材質・テクスチャ変換中...");
-    } else if (normalized.includes("rigid") || normalized.includes("joint") || normalized.includes("physics")) {
+    } else if (
+      normalized.includes("rigid") ||
+      normalized.includes("joint") ||
+      normalized.includes("physics")
+    ) {
       appendUserConvertLog("[INFO] 物理情報変換中...");
-    } else if (normalized.includes("parse") || normalized.includes("glb") || normalized.includes("json")) {
+    } else if (
+      normalized.includes("parse") ||
+      normalized.includes("glb") ||
+      normalized.includes("json")
+    ) {
       appendUserConvertLog("[INFO] モデル解析中...");
     }
   }
@@ -1942,7 +2260,10 @@ export default function App() {
     appendConsoleLine([line], level);
   }
 
-  function appendUserConvertStageLog(stage: WorkerProgressStage, mode: ConvertMode) {
+  function appendUserConvertStageLog(
+    stage: WorkerProgressStage,
+    mode: ConvertMode,
+  ) {
     if (stage === "init") {
       appendUserConvertLog("[INFO] 変換準備中...");
       return;
@@ -1998,11 +2319,13 @@ export default function App() {
     }
   }, [pmxBonesVisible]);
 
-
   useEffect(() => {
     const originalWarn = console.warn;
     console.warn = (...args: unknown[]) => {
-      const line = args.map((arg) => formatLogArg(arg)).join(" ").toLowerCase();
+      const line = args
+        .map((arg) => formatLogArg(arg))
+        .join(" ")
+        .toLowerCase();
       if (line.includes("three.three.clock") && line.includes("deprecated")) {
         runtimeQualitySignalsRef.current.add("three-clock-deprecated");
       }
@@ -2017,9 +2340,10 @@ export default function App() {
     };
   }, []);
 
-
   function isErrorLogLine(line: string): boolean {
-    return /(error|failed|exception|traceback|aborterror|convert\.failed)/i.test(line);
+    return /(error|failed|exception|traceback|aborterror|convert\.failed)/i.test(
+      line,
+    );
   }
 
   async function onCopyLog() {
@@ -2062,7 +2386,8 @@ export default function App() {
         </label>
       ),
       onOk: () => {
-        const shouldResetCounter = resetCounterCheckboxRef.current?.checked ?? false;
+        const shouldResetCounter =
+          resetCounterCheckboxRef.current?.checked ?? false;
         cleanupPreview();
         cleanupPmxPreview();
         setConvertedOutput(null);
@@ -2170,13 +2495,17 @@ export default function App() {
       return;
     }
 
-    const source = sourceView === "vrm" ? vrmViewRef.current : pmxViewRef.current;
-    const target = sourceView === "vrm" ? pmxViewRef.current : vrmViewRef.current;
+    const source =
+      sourceView === "vrm" ? vrmViewRef.current : pmxViewRef.current;
+    const target =
+      sourceView === "vrm" ? pmxViewRef.current : vrmViewRef.current;
     if (!source || !target || orbitSyncLockRef.current) {
       return;
     }
 
-    const sourceOffset = source.camera.position.clone().sub(source.controls.target);
+    const sourceOffset = source.camera.position
+      .clone()
+      .sub(source.controls.target);
     const sourceDistance = sourceOffset.length();
     const sourceBaseDistance = Math.max(source.baseDistance, 1e-6);
     const targetBaseDistance = Math.max(target.baseDistance, 1e-6);
@@ -2191,7 +2520,9 @@ export default function App() {
       target.controls.minDistance,
       target.controls.maxDistance,
     );
-    const sourcePanDelta = source.controls.target.clone().sub(source.anchorTarget);
+    const sourcePanDelta = source.controls.target
+      .clone()
+      .sub(source.anchorTarget);
     const panScale = targetBaseDistance / sourceBaseDistance;
     const targetPanDelta = sourcePanDelta.multiplyScalar(panScale);
     const targetOrbitTarget = target.anchorTarget.clone().add(targetPanDelta);
@@ -2209,9 +2540,11 @@ export default function App() {
     }
   }
 
-  function resetOrbitView(view: {
-    controls: OrbitControls;
-  } | null) {
+  function resetOrbitView(
+    view: {
+      controls: OrbitControls;
+    } | null,
+  ) {
     if (!view) {
       return;
     }
@@ -2270,16 +2603,22 @@ export default function App() {
           return;
         }
         const view = viewRef.current;
-        const rotationSpeed = 0.01875 * (state.rotationDirection === 1 ? 1 : -1);
+        const rotationSpeed =
+          0.01875 * (state.rotationDirection === 1 ? 1 : -1);
         const angle = THREE.MathUtils.degToRad(rotationSpeed * deltaTime);
-        const targetToCamera = view.camera.position.clone().sub(view.controls.target);
+        const targetToCamera = view.camera.position
+          .clone()
+          .sub(view.controls.target);
         targetToCamera.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
         view.camera.position.copy(view.controls.target).add(targetToCamera);
       },
     };
   }
 
-  async function previewPmxFromZip(zipBlob: Blob, syncOrbitFromVrm = false): Promise<void> {
+  async function previewPmxFromZip(
+    zipBlob: Blob,
+    syncOrbitFromVrm = false,
+  ): Promise<void> {
     if (!pmxCanvasRef.current) {
       return;
     }
@@ -2339,7 +2678,9 @@ export default function App() {
           return;
         }
 
-        const toStandard = (material: THREE.Material | null | undefined): THREE.Material | null => {
+        const toStandard = (
+          material: THREE.Material | null | undefined,
+        ): THREE.Material | null => {
           if (!material) {
             return null;
           }
@@ -2357,15 +2698,20 @@ export default function App() {
           };
 
           const fallback = new THREE.MeshStandardMaterial({
-            color: source.color ? source.color.clone() : new THREE.Color(0xffffff),
+            color: source.color
+              ? source.color.clone()
+              : new THREE.Color(0xffffff),
             map: source.map ?? null,
-            emissive: source.emissive ? source.emissive.clone() : new THREE.Color(0x000000),
+            emissive: source.emissive
+              ? source.emissive.clone()
+              : new THREE.Color(0x000000),
             emissiveMap: source.emissiveMap ?? null,
             alphaMap: source.alphaMap ?? null,
             transparent: source.transparent ?? false,
             opacity: typeof source.opacity === "number" ? source.opacity : 1,
             side: source.side ?? THREE.FrontSide,
-            alphaTest: typeof source.alphaTest === "number" ? source.alphaTest : 0,
+            alphaTest:
+              typeof source.alphaTest === "number" ? source.alphaTest : 0,
             roughness: 1,
             metalness: 0,
           });
@@ -2383,7 +2729,9 @@ export default function App() {
             return fallback;
           });
           if (nextMaterials.some((mat) => mat !== null)) {
-            maybeMesh.material = nextMaterials.filter((mat): mat is THREE.Material => mat !== null);
+            maybeMesh.material = nextMaterials.filter(
+              (mat): mat is THREE.Material => mat !== null,
+            );
           }
           return;
         }
@@ -2401,9 +2749,12 @@ export default function App() {
 
       hasAppliedMaterialFallback = true;
       runtimeQualitySignalsRef.current.add("pmx-preview-material-fallback");
-      appendConsoleLine([
-        `[WARN] PMX preview fallback material enabled (${reason}), replaced materials: ${replacedMaterialCount}`,
-      ], "warn");
+      appendConsoleLine(
+        [
+          `[WARN] PMX preview fallback material enabled (${reason}), replaced materials: ${replacedMaterialCount}`,
+        ],
+        "warn",
+      );
       return true;
     };
 
@@ -2432,10 +2783,10 @@ export default function App() {
       if (loadedMesh) {
         scene.remove(loadedMesh);
       }
-        if (pmxGridRef.current) {
-          scene.remove(pmxGridRef.current);
-          pmxGridRef.current = null;
-        }
+      if (pmxGridRef.current) {
+        scene.remove(pmxGridRef.current);
+        pmxGridRef.current = null;
+      }
       for (const url of objectUrls) {
         URL.revokeObjectURL(url);
       }
@@ -2445,7 +2796,8 @@ export default function App() {
 
     pmxPreviewCleanupRef.current = disposePreview;
 
-    let pmxIdleManager: ReturnType<typeof createIdleRotationManager> | null = null;
+    let pmxIdleManager: ReturnType<typeof createIdleRotationManager> | null =
+      null;
     try {
       scene.background = new THREE.Color("#dde8f5");
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -2467,7 +2819,10 @@ export default function App() {
       if (rendererWithShaderDebug.debug) {
         rendererWithShaderDebug.debug.onShaderError = () => {
           runtimeQualitySignalsRef.current.add("pmx-shader-compile-failed");
-          appendConsoleLine(["[ERROR] PMX preview shader compile failed."], "error");
+          appendConsoleLine(
+            ["[ERROR] PMX preview shader compile failed."],
+            "error",
+          );
           const recovered = applyPmxPreviewMaterialFallback("shader-compile");
           if (!recovered) {
             showPreviewShaderErrorDialog();
@@ -2487,20 +2842,30 @@ export default function App() {
       const entries = await zipReader.getEntries();
       const entryFileNames = entries
         .map((entry) => {
-          const current = entry as unknown as { filename?: string; directory?: boolean };
+          const current = entry as unknown as {
+            filename?: string;
+            directory?: boolean;
+          };
           if (current.directory || !current.filename) {
             return null;
           }
           return normalizeAssetPath(current.filename);
         })
         .filter((name): name is string => Boolean(name));
-      const textureEntryNames = entryFileNames.filter((name) => /\.(png|jpe?g|bmp|tga|dds|webp)$/i.test(name));
-      const pmxEntryCandidates = entryFileNames.filter((name) => /\.pmx$/i.test(name));
+      const textureEntryNames = entryFileNames.filter((name) =>
+        /\.(png|jpe?g|bmp|tga|dds|webp)$/i.test(name),
+      );
+      const pmxEntryCandidates = entryFileNames.filter((name) =>
+        /\.pmx$/i.test(name),
+      );
       pmxDebug("zip entries", {
         count: entries.length,
         files: entries
           .map((entry) => {
-            const current = entry as unknown as { filename?: string; directory?: boolean };
+            const current = entry as unknown as {
+              filename?: string;
+              directory?: boolean;
+            };
             return {
               name: current.filename ?? "",
               directory: !!current.directory,
@@ -2533,7 +2898,9 @@ export default function App() {
 
       await zipReader.close();
 
-      const pmxEntryName = [...assetMap.keys()].find((key) => /\.pmx$/i.test(key));
+      const pmxEntryName = [...assetMap.keys()].find((key) =>
+        /\.pmx$/i.test(key),
+      );
       if (!pmxEntryName) {
         throw new Error("PMX file was not found in converted ZIP.");
       }
@@ -2628,11 +2995,13 @@ export default function App() {
             premultipliedAlpha?: boolean;
           };
 
-          const materialLabel = `${maybeMesh.name || ""} ${m.name || ""}`.toLowerCase();
+          const materialLabel =
+            `${maybeMesh.name || ""} ${m.name || ""}`.toLowerCase();
           const mapTransparent = Boolean(m.map && m.map.transparent);
           const hasAlphaMap = Boolean(m.alphaMap);
           const needsCutout = mapTransparent || hasAlphaMap;
-          const likelySkinMaterial = /(skin|body|face|head|hair|肌|素体|顔|頭|髪)/.test(materialLabel);
+          const likelySkinMaterial =
+            /(skin|body|face|head|hair|肌|素体|顔|頭|髪)/.test(materialLabel);
 
           // PMXエディタ寄りに、半透明ブレンドは原則使わずカットアウト方式へ統一する。
           // これにより全体が白く霞む(フィルターがかかったように見える)現象を抑える。
@@ -2672,7 +3041,9 @@ export default function App() {
         brightness: Number(pmxBrightnessScale.toFixed(2)),
         contrast: Number(pmxContrastFactor.toFixed(2)),
         ambientIntensity: Number(tunedLight.ambientIntensity.toFixed(3)),
-        directionalIntensity: Number(tunedLight.directionalIntensity.toFixed(3)),
+        directionalIntensity: Number(
+          tunedLight.directionalIntensity.toFixed(3),
+        ),
       });
 
       scene.add(mesh);
@@ -2680,7 +3051,8 @@ export default function App() {
       const skinnedMeshes: THREE.SkinnedMesh[] = [];
       const uniqueBoneNames = new Set<string>();
       const materialNames: string[] = [];
-      const materialRenderDiagnostics: PmxPreviewDiagnostics["materialRenderDiagnostics"] = [];
+      const materialRenderDiagnostics: PmxPreviewDiagnostics["materialRenderDiagnostics"] =
+        [];
       let materialSlotCount = 0;
       let vertexCount = 0;
       let triangleCount = 0;
@@ -2757,8 +3129,12 @@ export default function App() {
               opacity: Number((material.opacity ?? 1).toFixed(4)),
               hasMap: Boolean(withRenderProps.map),
               mapTransparent: Boolean(
-                withRenderProps.map
-                && (withRenderProps.map as THREE.Texture & { transparent?: boolean }).transparent,
+                withRenderProps.map &&
+                (
+                  withRenderProps.map as THREE.Texture & {
+                    transparent?: boolean;
+                  }
+                ).transparent,
               ),
               hasAlphaMap: Boolean(withRenderProps.alphaMap),
             });
@@ -2766,12 +3142,10 @@ export default function App() {
         }
       });
 
-      const textureCoverage = materialSlotCount > 0
-        ? colorTextureCount / materialSlotCount
-        : 0;
-      const loadedTextureCoverage = materialSlotCount > 0
-        ? loadedColorTextureCount / materialSlotCount
-        : 0;
+      const textureCoverage =
+        materialSlotCount > 0 ? colorTextureCount / materialSlotCount : 0;
+      const loadedTextureCoverage =
+        materialSlotCount > 0 ? loadedColorTextureCount / materialSlotCount : 0;
 
       const materialRenderStats = materialRenderDiagnostics.reduce(
         (acc, item) => {
@@ -2814,14 +3188,17 @@ export default function App() {
           depthTestOffCount: 0,
         },
       );
-      const materialRenderSamples = materialRenderDiagnostics.slice(0, 32).map((item) =>
-        `${item.name} | mesh=${item.meshName} | side=${item.side} | tr=${item.transparent ? 1 : 0} | aT=${item.alphaTest} | dW=${item.depthWrite ? 1 : 0} | dT=${item.depthTest ? 1 : 0} | op=${item.opacity} | map=${item.hasMap ? 1 : 0} | mapTr=${item.mapTransparent ? 1 : 0} | aMap=${item.hasAlphaMap ? 1 : 0}`,
-      );
+      const materialRenderSamples = materialRenderDiagnostics
+        .slice(0, 32)
+        .map(
+          (item) =>
+            `${item.name} | mesh=${item.meshName} | side=${item.side} | tr=${item.transparent ? 1 : 0} | aT=${item.alphaTest} | dW=${item.depthWrite ? 1 : 0} | dT=${item.depthTest ? 1 : 0} | op=${item.opacity} | map=${item.hasMap ? 1 : 0} | mapTr=${item.mapTransparent ? 1 : 0} | aMap=${item.hasAlphaMap ? 1 : 0}`,
+        );
       if (
-        materialSlotCount >= 6
-        && colorTextureCount === 0
-        && loadedColorTextureCount === 0
-        && pendingColorTextureCount === 0
+        materialSlotCount >= 6 &&
+        colorTextureCount === 0 &&
+        loadedColorTextureCount === 0 &&
+        pendingColorTextureCount === 0
       ) {
         runtimeQualitySignalsRef.current.add("pmx-missing-color-textures");
       }
@@ -2832,7 +3209,10 @@ export default function App() {
         }
         const helper = new THREE.SkeletonHelper(skinned);
         helper.visible = pmxBonesVisible;
-        helper.setColors(new THREE.Color("#63f5ff"), new THREE.Color("#ff9f4a"));
+        helper.setColors(
+          new THREE.Color("#63f5ff"),
+          new THREE.Color("#ff9f4a"),
+        );
         (helper.material as THREE.LineBasicMaterial).depthTest = false;
         (helper.material as THREE.LineBasicMaterial).transparent = true;
         (helper.material as THREE.LineBasicMaterial).opacity = 0.95;
@@ -2883,8 +3263,13 @@ export default function App() {
         sampleMaterials: [...new Set(materialNames)].slice(0, 40),
       });
 
-      const armBonePattern = /(腕|ひじ|手首|手捩|UpperArm|LowerArm|Hand|Elbow|Wrist)/i;
-      const armBoneSnapshots: Array<{ name: string; local: [number, number, number]; world: [number, number, number] }> = [];
+      const armBonePattern =
+        /(腕|ひじ|手首|手捩|UpperArm|LowerArm|Hand|Elbow|Wrist)/i;
+      const armBoneSnapshots: Array<{
+        name: string;
+        local: [number, number, number];
+        world: [number, number, number];
+      }> = [];
       for (const skinned of skinnedMeshes) {
         const skeleton = skinned.skeleton;
         if (!skeleton) {
@@ -2921,8 +3306,10 @@ export default function App() {
 
       const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const fitHeightDistance = (size.y * 0.5) / Math.tan(halfFov);
-      const fitWidthDistance = (size.x * 0.5) / (Math.tan(halfFov) * camera.aspect);
-      const distance = Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.25;
+      const fitWidthDistance =
+        (size.x * 0.5) / (Math.tan(halfFov) * camera.aspect);
+      const distance =
+        Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.25;
       const targetY = size.y * 0.1;
 
       camera.position.set(0, targetY, Math.max(distance, 1.2));
@@ -2954,7 +3341,9 @@ export default function App() {
       pmxIdleManagerRef.current = pmxIdleManager;
       controls.addEventListener("change", onPmxOrbitChanged);
       controls.addEventListener("start", () => pmxIdleManager!.stopRotation());
-      controls.addEventListener("end", () => pmxIdleManager!.resetInactivityTimer());
+      controls.addEventListener("end", () =>
+        pmxIdleManager!.resetInactivityTimer(),
+      );
       pmxIdleManager.resetInactivityTimer();
 
       if (syncOrbitFromVrm) {
@@ -2973,7 +3362,10 @@ export default function App() {
         try {
           renderer.render(scene, camera);
         } catch (error) {
-          appendConsoleLine(["[ERROR] PMX preview render failed:", formatLogArg(error)], "error");
+          appendConsoleLine(
+            ["[ERROR] PMX preview render failed:", formatLogArg(error)],
+            "error",
+          );
           const recovered = applyPmxPreviewMaterialFallback("render-error");
           if (!recovered) {
             window.cancelAnimationFrame(frameId);
@@ -3008,7 +3400,9 @@ export default function App() {
 
       if (!result.isConfirmed) {
         setErrorDetail("");
-        setMessage("Conversion cancelled due to redistribution/modification restrictions.");
+        setMessage(
+          "Conversion cancelled due to redistribution/modification restrictions.",
+        );
         return;
       }
     }
@@ -3030,11 +3424,11 @@ export default function App() {
         ? "Rust mode is deprecated and not recommended. Please use Turbo (Labs)/Nim mode."
         : requestedMode === "nim"
           ? "Nim experimental mode requested. Running Nim Wasm converter in this browser."
-        : mode === "backend"
-          ? "Converting with backend... this can take a while for large files."
-          : backendEnabled
-            ? "Trying Wasm first. If it fails, backend fallback will run."
-            : "Converting with Wasm mode...",
+          : mode === "backend"
+            ? "Converting with backend... this can take a while for large files."
+            : backendEnabled
+              ? "Trying Wasm first. If it fails, backend fallback will run."
+              : "Converting with Wasm mode...",
     );
     appendUserConvertLog(`[INFO] 変換を開始します: ${file.name}`);
     appendUserConvertLog(`[INFO] 変換モード: ${requestedMode}`);
@@ -3062,7 +3456,8 @@ export default function App() {
       const convertElapsedMs = Math.round(performance.now() - convertStartedAt);
 
       let outputBlob = result.blob;
-      let outputExtension: ConvertedOutput["fileExtension"] = result.fileExtension;
+      let outputExtension: ConvertedOutput["fileExtension"] =
+        result.fileExtension;
       const licenseText = generateLicenseText(vrmInfoData, appLocale);
       if (result.fileExtension === "zip") {
         outputBlob = await addLicenseToZip(result.blob, licenseText);
@@ -3070,7 +3465,9 @@ export default function App() {
         const wrapped = await buildPmxZipFromVrm(file, result.blob);
         outputBlob = await addLicenseToZip(wrapped.zipBlob, licenseText);
         outputExtension = "zip";
-        console.info(`[INFO] PMX packaged as ZIP with ${wrapped.textureCount} texture file(s) from source VRM.`);
+        console.info(
+          `[INFO] PMX packaged as ZIP with ${wrapped.textureCount} texture file(s) from source VRM.`,
+        );
         appendUserConvertLog("[INFO] PMXとテクスチャをZIP化しました。");
       }
 
@@ -3107,7 +3504,9 @@ export default function App() {
       if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
       } else {
-        throw new Error("Current preview supports ZIP output with PMX resources.");
+        throw new Error(
+          "Current preview supports ZIP output with PMX resources.",
+        );
       }
 
       setConvertProgressPercent(100);
@@ -3117,7 +3516,9 @@ export default function App() {
         void incrementWorldCounterOnFirestore()
           .catch((error) => {
             console.warn("world_counter.increment_failed", error);
-            reportWorldCounterError("increment", error, { reason: "convert_complete" });
+            reportWorldCounterError("increment", error, {
+              reason: "convert_complete",
+            });
           })
           .finally(() => {
             refreshWorldCounter("convert_complete");
@@ -3129,7 +3530,9 @@ export default function App() {
         const next = prev + 1;
         try {
           window.localStorage.setItem(LOCAL_COUNTER_KEY, String(next));
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         return next;
       });
       idleAnimationRef.current.isConverting = false;
@@ -3210,7 +3613,9 @@ export default function App() {
                 }
 
                 if (!gate.passed) {
-                  runtimeQualitySignalsRef.current.add("nim-quality-gate-failed");
+                  runtimeQualitySignalsRef.current.add(
+                    "nim-quality-gate-failed",
+                  );
                 }
               }
             }
@@ -3220,7 +3625,10 @@ export default function App() {
         }
 
         // Use Python-compatible routes (Wasm/Backend) as baseline for future Nim comparisons.
-        if (requestedMode !== "nim" && (result.usedMode === "wasm" || result.usedMode === "backend")) {
+        if (
+          requestedMode !== "nim" &&
+          (result.usedMode === "wasm" || result.usedMode === "backend")
+        ) {
           try {
             window.localStorage.setItem(
               buildMetricsBaselineKey(file.name),
@@ -3257,7 +3665,8 @@ export default function App() {
         setConvertProgressStage(null);
         setMessage("Conversion canceled.");
       } else {
-        const rawDetail = error instanceof Error ? error.message : String(error);
+        const rawDetail =
+          error instanceof Error ? error.message : String(error);
         console.error("convert.failed", {
           mode: requestedMode,
           backendEnabled,
@@ -3291,7 +3700,10 @@ export default function App() {
         setLogEnabled(true);
         console.error("[ERROR] Convert failed:");
         console.error(rawDetail);
-        appendUserConvertLog("[ERROR] 変換に失敗しました。詳細はブラウザのコンソールを確認してください。", "error");
+        appendUserConvertLog(
+          "[ERROR] 変換に失敗しました。詳細はブラウザのコンソールを確認してください。",
+          "error",
+        );
         showDialog({
           title: "Error",
           message: "Convert error. Please see Log View.",
@@ -3307,7 +3719,8 @@ export default function App() {
     if (!file) {
       return;
     }
-    const requestedMode: ConvertMode = turboLabsEnabled && nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
+    const requestedMode: ConvertMode =
+      turboLabsEnabled && nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
 
     if (taPoseAngle === 0) {
       showDialog({
@@ -3525,7 +3938,10 @@ export default function App() {
         return;
       }
 
-      if (target.closest(".preview-metadata-popup") || target.closest(".metadata-info-button")) {
+      if (
+        target.closest(".preview-metadata-popup") ||
+        target.closest(".metadata-info-button")
+      ) {
         return;
       }
 
@@ -3584,7 +4000,8 @@ export default function App() {
     setMessage("Loading VRM preview...");
     cleanupPreview();
 
-    const profileForPreview = (await detectProfileFromFile(targetFile)) ?? detectedProfileResult;
+    const profileForPreview =
+      (await detectProfileFromFile(targetFile)) ?? detectedProfileResult;
     const isVrm1Preview = Boolean(profileForPreview?.hasVrm1Extension);
     const previewRootYaw = isVrm1Preview ? 0 : Math.PI;
     const armPoseSign: 1 | -1 = isVrm1Preview ? -1 : 1;
@@ -3631,10 +4048,10 @@ export default function App() {
       if (vrm) {
         scene.remove(vrm.scene);
       }
-        if (vrmGridRef.current) {
-          scene.remove(vrmGridRef.current);
-          vrmGridRef.current = null;
-        }
+      if (vrmGridRef.current) {
+        scene.remove(vrmGridRef.current);
+        vrmGridRef.current = null;
+      }
       renderer.dispose();
     };
 
@@ -3663,7 +4080,9 @@ export default function App() {
       const gltf = await loader.parseAsync(arrayBuffer, "");
       const infoData = extractVrmInfoData(gltf);
       setVrmInfoData(infoData);
-      setIsVrmRedistributionOrModificationNG(isRedistributionOrModificationNG(infoData));
+      setIsVrmRedistributionOrModificationNG(
+        isRedistributionOrModificationNG(infoData),
+      );
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
 
       if (!vrm) {
@@ -3675,7 +4094,10 @@ export default function App() {
 
       const vrmRootHelper = new THREE.SkeletonHelper(vrm.scene);
       vrmRootHelper.visible = vrmBonesVisible;
-      vrmRootHelper.setColors(new THREE.Color("#63f5ff"), new THREE.Color("#ff9f4a"));
+      vrmRootHelper.setColors(
+        new THREE.Color("#63f5ff"),
+        new THREE.Color("#ff9f4a"),
+      );
       (vrmRootHelper.material as THREE.LineBasicMaterial).depthTest = false;
       (vrmRootHelper.material as THREE.LineBasicMaterial).transparent = true;
       (vrmRootHelper.material as THREE.LineBasicMaterial).opacity = 0.95;
@@ -3697,8 +4119,12 @@ export default function App() {
       upperArmStateRef.current = {
         leftBone: leftUpperArm,
         rightBone: rightUpperArm,
-        leftBaseQuaternion: leftUpperArm ? leftUpperArm.quaternion.clone() : null,
-        rightBaseQuaternion: rightUpperArm ? rightUpperArm.quaternion.clone() : null,
+        leftBaseQuaternion: leftUpperArm
+          ? leftUpperArm.quaternion.clone()
+          : null,
+        rightBaseQuaternion: rightUpperArm
+          ? rightUpperArm.quaternion.clone()
+          : null,
         armPoseSign,
       };
       applyUpperArmAngle(taPoseAngle);
@@ -3710,8 +4136,10 @@ export default function App() {
 
       const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const fitHeightDistance = (size.y * 0.5) / Math.tan(halfFov);
-      const fitWidthDistance = (size.x * 0.5) / (Math.tan(halfFov) * camera.aspect);
-      const distance = Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.25;
+      const fitWidthDistance =
+        (size.x * 0.5) / (Math.tan(halfFov) * camera.aspect);
+      const distance =
+        Math.max(fitHeightDistance, fitWidthDistance, size.z) * 1.25;
       const targetY = size.y * 0.1;
 
       camera.position.set(0, targetY, Math.max(distance, 1.2));
@@ -3747,7 +4175,9 @@ export default function App() {
       vrmIdleManagerRef.current = vrmIdleManager;
       controls.addEventListener("change", onVrmOrbitChanged);
       controls.addEventListener("start", () => vrmIdleManager.stopRotation());
-      controls.addEventListener("end", () => vrmIdleManager.resetInactivityTimer());
+      controls.addEventListener("end", () =>
+        vrmIdleManager.resetInactivityTimer(),
+      );
       vrmIdleManager.resetInactivityTimer();
 
       const renderLoop = () => {
@@ -3762,7 +4192,9 @@ export default function App() {
 
       renderLoop();
       setIsVrmReady(true);
-      setMessage(`Preview loaded: ${targetFile.name}. Drag to rotate, wheel to zoom.`);
+      setMessage(
+        `Preview loaded: ${targetFile.name}. Drag to rotate, wheel to zoom.`,
+      );
     } catch (error) {
       const rawDetail = error instanceof Error ? error.message : String(error);
       setErrorDetail(rawDetail);
@@ -3858,7 +4290,9 @@ export default function App() {
 
     const lowerName = droppedFile.name.toLowerCase();
     if (!(lowerName.endsWith(".vrm") || lowerName.endsWith(".glb"))) {
-      setMessage("Dropped file is not supported. Please drop a .vrm or .glb file.");
+      setMessage(
+        "Dropped file is not supported. Please drop a .vrm or .glb file.",
+      );
       return;
     }
 
@@ -3881,7 +4315,9 @@ export default function App() {
       <section className="card">
         <h1 className="app-title">
           VRM to MMD Converter
-          <span className="app-subtitle">A web-based modernization of vrm2pmx and vroid2pmx mix</span>
+          <span className="app-subtitle">
+            A web-based modernization of vrm2pmx and vroid2pmx mix
+          </span>
         </h1>
         <section className="preview-grid" aria-label="Model previews">
           <figure
@@ -3892,14 +4328,19 @@ export default function App() {
           >
             <figcaption className="preview-caption">
               <span>VRM Preview</span>
-              <a href="https://vroid.com/studio" target="_blank" rel="noopener noreferrer" className="preview-link">
+              <a
+                href="https://vroid.com/studio"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="preview-link"
+              >
                 VRoid Studio
               </a>
             </figcaption>
             <div
               className={`preview-canvas-wrap${maximizedPreview === "vrm" ? " preview-canvas-wrap-maximized" : ""}`}
               onPointerDown={() => {
-              vrmIdleManagerRef.current?.stopRotation();
+                vrmIdleManagerRef.current?.stopRotation();
               }}
             >
               <canvas
@@ -3910,21 +4351,32 @@ export default function App() {
                   if (!isVrmReady || isPreviewing) {
                     return;
                   }
-                  setMaximizedPreview((prev) => (prev === "vrm" ? null : "vrm"));
+                  setMaximizedPreview((prev) =>
+                    prev === "vrm" ? null : "vrm",
+                  );
                 }}
               />
               <button
                 type="button"
                 className="metadata-info-button preview-maximize-button"
-                aria-label={maximizedPreview === "vrm" ? "Restore VRM preview size" : "Maximize VRM preview"}
+                aria-label={
+                  maximizedPreview === "vrm"
+                    ? "Restore VRM preview size"
+                    : "Maximize VRM preview"
+                }
                 title={maximizedPreview === "vrm" ? "Restore" : "Maximize"}
-                onClick={() => setMaximizedPreview((prev) => (prev === "vrm" ? null : "vrm"))}
+                onClick={() =>
+                  setMaximizedPreview((prev) => (prev === "vrm" ? null : "vrm"))
+                }
                 disabled={!isVrmReady || isPreviewing}
               >
                 <CiMaximize2 />
               </button>
               {isVrmMetadataOpen && (
-                <section className="preview-metadata-popup" aria-label="VRM metadata popup">
+                <section
+                  className="preview-metadata-popup"
+                  aria-label="VRM metadata popup"
+                >
                   <header className="preview-metadata-popup-header">
                     <strong>VRM Info</strong>
                     <button
@@ -3941,8 +4393,13 @@ export default function App() {
                     {vrmInfoData.summaryRows.length > 0 ? (
                       <div className="preview-info-list">
                         {vrmInfoData.summaryRows.map((row) => (
-                          <div key={`basic-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                          <div
+                            key={`basic-${row.label}-${row.value}`}
+                            className="preview-info-row"
+                          >
+                            <span className="preview-info-label">
+                              {localizeMetadataLabel(row.label, appLocale)}
+                            </span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -3956,7 +4413,10 @@ export default function App() {
                               <span
                                 className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
                               >
-                                {localizeAllowDisallow(row.value, appLocale).text}
+                                {
+                                  localizeAllowDisallow(row.value, appLocale)
+                                    .text
+                                }
                               </span>
                             )}
                           </div>
@@ -3969,8 +4429,13 @@ export default function App() {
                     {vrmInfoData.licenseRows.length > 0 ? (
                       <div className="preview-info-list">
                         {vrmInfoData.licenseRows.map((row) => (
-                          <div key={`license-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                          <div
+                            key={`license-${row.label}-${row.value}`}
+                            className="preview-info-row"
+                          >
+                            <span className="preview-info-label">
+                              {localizeMetadataLabel(row.label, appLocale)}
+                            </span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -3984,7 +4449,10 @@ export default function App() {
                               <span
                                 className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
                               >
-                                {localizeAllowDisallow(row.value, appLocale).text}
+                                {
+                                  localizeAllowDisallow(row.value, appLocale)
+                                    .text
+                                }
                               </span>
                             )}
                           </div>
@@ -4025,14 +4493,19 @@ export default function App() {
           <figure className="preview-panel">
             <figcaption className="preview-caption">
               <span>PMX Preview</span>
-              <a href="https://sites.google.com/view/vpvp/" target="_blank" rel="noopener noreferrer" className="preview-link">
+              <a
+                href="https://sites.google.com/view/vpvp/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="preview-link"
+              >
                 MikuMikuDance
               </a>
             </figcaption>
             <div
               className={`preview-canvas-wrap${maximizedPreview === "pmx" ? " preview-canvas-wrap-maximized" : ""}`}
               onPointerDown={() => {
-              pmxIdleManagerRef.current?.stopRotation();
+                pmxIdleManagerRef.current?.stopRotation();
               }}
             >
               <canvas
@@ -4043,21 +4516,32 @@ export default function App() {
                   if (!canOpenPmxMetadata) {
                     return;
                   }
-                  setMaximizedPreview((prev) => (prev === "pmx" ? null : "pmx"));
+                  setMaximizedPreview((prev) =>
+                    prev === "pmx" ? null : "pmx",
+                  );
                 }}
               />
               <button
                 type="button"
                 className="metadata-info-button preview-maximize-button"
-                aria-label={maximizedPreview === "pmx" ? "Restore PMX preview size" : "Maximize PMX preview"}
+                aria-label={
+                  maximizedPreview === "pmx"
+                    ? "Restore PMX preview size"
+                    : "Maximize PMX preview"
+                }
                 title={maximizedPreview === "pmx" ? "Restore" : "Maximize"}
-                onClick={() => setMaximizedPreview((prev) => (prev === "pmx" ? null : "pmx"))}
+                onClick={() =>
+                  setMaximizedPreview((prev) => (prev === "pmx" ? null : "pmx"))
+                }
                 disabled={!canOpenPmxMetadata}
               >
                 <CiMaximize2 />
               </button>
               {isPmxMetadataOpen && (
-                <section className="preview-metadata-popup" aria-label="PMX metadata popup">
+                <section
+                  className="preview-metadata-popup"
+                  aria-label="PMX metadata popup"
+                >
                   <header className="preview-metadata-popup-header">
                     <strong>PMX Info</strong>
                     <button
@@ -4074,8 +4558,13 @@ export default function App() {
                     {pmxSummaryRowsForDisplay.length > 0 ? (
                       <div className="preview-info-list">
                         {pmxSummaryRowsForDisplay.map((row) => (
-                          <div key={`pmx-basic-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                          <div
+                            key={`pmx-basic-${row.label}-${row.value}`}
+                            className="preview-info-row"
+                          >
+                            <span className="preview-info-label">
+                              {localizeMetadataLabel(row.label, appLocale)}
+                            </span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -4089,7 +4578,10 @@ export default function App() {
                               <span
                                 className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
                               >
-                                {localizeAllowDisallow(row.value, appLocale).text}
+                                {
+                                  localizeAllowDisallow(row.value, appLocale)
+                                    .text
+                                }
                               </span>
                             )}
                           </div>
@@ -4102,8 +4594,13 @@ export default function App() {
                     {pmxLicenseRowsForDisplay.length > 0 ? (
                       <div className="preview-info-list">
                         {pmxLicenseRowsForDisplay.map((row) => (
-                          <div key={`pmx-license-${row.label}-${row.value}`} className="preview-info-row">
-                            <span className="preview-info-label">{localizeMetadataLabel(row.label, appLocale)}</span>
+                          <div
+                            key={`pmx-license-${row.label}-${row.value}`}
+                            className="preview-info-row"
+                          >
+                            <span className="preview-info-label">
+                              {localizeMetadataLabel(row.label, appLocale)}
+                            </span>
                             {row.isLink ? (
                               <a
                                 href={row.value}
@@ -4117,7 +4614,10 @@ export default function App() {
                               <span
                                 className={`preview-info-value${localizeAllowDisallow(row.value, appLocale).isNg ? " preview-info-value-negative" : ""}`}
                               >
-                                {localizeAllowDisallow(row.value, appLocale).text}
+                                {
+                                  localizeAllowDisallow(row.value, appLocale)
+                                    .text
+                                }
                               </span>
                             )}
                           </div>
@@ -4211,7 +4711,10 @@ export default function App() {
           </select>
           */}
 
-          <div className="pose-and-pmx-tools-row" aria-label="Pose and PMX options">
+          <div
+            className="pose-and-pmx-tools-row"
+            aria-label="Pose and PMX options"
+          >
             <div className="ta-pose-group">
               <div className="ta-pose-header">
                 <label htmlFor="ta-pose-angle" className="input-label">
@@ -4227,8 +4730,16 @@ export default function App() {
                   max={90}
                   step={5}
                   value={taPoseAngle}
-                  onChange={(event) => setTaPoseAngle(Number(event.target.value))}
-                  disabled={!file || isPreviewing || !isVrmReady || status === "done" || status === "uploading"}
+                  onChange={(event) =>
+                    setTaPoseAngle(Number(event.target.value))
+                  }
+                  disabled={
+                    !file ||
+                    isPreviewing ||
+                    !isVrmReady ||
+                    status === "done" ||
+                    status === "uploading"
+                  }
                 />
               </div>
             </div>
@@ -4245,7 +4756,9 @@ export default function App() {
                   type="checkbox"
                   name="orbit-sync"
                   checked={orbitSyncEnabled}
-                  onChange={(event) => setOrbitSyncEnabled(event.target.checked)}
+                  onChange={(event) =>
+                    setOrbitSyncEnabled(event.target.checked)
+                  }
                 />
                 <span>Orbit Sync</span>
               </label>
@@ -4340,16 +4853,25 @@ export default function App() {
           </div>
 
           {file && detectedProfileResult && (
-            <section className="profile-detection-card" aria-label="Auto detection result">
+            <section
+              className="profile-detection-card"
+              aria-label="Auto detection result"
+            >
               <div className="profile-detection-header">
-                <span className={`profile-badge profile-${detectedProfileResult.profile}`}>
+                <span
+                  className={`profile-badge profile-${detectedProfileResult.profile}`}
+                >
                   Auto: {getProfileLabel(detectedProfileResult.profile)}
                 </span>
-                <span className="profile-detection-reason">{detectedProfileResult.reason}</span>
+                <span className="profile-detection-reason">
+                  {detectedProfileResult.reason}
+                </span>
               </div>
               <div className="profile-detection-meta">
                 {getProfileFlags(detectedProfileResult).length > 0 && (
-                  <span>{getProfileFlags(detectedProfileResult).join(" / ")}</span>
+                  <span>
+                    {getProfileFlags(detectedProfileResult).join(" / ")}
+                  </span>
                 )}
                 {detectedProfileResult.generator && (
                   <span>Generator: {detectedProfileResult.generator}</span>
@@ -4364,7 +4886,9 @@ export default function App() {
               className={`convert-button${status === "uploading" ? ` is-uploading progress-${convertProgressStage ?? "init"}` : ""}`}
               disabled={!canConvert}
             >
-              {status === "uploading" ? `Converting... ${Math.round(convertProgressPercent)}%` : "Convert"}
+              {status === "uploading"
+                ? `Converting... ${Math.round(convertProgressPercent)}%`
+                : "Convert"}
             </button>
             <button
               type="button"
@@ -4402,8 +4926,12 @@ export default function App() {
                 }}
               >
                 <IoCopyOutline />
-                {copyStatus === "done" && <span className="copy-status">Copied</span>}
-                {copyStatus === "failed" && <span className="copy-status">Failed</span>}
+                {copyStatus === "done" && (
+                  <span className="copy-status">Copied</span>
+                )}
+                {copyStatus === "failed" && (
+                  <span className="copy-status">Failed</span>
+                )}
               </button>
             </div>
             <div ref={logAreaRef} className="log-console" aria-live="polite">
@@ -4429,8 +4957,7 @@ export default function App() {
                 setAboutDefaultTab("history");
                 setIsAboutOpen(true);
               }}
-            >
-            </button>
+            ></button>
             <p className="app-launch-state">{launchStateLabel}</p>
             <button
               type="button"
@@ -4500,7 +5027,9 @@ export default function App() {
 
         <div
           className={`local-counter${isWorldCounterDisplayed ? " is-world" : ""}`}
-          aria-label={isWorldCounterDisplayed ? "World counter" : "Local counter"}
+          aria-label={
+            isWorldCounterDisplayed ? "World counter" : "Local counter"
+          }
           onClick={onCounterToggle}
           role="button"
           tabIndex={0}
@@ -4512,7 +5041,9 @@ export default function App() {
           }}
         >
           <span key={counterFlipToken} className="counter-face">
-            <span className="counter-label">{isWorldCounterDisplayed ? "WORLD" : "LOCAL"}:</span>
+            <span className="counter-label">
+              {isWorldCounterDisplayed ? "WORLD" : "LOCAL"}:
+            </span>
             <span className="counter-value">
               {isWorldCounterDisplayed ? (
                 <CountUp

@@ -1,5 +1,9 @@
 import { APP_VERSION } from "../constants/appInfo";
-import { getNimRuntimeAvailability, resolveNimAssetUrl, type NimRuntimeManifest } from "./runtime";
+import {
+  getNimRuntimeAvailability,
+  resolveNimAssetUrl,
+  type NimRuntimeManifest,
+} from "./runtime";
 
 export type NimBridgeOptions = {
   wasmUrl: string;
@@ -17,7 +21,9 @@ export type NimConvertResult = {
 };
 
 type NimBridgeModule = {
-  createRuntimeBridge?: (options: NimBridgeOptions) => Promise<NimRuntimeBridge> | NimRuntimeBridge;
+  createRuntimeBridge?: (
+    options: NimBridgeOptions,
+  ) => Promise<NimRuntimeBridge> | NimRuntimeBridge;
 };
 
 export type NimRuntimeBridge = {
@@ -31,11 +37,16 @@ export async function loadNimRuntimeBridge(): Promise<{
 }> {
   const availability = await getNimRuntimeAvailability();
   if (!availability.available || !availability.manifest) {
-    throw new Error(availability.reason ?? "NIM_RUNTIME_UNAVAILABLE: Nim runtime manifest is missing.");
+    throw new Error(
+      availability.reason ??
+        "NIM_RUNTIME_UNAVAILABLE: Nim runtime manifest is missing.",
+    );
   }
 
   if (!availability.manifest.entryJs) {
-    throw new Error("NIM_BRIDGE_UNAVAILABLE: Nim runtime manifest does not declare entryJs.");
+    throw new Error(
+      "NIM_BRIDGE_UNAVAILABLE: Nim runtime manifest does not declare entryJs.",
+    );
   }
 
   const entryJsUrl = resolveNimAssetUrl(availability.manifest.entryJs);
@@ -43,9 +54,13 @@ export async function loadNimRuntimeBridge(): Promise<{
     ? resolveNimAssetUrl(availability.manifest.entryWasm)
     : "";
 
-  const module = (await import(/* @vite-ignore */ entryJsUrl)) as NimBridgeModule;
+  const module = (await import(
+    /* @vite-ignore */ entryJsUrl
+  )) as NimBridgeModule;
   if (typeof module.createRuntimeBridge !== "function") {
-    throw new Error(`NIM_BRIDGE_INVALID: createRuntimeBridge export was not found in ${entryJsUrl}`);
+    throw new Error(
+      `NIM_BRIDGE_INVALID: createRuntimeBridge export was not found in ${entryJsUrl}`,
+    );
   }
 
   const bridge = await module.createRuntimeBridge({ wasmUrl: entryWasmUrl });

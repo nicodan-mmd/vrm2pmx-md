@@ -3,6 +3,7 @@
 Direct VRM geometry counter - counts vertices, faces, bones, morphs without full conversion.
 Optimized for precision and comparison with other implementations.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,12 +12,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 
 @dataclass
 class VrmGeometryCount:
     """VRM geometry statistics."""
+
     vertices: int = 0
     faces: int = 0
     bones: int = 0
@@ -54,15 +54,21 @@ class VrmCounterService:
         if offset + 8 > len(data):
             return b"", offset, ""
 
-        length, chunk_type = struct.unpack("<II", data[offset:offset+8])
-        chunk_type_str = bytes([
-            chunk_type & 0xFF,
-            (chunk_type >> 8) & 0xFF,
-            (chunk_type >> 16) & 0xFF,
-            (chunk_type >> 24) & 0xFF
-        ]).rstrip(b'\x00').decode('ascii')
+        length, chunk_type = struct.unpack("<II", data[offset : offset + 8])
+        chunk_type_str = (
+            bytes(
+                [
+                    chunk_type & 0xFF,
+                    (chunk_type >> 8) & 0xFF,
+                    (chunk_type >> 16) & 0xFF,
+                    (chunk_type >> 24) & 0xFF,
+                ]
+            )
+            .rstrip(b"\x00")
+            .decode("ascii")
+        )
 
-        chunk_data = data[offset+8:offset+8+length]
+        chunk_data = data[offset + 8 : offset + 8 + length]
         return chunk_data, offset + 8 + length, chunk_type_str
 
     def _load_glb(self) -> None:
@@ -90,10 +96,12 @@ class VrmCounterService:
         if not json_chunk:
             raise ValueError("No JSON chunk found in GLB")
 
-        self.json_data = json.loads(json_chunk.decode('utf-8'))
+        self.json_data = json.loads(json_chunk.decode("utf-8"))
         self.bin_data = bin_chunk
 
-    def _read_from_accessor(self, accessor_idx: int) -> list[tuple[float, float, float]]:
+    def _read_from_accessor(
+        self, accessor_idx: int
+    ) -> list[tuple[float, float, float]]:
         """
         Read VEC3 data from accessor (for positions, normals, etc).
         Returns list of (x, y, z) tuples.
@@ -104,7 +112,9 @@ class VrmCounterService:
         accessor = self.json_data["accessors"][accessor_idx]
         buff_view_idx = accessor.get("bufferView", -1)
 
-        if buff_view_idx < 0 or buff_view_idx >= len(self.json_data.get("bufferViews", [])):
+        if buff_view_idx < 0 or buff_view_idx >= len(
+            self.json_data.get("bufferViews", [])
+        ):
             return []
 
         buffer_view = self.json_data["bufferViews"][buff_view_idx]
@@ -146,9 +156,9 @@ class VrmCounterService:
                 break
 
             # Read as float32 (always read as float regardless of component type)
-            x = struct.unpack("<f", self.bin_data[offset:offset+4])[0]
-            y = struct.unpack("<f", self.bin_data[offset+4:offset+8])[0]
-            z = struct.unpack("<f", self.bin_data[offset+8:offset+12])[0]
+            x = struct.unpack("<f", self.bin_data[offset : offset + 4])[0]
+            y = struct.unpack("<f", self.bin_data[offset + 4 : offset + 8])[0]
+            z = struct.unpack("<f", self.bin_data[offset + 8 : offset + 12])[0]
             result.append((x, y, z))
 
         return result
@@ -161,7 +171,9 @@ class VrmCounterService:
         accessor = self.json_data["accessors"][accessor_idx]
         buff_view_idx = accessor.get("bufferView", -1)
 
-        if buff_view_idx < 0 or buff_view_idx >= len(self.json_data.get("bufferViews", [])):
+        if buff_view_idx < 0 or buff_view_idx >= len(
+            self.json_data.get("bufferViews", [])
+        ):
             return []
 
         buffer_view = self.json_data["bufferViews"][buff_view_idx]
@@ -194,7 +206,7 @@ class VrmCounterService:
             if offset + comp_size > len(self.bin_data):
                 break
 
-            val = struct.unpack(fmt, self.bin_data[offset:offset+comp_size])[0]
+            val = struct.unpack(fmt, self.bin_data[offset : offset + comp_size])[0]
             result.append(int(val))
 
         return result

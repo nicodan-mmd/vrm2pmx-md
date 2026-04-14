@@ -184,7 +184,10 @@ function snapshotBoneNodeState(
   };
 }
 
-export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): ArrayBuffer {
+export function poseUpperArmsInGlb(
+  buffer: ArrayBuffer,
+  angleDeg: number,
+): ArrayBuffer {
   const chunks = parseGlbChunks(buffer);
   const jsonIndex = chunks.findIndex((chunk) => chunk.type === GLB_JSON_CHUNK);
   if (jsonIndex < 0) {
@@ -206,14 +209,15 @@ export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): Array
   // VRM1.0 is opposite in forward definition from legacy conversion assumptions.
   // Apply half turn on scene roots before arm posing so PMX conversion keeps facing.
   if (vrm1) {
-    const scenes = (Array.isArray(gltfJson.scenes) ? gltfJson.scenes : []) as Array<
-      Record<string, unknown>
-    >;
+    const scenes = (
+      Array.isArray(gltfJson.scenes) ? gltfJson.scenes : []
+    ) as Array<Record<string, unknown>>;
     const sceneIndex = typeof gltfJson.scene === "number" ? gltfJson.scene : 0;
     const activeScene = scenes[sceneIndex] ?? scenes[0] ?? null;
     const rootNodeIndices = Array.isArray(activeScene?.nodes)
-      ? (activeScene?.nodes as unknown[])
-          .filter((value): value is number => typeof value === "number")
+      ? (activeScene?.nodes as unknown[]).filter(
+          (value): value is number => typeof value === "number",
+        )
       : [];
 
     const halfTurn = new THREE.Quaternion().setFromAxisAngle(
@@ -265,7 +269,9 @@ export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): Array
   if (angleDeg !== 0) {
     const { leftNodeIndex, rightNodeIndex } = findUpperArmNodeIndices(gltfJson);
     if (leftNodeIndex == null || rightNodeIndex == null) {
-      throw new Error("UpperArm bones were not found in VRM humanoid definition.");
+      throw new Error(
+        "UpperArm bones were not found in VRM humanoid definition.",
+      );
     }
     poseDebug("humanoid nodes found", {
       leftNodeIndex,
@@ -312,14 +318,19 @@ export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): Array
     );
     poseDebug("tracked bone states(before)", beforeState);
 
-    const rotateNodeLocalRotation = (nodeIndex: number, delta: THREE.Quaternion) => {
+    const rotateNodeLocalRotation = (
+      nodeIndex: number,
+      delta: THREE.Quaternion,
+    ) => {
       const node = nodes[nodeIndex];
       if (!node) {
         return { nodeIndex, mode: "missing", before: null, after: null };
       }
 
       if (Array.isArray(node.rotation) && node.rotation.length >= 4) {
-        const beforeValues = (node.rotation as number[]).map((value) => Number(value));
+        const beforeValues = (node.rotation as number[]).map((value) =>
+          Number(value),
+        );
         const before = new THREE.Quaternion(
           beforeValues[0] ?? 0,
           beforeValues[1] ?? 0,
@@ -337,7 +348,9 @@ export function poseUpperArmsInGlb(buffer: ArrayBuffer, angleDeg: number): Array
       }
 
       if (Array.isArray(node.matrix) && node.matrix.length === 16) {
-        const matrixValues = (node.matrix as number[]).map((value) => Number(value));
+        const matrixValues = (node.matrix as number[]).map((value) =>
+          Number(value),
+        );
         const matrix = new THREE.Matrix4().fromArray(matrixValues);
         const position = new THREE.Vector3();
         const rotation = new THREE.Quaternion();

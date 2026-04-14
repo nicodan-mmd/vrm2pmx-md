@@ -22,7 +22,9 @@ const { values } = parseArgs({
 });
 
 if (!values.vrm || !values.wasm) {
-  process.stderr.write("Usage: node frontend_wasm_runner.mjs --vrm <path> --wasm <path>\n");
+  process.stderr.write(
+    "Usage: node frontend_wasm_runner.mjs --vrm <path> --wasm <path>\n",
+  );
   process.exit(1);
 }
 
@@ -42,7 +44,9 @@ const importObject = {
   },
   wasi_snapshot_preview1: {
     proc_exit(code) {
-      throw new Error(`NIM_WASM_PROC_EXIT:${code}:${runtimeRef.lastMessage.trim()}`);
+      throw new Error(
+        `NIM_WASM_PROC_EXIT:${code}:${runtimeRef.lastMessage.trim()}`,
+      );
     },
     fd_write(fd, iovsPtr, iovsLen, nwrittenPtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
@@ -64,9 +68,15 @@ const importObject = {
       if (nreadPtr) dv.setUint32(nreadPtr, 0, true);
       return 0;
     },
-    fd_seek() { return 70; },
-    fd_close() { return 0; },
-    fd_fdstat_get() { return 0; },
+    fd_seek() {
+      return 70;
+    },
+    fd_close() {
+      return 0;
+    },
+    fd_fdstat_get() {
+      return 0;
+    },
     environ_get(environPtr, environBufPtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
       dv.setUint32(environPtr, 0, true);
@@ -79,7 +89,9 @@ const importObject = {
       dv.setUint32(sizePtr, 0, true);
       return 0;
     },
-    args_get() { return 0; },
+    args_get() {
+      return 0;
+    },
     args_sizes_get(argcPtr, argvBufSizePtr) {
       const dv = new DataView(runtimeRef.memory.buffer);
       dv.setUint32(argcPtr, 0, true);

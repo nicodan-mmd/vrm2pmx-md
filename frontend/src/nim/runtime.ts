@@ -1,6 +1,9 @@
 const BASE_URL = import.meta.env.BASE_URL;
 const APP_BASE_URL = new URL(BASE_URL, self.location.origin);
-const NIM_RUNTIME_MANIFEST = new URL("nim/vrm2pmx_nim_manifest.json", APP_BASE_URL);
+const NIM_RUNTIME_MANIFEST = new URL(
+  "nim/vrm2pmx_nim_manifest.json",
+  APP_BASE_URL,
+);
 
 export type NimRuntimeAvailability = {
   available: boolean;

@@ -10,6 +10,7 @@ from typing import Any
 try:
     import cython
 except Exception:  # pragma: no cover
+
     class _CythonCompat:
         @staticmethod
         def ccall(func):

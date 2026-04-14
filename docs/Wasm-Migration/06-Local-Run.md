@@ -35,7 +35,7 @@ npm run dev
 
 Open:
 
-- http://127.0.0.1:5173/
+- <http://127.0.0.1:5173/>
 
 ## 3. 動作確認フロー
 
@@ -52,9 +52,9 @@ Open:
 4. `npm run dev -- --host 127.0.0.1` で frontend を起動し、`http://127.0.0.1:5173/` を開く。
 5. `Convert mode` が `Wasm` の状態で `.vrm` を変換する。
 6. 期待結果:
-	- 進捗表示が更新される
-	- `*.zip` がダウンロードされ、その中に `result.pmx` と `tex/*` が含まれる
-	- backend 接続エラーが表示されない
+   - 進捗表示が更新される
+   - `*.zip` がダウンロードされ、その中に `result.pmx` と `tex/*` が含まれる
+   - backend 接続エラーが表示されない
 
 ## 4. GitHub Pages 公開確認
 

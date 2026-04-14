@@ -20,7 +20,7 @@ def read_text(data: bytes, offset: int) -> tuple[str, int]:
         return "", offset
     try:
         text = data[text_start:text_end].decode("utf-16-le")
-    except:
+    except Exception:
         text = f"<binary:{text_len}bytes>"
     return text, text_end
 
@@ -32,7 +32,7 @@ def parse_pmx_structure(data: bytes) -> dict[str, object]:
 
     # Header
     offset = 0
-    signature = data[offset:offset+4]
+    signature = data[offset : offset + 4]
     offset += 4
 
     if signature != b"PMX ":
@@ -45,14 +45,10 @@ def parse_pmx_structure(data: bytes) -> dict[str, object]:
     offset += 1
 
     # Flags (8 bytes)
-    flags = data[offset:offset+8]
+    flags = data[offset : offset + 8]
     offset += 8
 
-    texture_index_size = int(flags[2])
-    material_index_size = int(flags[3])
     bone_index_size = int(flags[4])
-    morph_index_size = int(flags[5])
-    rigidbody_index_size = int(flags[6])
 
     # Model strings
     model_name, offset = read_text(data, offset)
@@ -126,7 +122,7 @@ def main() -> int:
     print(f"  Size: {len(data)} bytes")
 
     if "search_results" in result:
-        print(f"\nPossible section counts found:")
+        print("\nPossible section counts found:")
         for off, cnt in sorted(result["search_results"].items())[:10]:
             print(f"  offset {off} (0x{off:x}): {cnt} items")
 
