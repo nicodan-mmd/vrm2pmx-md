@@ -4283,6 +4283,8 @@ export default function App() {
                 />
                 <span>Log</span>
               </label>
+              {/* Ver 1.6.0 release */}
+              {/*
               <label
                 className="pmx-tool-checkbox"
                 title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
@@ -4297,6 +4299,7 @@ export default function App() {
                 />
                 <span>{i18n.turboLabsLabel}</span>
               </label>
+              */}
             </div>
           </div>
 
@@ -4427,7 +4430,6 @@ export default function App() {
                 setIsAboutOpen(true);
               }}
             >
-              Version {APP_VERSION}
             </button>
             <p className="app-launch-state">{launchStateLabel}</p>
             <button
