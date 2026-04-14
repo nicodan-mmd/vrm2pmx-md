@@ -9,15 +9,19 @@
 ## 追加する責務
 
 1. Pyodide ローダ
+
 - 初回ロードとキャッシュ制御
 
 2. Conversion Worker
+
 - Python 実行をメインスレッドから隔離
 
 3. Download Manager
+
 - PMX/ZIP の Blob 生成と保存
 
 4. Error Presenter
+
 - Python 例外をユーザー向け文言へ整形
 
 ## 推奨ディレクトリ

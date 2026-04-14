@@ -102,7 +102,6 @@ export async function convertViaNimWorker(
     }
 
     signal?.addEventListener("abort", onAbort, { once: true });
-
     worker.postMessage(request, [fileBuffer]);
   });
 }

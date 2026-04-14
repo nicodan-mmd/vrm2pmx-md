@@ -7,7 +7,8 @@ import type {
   WorkerResponse,
 } from "../types/convert";
 
-const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+const workerSelf: DedicatedWorkerGlobalScope =
+  self as DedicatedWorkerGlobalScope;
 let activeRequestId: string | null = null;
 
 function postLog(level: WorkerLogResponse["level"], args: string[]): void {
@@ -33,33 +34,31 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   activeRequestId = request.id;
 
   try {
-    workerSelf.postMessage({
+    const initResponse: WorkerResponse = {
       id: request.id,
       status: "progress",
       stage: "init",
-      message: "Initializing Nim Wasm worker...",
-    } satisfies WorkerResponse);
+      message: "Initializing Nim conversion worker...",
+    };
+    workerSelf.postMessage(initResponse);
 
-    workerSelf.postMessage({
+    const convertResponse: WorkerResponse = {
       id: request.id,
       status: "progress",
       stage: "converting",
-      message: "Loading Nim Wasm runtime...",
-    } satisfies WorkerResponse);
+      message: "Loading Nim runtime bridge...",
+    };
+    workerSelf.postMessage(convertResponse);
 
     const { manifest, bridge } = await loadNimRuntimeBridge();
-    postLog("info", [`Nim runtime status: ${manifest.status}`]);
-    postLog("info", [`Nim runtime entryWasm: ${manifest.entryWasm}`]);
+    postLog("info", [`Nim loader status: ${manifest.status}`]);
+    postLog("info", [`Nim loader entryJs: ${manifest.entryJs}`]);
+    postLog("info", [
+      `Nim loader entryWasm: ${manifest.entryWasm || "<empty>"}`,
+    ]);
 
     await bridge.initialize();
     postLog("info", ["Nim bridge initialized; invoking convert()..."]);
-
-    workerSelf.postMessage({
-      id: request.id,
-      status: "progress",
-      stage: "finalizing",
-      message: "Packaging PMX output...",
-    } satisfies WorkerResponse);
 
     const result = await bridge.convert({
       fileName: request.fileName,
@@ -67,30 +66,39 @@ workerSelf.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     });
     const outputBuffer = result.output.slice().buffer;
 
-    workerSelf.postMessage(
-      {
-        id: request.id,
-        status: "ok",
-        usedMode: "nim",
-        fileExtension: result.fileExtension,
-        outputBuffer,
-      } satisfies WorkerResponse,
-      [outputBuffer],
-    );
+    const successResponse: WorkerResponse = {
+      id: request.id,
+      status: "ok",
+      usedMode: "nim",
+      fileExtension: result.fileExtension,
+      outputBuffer,
+    };
+    workerSelf.postMessage(successResponse, [outputBuffer]);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "Unknown Nim worker error";
+    const detail =
+      error instanceof Error ? error.message : "Unknown Nim worker error";
     postLog("warn", [detail]);
 
-    workerSelf.postMessage({
+    const errorCode = detail.startsWith("NIM_RUNTIME_UNAVAILABLE")
+      ? "NIM_RUNTIME_UNAVAILABLE"
+      : detail.startsWith("NIM_BRIDGE_UNAVAILABLE") ||
+          detail.startsWith("NIM_BRIDGE_INVALID")
+        ? "NIM_BRIDGE_UNAVAILABLE"
+        : detail.startsWith("NIM_WASM_UNAVAILABLE") ||
+            detail.startsWith("NIM_WASM_FETCH_FAILED") ||
+            detail.startsWith("NIM_WASM_INVALID")
+          ? "NIM_WASM_UNAVAILABLE"
+          : detail.startsWith("NIM_WASM_INIT_FAILED")
+            ? "NIM_WASM_INIT_FAILED"
+            : "NIM_CONVERT_FAILED";
+
+    const errorResponse: WorkerResponse = {
       id: request.id,
       status: "error",
-      code: detail.startsWith("NIM_RUNTIME_UNAVAILABLE")
-        ? "NIM_RUNTIME_UNAVAILABLE"
-        : detail.startsWith("NIM_WASM_UNAVAILABLE") || detail.startsWith("NIM_WASM_INVALID")
-          ? "NIM_WASM_UNAVAILABLE"
-          : "NIM_CONVERT_FAILED",
+      code: errorCode,
       message: detail,
-    } satisfies WorkerResponse);
+    };
+    workerSelf.postMessage(errorResponse);
   } finally {
     activeRequestId = null;
   }

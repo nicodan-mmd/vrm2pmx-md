@@ -9,7 +9,10 @@ type ScopeWithAttachment = Sentry.Scope & {
   }) => void;
 };
 
-export type QualitySignalSource = "fallback" | "auto_detected" | "user_reported";
+export type QualitySignalSource =
+  | "fallback"
+  | "auto_detected"
+  | "user_reported";
 export type QualitySignalLevel = "warning" | "info";
 
 export type QualitySignalReportInput = {
@@ -105,7 +108,10 @@ function normalizeQualitySignalCode(signal: string): string {
 }
 
 export function createConversionReportId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
 
@@ -143,7 +149,12 @@ function addPreviewAttachment(
 
   try {
     const bytes = decodeBase64ToBytes(payload);
-    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    const ext =
+      contentType === "image/png"
+        ? "png"
+        : contentType === "image/webp"
+          ? "webp"
+          : "jpg";
     scope.addAttachment({
       filename: `${filenameBase}.${ext}`,
       data: bytes,
@@ -170,7 +181,9 @@ export function reportQualitySignals({
   previewSnapshots,
   pmxPreviewDiagnostics,
 }: QualitySignalReportInput): boolean {
-  const normalizedSignals = [...new Set(signals.map(normalizeQualitySignalCode))];
+  const normalizedSignals = [
+    ...new Set(signals.map(normalizeQualitySignalCode)),
+  ];
   let firstEventId: string | undefined;
 
   if (normalizedSignals.length === 0) {
@@ -223,7 +236,10 @@ export function reportQualitySignals({
             `${base}_preview_vrm`,
           );
           if (!attachedVrm) {
-            scope.setExtra("preview_vrm_data_url_prefix", previewSnapshots.vrmDataUrl.slice(0, 160));
+            scope.setExtra(
+              "preview_vrm_data_url_prefix",
+              previewSnapshots.vrmDataUrl.slice(0, 160),
+            );
           }
         }
         if (previewSnapshots.pmxDataUrl) {
@@ -233,7 +249,10 @@ export function reportQualitySignals({
             `${base}_preview_pmx`,
           );
           if (!attachedPmx) {
-            scope.setExtra("preview_pmx_data_url_prefix", previewSnapshots.pmxDataUrl.slice(0, 160));
+            scope.setExtra(
+              "preview_pmx_data_url_prefix",
+              previewSnapshots.pmxDataUrl.slice(0, 160),
+            );
           }
         }
 

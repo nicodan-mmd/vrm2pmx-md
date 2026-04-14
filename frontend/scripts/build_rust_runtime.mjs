@@ -48,7 +48,9 @@ async function main() {
   await fs.mkdir(outputDir, { recursive: true });
   await fs.copyFile(sourceWasmPath, targetWasmPath);
   const stat = await fs.stat(targetWasmPath);
-  console.log(`Built Rust runtime wasm: ${targetWasmPath} (${stat.size} bytes)`);
+  console.log(
+    `Built Rust runtime wasm: ${targetWasmPath} (${stat.size} bytes)`,
+  );
 }
 
 main().catch((error) => {

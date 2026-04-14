@@ -1,5 +1,10 @@
 import React, { useCallback } from "react";
-import { FaCircleCheck, FaCircleXmark, FaTriangleExclamation, FaCircleInfo } from "react-icons/fa6";
+import {
+  FaCircleCheck,
+  FaCircleXmark,
+  FaTriangleExclamation,
+  FaCircleInfo,
+} from "react-icons/fa6";
 import "../styles/dialog.css";
 
 interface DialogProps {
@@ -67,7 +72,9 @@ export const Dialog: React.FC<DialogProps> = ({
       case "error":
         return <FaCircleXmark className="dialog-icon dialog-icon-error" />;
       case "warning":
-        return <FaTriangleExclamation className="dialog-icon dialog-icon-warning" />;
+        return (
+          <FaTriangleExclamation className="dialog-icon dialog-icon-warning" />
+        );
       default:
         return <FaCircleInfo className="dialog-icon dialog-icon-info" />;
     }
@@ -76,7 +83,10 @@ export const Dialog: React.FC<DialogProps> = ({
   const isConfirm = type === "confirm" || type === "warning";
 
   return (
-    <div className={`dialog-backdrop ${open ? "dialog-open" : ""}`} onClick={handleBackdropClick}>
+    <div
+      className={`dialog-backdrop ${open ? "dialog-open" : ""}`}
+      onClick={handleBackdropClick}
+    >
       <div className="dialog-content" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           {getIcon()}

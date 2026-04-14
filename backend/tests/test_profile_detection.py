@@ -9,7 +9,7 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from service.profile_detection import detect_profile
+from service.profile_detection import detect_profile  # noqa: E402
 
 
 class ProfileDetectionTestCase(unittest.TestCase):
@@ -67,7 +67,10 @@ class ProfileDetectionTestCase(unittest.TestCase):
 
     def test_detects_vroid_generator_as_vroid(self):
         result = detect_profile(
-            {"extensions": {"VRMC_vrm": {}}, "asset": {"generator": "VRoid Studio 2.x"}},
+            {
+                "extensions": {"VRMC_vrm": {}},
+                "asset": {"generator": "VRoid Studio 2.x"},
+            },
             source_path="any_name.vrm",
         )
         self.assertEqual(result.profile, "vroid")

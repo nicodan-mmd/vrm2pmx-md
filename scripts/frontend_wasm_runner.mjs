@@ -6,7 +6,7 @@
 // Usage:
 //   node scripts/frontend_wasm_runner.mjs --vrm <path.vrm> --wasm <path.wasm>
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
 const META_OUT_PTR_OFFSET = 0;
@@ -18,13 +18,12 @@ const { values } = parseArgs({
   options: {
     vrm: { type: "string" },
     wasm: { type: "string" },
-    out: { type: "string" },
   },
 });
 
 if (!values.vrm || !values.wasm) {
   process.stderr.write(
-    "Usage: node frontend_wasm_runner.mjs --vrm <path> --wasm <path> [--out <path.pmx>]\n",
+    "Usage: node frontend_wasm_runner.mjs --vrm <path> --wasm <path>\n",
   );
   process.exit(1);
 }
@@ -127,12 +126,6 @@ async function run() {
 
   let result;
   if (rc === 0 && status === 0 && outLen > 0) {
-    if (values.out) {
-      const outBytes = Buffer.from(
-        new Uint8Array(exports.memory.buffer, outPtr, outLen),
-      );
-      writeFileSync(values.out, outBytes);
-    }
     result = {
       elapsed_ms: elapsedMs,
       input_size: vrmBytes.length,

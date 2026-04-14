@@ -7,18 +7,13 @@ import wx.lib.newevent
 
 from config.default_pairs import (
     BONE_PAIRS,
-    MORPH_EYEBROW,
-    MORPH_EYE,
-    MORPH_LIP,
-    MORPH_OTHER,
-    MORPH_PAIRS,
-    RIGIDBODY_PAIRS,
 )
 from form.panel.BasePanel import BasePanel
 from utils.MLogger import MLogger  # noqa
 
 logger = MLogger(__name__)
 TIMER_ID = wx.NewId()
+
 
 class BonePanel(BasePanel):
 

@@ -7,18 +7,22 @@
 ## Test Layer
 
 1. Core Unit Test (Python)
+
 - `bytes` 入出力 API の正常系
 - 異常入力時の例外とメッセージ
 
 2. Worker Contract Test (TS)
+
 - `convertVrm` request/response の型整合
 - progress event の順序と最終完了
 
 3. Browser Integration Test
+
 - ファイル入力からダウンロード開始まで
 - 大きめ入力で UI がフリーズしないこと
 
 4. Regression Test
+
 - 同一入力に対する出力差分チェック
 - 主要モデルのスモーク変換
 

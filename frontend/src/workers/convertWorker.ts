@@ -52,7 +52,9 @@ function resolvePyLoggingLevel(): number {
 let pyReadyPromise: Promise<void> | null = null;
 const PY_LOGGING_LEVEL = resolvePyLoggingLevel();
 
-async function loadCorePackages(pyodide: Awaited<ReturnType<typeof getPyodide>>): Promise<void> {
+async function loadCorePackages(
+  pyodide: Awaited<ReturnType<typeof getPyodide>>,
+): Promise<void> {
   await pyodide.loadPackage(["numpy"]);
 
   try {
@@ -110,7 +112,8 @@ if "${PY_RUNTIME_ROOT}" not in sys.path:
   }
 }
 
-const ENABLE_WASM_RUNTIME_PRELOAD = (import.meta.env.VITE_WASM_PRELOAD ?? "true") !== "false";
+const ENABLE_WASM_RUNTIME_PRELOAD =
+  (import.meta.env.VITE_WASM_PRELOAD ?? "true") !== "false";
 if (ENABLE_WASM_RUNTIME_PRELOAD) {
   // Best-effort warmup to reduce first convert latency.
   void ensurePyRuntime().catch(() => {
@@ -118,7 +121,8 @@ if (ENABLE_WASM_RUNTIME_PRELOAD) {
   });
 }
 
-const workerSelf: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
+const workerSelf: DedicatedWorkerGlobalScope =
+  self as DedicatedWorkerGlobalScope;
 let activeRequestId: string | null = null;
 const WORKER_LOG_LEVEL = getRuntimeLogLevel();
 const ENABLE_WORKER_CONSOLE_OUTPUT = WORKER_LOG_LEVEL === "debug";
@@ -137,7 +141,10 @@ function stringifyLogArg(value: unknown): string {
   }
 }
 
-function postWorkerLog(level: WorkerLogResponse["level"], args: unknown[]): void {
+function postWorkerLog(
+  level: WorkerLogResponse["level"],
+  args: unknown[],
+): void {
   if (!activeRequestId) {
     return;
   }
@@ -162,31 +169,46 @@ function postWorkerLog(level: WorkerLogResponse["level"], args: unknown[]): void
   const originalDebug = console.debug.bind(console);
 
   console.log = (...args: unknown[]) => {
-    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("log", WORKER_LOG_LEVEL)) {
+    if (
+      ENABLE_WORKER_CONSOLE_OUTPUT &&
+      shouldCaptureLog("log", WORKER_LOG_LEVEL)
+    ) {
       originalLog(...args);
     }
     postWorkerLog("log", args);
   };
   console.info = (...args: unknown[]) => {
-    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("info", WORKER_LOG_LEVEL)) {
+    if (
+      ENABLE_WORKER_CONSOLE_OUTPUT &&
+      shouldCaptureLog("info", WORKER_LOG_LEVEL)
+    ) {
       originalInfo(...args);
     }
     postWorkerLog("info", args);
   };
   console.warn = (...args: unknown[]) => {
-    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("warn", WORKER_LOG_LEVEL)) {
+    if (
+      ENABLE_WORKER_CONSOLE_OUTPUT &&
+      shouldCaptureLog("warn", WORKER_LOG_LEVEL)
+    ) {
       originalWarn(...args);
     }
     postWorkerLog("warn", args);
   };
   console.error = (...args: unknown[]) => {
-    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("error", WORKER_LOG_LEVEL)) {
+    if (
+      ENABLE_WORKER_CONSOLE_OUTPUT &&
+      shouldCaptureLog("error", WORKER_LOG_LEVEL)
+    ) {
       originalError(...args);
     }
     postWorkerLog("error", args);
   };
   console.debug = (...args: unknown[]) => {
-    if (ENABLE_WORKER_CONSOLE_OUTPUT && shouldCaptureLog("debug", WORKER_LOG_LEVEL)) {
+    if (
+      ENABLE_WORKER_CONSOLE_OUTPUT &&
+      shouldCaptureLog("debug", WORKER_LOG_LEVEL)
+    ) {
       originalDebug(...args);
     }
     postWorkerLog("debug", args);

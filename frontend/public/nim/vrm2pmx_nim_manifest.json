@@ -2,16 +2,20 @@
   "name": "vrm2pmx-nim-runtime",
   "version": "0.1.0",
   "status": "wasm-pmx-output",
-  "entryWasm": "vrm2pmx_nim_runtime.wasm",
+  "entryJs": "nim/vrm2pmx_nim_loader.js",
+  "entryWasm": "nim/vrm2pmx_nim_runtime.wasm",
   "capabilities": [
-    "glb-to-pmx-bytes",
-    "c-abi-exports",
-    "single-threaded-wasm",
-    "worker-ready"
+    "loader-bridge",
+    "wasi-preview1-stubbed",
+    "nim-wasm-init",
+    "nim-wasm-alloc",
+    "nim-wasm-free",
+    "nim-wasm-convert",
+    "pmx-output"
   ],
   "notes": [
-    "Current milestone returns PMX bytes from Nim Wasm. ZIP packaging is still handled by JS worker scaffolding.",
-    "Built with --threads:off so the runtime does not require shared memory or cross-origin isolation.",
-    "Memory growth is enabled; current defaults are initial 128MB, max 1024MB, stack 5MB."
+    "Generated from frontend/public/nim/vrm2pmx_nim_runtime.wat via wabt.",
+    "Browser worker calls Nim C ABI exports directly and receives PMX bytes.",
+    "This runtime is fully client-side and does not require the local Nim exe."
   ]
 }

@@ -6,7 +6,7 @@
 - Commit: working tree
 - Branch: main
 - Environment: dev and prod (frontend)
-- Input file: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー_リンリン.vrm
+- Input file: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー\_リンリン.vrm
 
 ## Run setup
 

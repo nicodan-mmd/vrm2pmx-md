@@ -1,0 +1,561 @@
+{
+  "search_path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid",
+  "nim_exe": "src\\nim\\pmx_lite_main.exe",
+  "summary": {
+    "total": 28,
+    "ok": 26,
+    "bit_perfect": 0,
+    "non_bit_perfect": 26,
+    "errors": 2,
+    "vertex_weight0": 1,
+    "bit_perfect_ratio_percent": 0.0
+  },
+  "results": [
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358195,
+        "nim_size_bytes": 4358175,
+        "baseline_sha256": "a91647bd9ac46b917c86f8d15b7cc8d62fe8f098e02176f7438374a27bdd8bcb",
+        "nim_sha256": "9ed2baf029e76eb0e15550df68aea22a2b7527e58402c8639d97376dcbc7b9da",
+        "first_diff_offset": 1100896,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "AvatarSample_A_1.0",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\AvatarSample_A_1.0.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358127,
+        "nim_size_bytes": 4358107,
+        "baseline_sha256": "3ebc07e0769574549ab46bc37d6b0632ba435533f7d4dd668491db1d4a667241",
+        "nim_sha256": "6896c75af774108ed6c1122e75d2d809c78b0fd77574e2ddd17bf6ef1d4d2a17",
+        "first_diff_offset": 182256,
+        "first_diff_baseline_byte": 208,
+        "first_diff_nim_byte": 228
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 4532,
+        "deform_type": 2,
+        "field": "weight2",
+        "vertex_range": [182207, 182268]
+      }
+    },
+    {
+      "model": "AvatarSample_M",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\AvatarSample_M.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4501924,
+        "nim_size_bytes": 4500790,
+        "baseline_sha256": "1bf7b3a17b8e8dec7e7d3157b76fb13bbe8fd25cb6f68084bdda4a28d62c8bd9",
+        "nim_sha256": "43bbf71884a9995df0aaa212dae24bbdabd13a4c65ce766a1ea047d683f5fda3",
+        "first_diff_offset": 187893,
+        "first_diff_baseline_byte": 237,
+        "first_diff_nim_byte": 108
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 4645,
+        "deform_type": 2,
+        "field": "weight1",
+        "vertex_range": [187848, 187909]
+      }
+    },
+    {
+      "model": "NicoDanBoy",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\NicoDanBoy.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3924399,
+        "nim_size_bytes": 3924377,
+        "baseline_sha256": "7e16e2d2652515d64c1f3d434e1ada386571d4d624255e5751335ccbfe020277",
+        "nim_sha256": "0123b7fdfad565bbddecca9ac74259ff463cc3faec3459fa74f1d41edafa1ed6",
+        "first_diff_offset": 572815,
+        "first_diff_baseline_byte": 174,
+        "first_diff_nim_byte": 173
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "position"
+      }
+    },
+    {
+      "model": "NicoDanBoy_20260306",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\NicoDanBoy_20260306.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3945806,
+        "nim_size_bytes": 3945784,
+        "baseline_sha256": "7c9fdb6840d278c447ec00f5c536665bdf9f22b2d78126aed82dbc3a3fdaf025",
+        "nim_sha256": "acf685354dd6fe36f61bf139b59d75ac7f7e3da1a996226316aa538e591a6bf9",
+        "first_diff_offset": 593338,
+        "first_diff_baseline_byte": 168,
+        "first_diff_nim_byte": 167
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "tail_position"
+      }
+    },
+    {
+      "model": "1899578487613238293",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\hitogata\\1899578487613238293.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4607187,
+        "nim_size_bytes": 4606785,
+        "baseline_sha256": "821194a3c6e73eed758d7c1578b15dd991f45518242e5c457d5b7ac3b8379f6f",
+        "nim_sha256": "50354a0e1a29a1e36d179720dcda167af89405430e75eb2671d0bfa5e2dc85d9",
+        "first_diff_offset": 1395638,
+        "first_diff_baseline_byte": 153,
+        "first_diff_nim_byte": 152
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 1,
+        "field": "position"
+      }
+    },
+    {
+      "model": "8211396565083486995",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\いろいろアバター グリズリー\\8211396565083486995.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 169570,
+        "nim_size_bytes": 169664,
+        "baseline_sha256": "b0fa3c4254d23d770177f029974da7b513acf70dc6a64a6c8cb95458126e20e8",
+        "nim_sha256": "f06e802ea8c9d490609e543e203dc626b143709a9c34a51aea78557bade73717",
+        "first_diff_offset": 148465,
+        "first_diff_baseline_byte": 253,
+        "first_diff_nim_byte": 252
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "position"
+      }
+    },
+    {
+      "model": "8538742828286332800",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\そるぴ\\8538742828286332800.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4724552,
+        "nim_size_bytes": 4723386,
+        "baseline_sha256": "07a603a256ffa9211e9534210f7a1ba5a9be5a72f5ea5152fc183836cdeff13f",
+        "nim_sha256": "49ecf693a219210cf1e4cd20bb30ed44b0b5d5c84298ae414a8ba4fe98b37d32",
+        "first_diff_offset": 1348519,
+        "first_diff_baseline_byte": 163,
+        "first_diff_nim_byte": 162
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "tail_position"
+      }
+    },
+    {
+      "model": "9119730241296603838",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\ウェンズデー\\9119730241296603838.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3145569,
+        "nim_size_bytes": 3145296,
+        "baseline_sha256": "c089b6c980631d02d302e0e13f24647fadd09f1e94fd2c8d7296856c571c0b26",
+        "nim_sha256": "0ede94382cf1dba9c9f54c02939597f85f8b5ec9a883e89c9a127bb5a206c7cf",
+        "first_diff_offset": 1496167,
+        "first_diff_baseline_byte": 3,
+        "first_diff_nim_byte": 2
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 33,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "7229542656829083947",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\セインホーン・ユニコニー\\7229542656829083947.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4969909,
+        "nim_size_bytes": 4969706,
+        "baseline_sha256": "506f975628c3368853327429d36b15f2b10bf26877d5cf13a2cd474830eefc9e",
+        "nim_sha256": "558f094795d62cc2cc66580d8ccdbb74c92be5050e5597b03854e476f2a2bf78",
+        "first_diff_offset": 1637417,
+        "first_diff_baseline_byte": 21,
+        "first_diff_nim_byte": 22
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 1,
+        "field": "position"
+      }
+    },
+    {
+      "model": "8954518223473550154",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\赤炎 燐  Rin Sekien\\8954518223473550154.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 5037731,
+        "nim_size_bytes": 5036565,
+        "baseline_sha256": "5ba242fcac67e1fa5a29329577dc2d01b8c5b335a9f1b2721ff46f3b28479df1",
+        "nim_sha256": "4bd5779bd6bf46a2ffeebaf06373369a5b74f135fff2320c19bb6200243648be",
+        "first_diff_offset": 1566303,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "3800391986853067029",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\トクオタケル公式\\いろいろアバター カッパ\\3800391986853067029.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 871670,
+        "nim_size_bytes": 871633,
+        "baseline_sha256": "7cd1fe8d59806d270b568c1f46567ceb16187225c48dc214e398d6d4c9f174f4",
+        "nim_sha256": "d7f5b31b9d650b31ad48c861c5cd43afe8bc1350fdbc914b9e8f5d2a6d056ed4",
+        "first_diff_offset": 839412,
+        "first_diff_baseline_byte": 0,
+        "first_diff_nim_byte": 128
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 3,
+        "field": "position"
+      }
+    },
+    {
+      "model": "7457736558016798615",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\トクオタケル公式\\ウーのカエル\\7457736558016798615.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 127238,
+        "nim_size_bytes": 127962,
+        "baseline_sha256": "539cac82fbcfd6b32ca6dca26808950e40d87646878358688578b429f535f4ed",
+        "nim_sha256": "275cdb79932f0cc90aea7f7e3da208c60d3a414eb4eb35507e7f4ae65d3a52a3",
+        "first_diff_offset": 896,
+        "first_diff_baseline_byte": 8,
+        "first_diff_nim_byte": 121
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 0,
+        "deform_type": 2,
+        "field": "unknown",
+        "vertex_range": [863, 924]
+      }
+    },
+    {
+      "model": "7656413436555301200",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\トクオタケル公式\\カイザーローグエナジーブースト\\7656413436555301200.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 1786020,
+        "nim_size_bytes": 1786744,
+        "baseline_sha256": "bff8430c55220fbb1c7d219c8c0ad8ff57a5895b23a2f46789c5b4996f4c1dfa",
+        "nim_sha256": "4d8a166829ce59eacb36d0d0591abae5eff6ed72d0c459ae6be56bab112b8c38",
+        "first_diff_offset": 938,
+        "first_diff_baseline_byte": 8,
+        "first_diff_nim_byte": 153
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 0,
+        "deform_type": 0,
+        "field": "unknown",
+        "vertex_range": [905, 944]
+      }
+    },
+    {
+      "model": "514340979744949531",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\トクオタケル公式\\メロン猫覚醒\\514340979744949531.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 397532,
+        "nim_size_bytes": 398256,
+        "baseline_sha256": "b2a33d394e2b94cb223af1a7b1078a504727e0e186d102fd43bd5e33f3a45eef",
+        "nim_sha256": "90eda8d400b2f50ff92a2599590761a88c5a5bf0fc053b6018524ea54bcec805",
+        "first_diff_offset": 902,
+        "first_diff_baseline_byte": 6,
+        "first_diff_nim_byte": 111
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 0,
+        "deform_type": 2,
+        "field": "unknown",
+        "vertex_range": [869, 930]
+      }
+    },
+    {
+      "model": "4590875026920364234",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\トクオタケル公式\\仮面ライダーブルーアイズ\\4590875026920364234.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 1140143,
+        "nim_size_bytes": 1140842,
+        "baseline_sha256": "c1da5ae5503617ed147cec7d0bd2d263ff4b66642d5b705d41051704c3153c87",
+        "nim_sha256": "5c9486f02510edceebdba2bfbd89e7a5291a55ae31cfdc92cce0ff08fc3ec062",
+        "first_diff_offset": 152162,
+        "first_diff_baseline_byte": 6,
+        "first_diff_nim_byte": 109
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 3878,
+        "deform_type": 2,
+        "field": "unknown",
+        "vertex_range": [152129, 152190]
+      }
+    },
+    {
+      "model": "AvatarSample_C",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\VRoid Hub\\1.0\\AvatarSample_C_正式版v１.０対応vroidファイル\\AvatarSample_C\\AvatarSample_C.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4332985,
+        "nim_size_bytes": 4332997,
+        "baseline_sha256": "8df6062c6b5be4a45bdb69d2607a1b6226f2e024720f6d5063b98eca1a4e4a1c",
+        "nim_sha256": "cfeac99e4c2c45d6f8673502bff0a556d4c6525daebf017dd336d941f5c99030",
+        "first_diff_offset": 181873,
+        "first_diff_baseline_byte": 199,
+        "first_diff_nim_byte": 58
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 4523,
+        "deform_type": 2,
+        "field": "weight0",
+        "vertex_range": [181832, 181893]
+      }
+    },
+    {
+      "model": "mod",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Release\\0.1.0.0\\mod.vrm",
+      "error": "conversion failed"
+    },
+    {
+      "model": "NicoDanBoy",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Release\\0.1.0.0\\NicoDanBoy.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3945806,
+        "nim_size_bytes": 3945784,
+        "baseline_sha256": "7c9fdb6840d278c447ec00f5c536665bdf9f22b2d78126aed82dbc3a3fdaf025",
+        "nim_sha256": "acf685354dd6fe36f61bf139b59d75ac7f7e3da1a996226316aa538e591a6bf9",
+        "first_diff_offset": 593338,
+        "first_diff_baseline_byte": 168,
+        "first_diff_nim_byte": 167
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "tail_position"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\v0.0\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358195,
+        "nim_size_bytes": 4358175,
+        "baseline_sha256": "59d8a1a873fba5b2d6e8f544e0c4f9d4d9d716cc0b02773a69a193b5f943ca91",
+        "nim_sha256": "3ebc13a901abc5e905433545773dc8dbd7b713fca356dc9ba8f5442769146e81",
+        "first_diff_offset": 1100896,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\v1.0\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358127,
+        "nim_size_bytes": 4358107,
+        "baseline_sha256": "3ebc07e0769574549ab46bc37d6b0632ba435533f7d4dd668491db1d4a667241",
+        "nim_sha256": "6896c75af774108ed6c1122e75d2d809c78b0fd77574e2ddd17bf6ef1d4d2a17",
+        "first_diff_offset": 182256,
+        "first_diff_baseline_byte": 208,
+        "first_diff_nim_byte": 228
+      },
+      "first_diff_location": {
+        "section": "vertex",
+        "vertex_index": 4532,
+        "deform_type": 2,
+        "field": "weight2",
+        "vertex_range": [182207, 182268]
+      }
+    },
+    {
+      "model": "mod",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\VRM2PMX\\mod.vrm",
+      "error": "conversion failed"
+    },
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\20260309\\1\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358195,
+        "nim_size_bytes": 4358175,
+        "baseline_sha256": "a91647bd9ac46b917c86f8d15b7cc8d62fe8f098e02176f7438374a27bdd8bcb",
+        "nim_sha256": "9ed2baf029e76eb0e15550df68aea22a2b7527e58402c8639d97376dcbc7b9da",
+        "first_diff_offset": 1100896,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\20260309\\2\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358195,
+        "nim_size_bytes": 4358175,
+        "baseline_sha256": "a91647bd9ac46b917c86f8d15b7cc8d62fe8f098e02176f7438374a27bdd8bcb",
+        "nim_sha256": "9ed2baf029e76eb0e15550df68aea22a2b7527e58402c8639d97376dcbc7b9da",
+        "first_diff_offset": 1100896,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "超かぐや姫！酒寄彩葉「水色の描」",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\bowlroll\\超かぐや姫！酒寄彩葉「水色の描」\\超かぐや姫！酒寄彩葉「水色の描」\\超かぐや姫_酒寄彩葉_水色の描_\\超かぐや姫！酒寄彩葉「水色の描」vrm\\超かぐや姫！酒寄彩葉「水色の描」.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4967300,
+        "nim_size_bytes": 4967097,
+        "baseline_sha256": "c4cdf6d3de9a3942385266f71b27b5adc3800ae260f52b611378edbf14641a0a",
+        "nim_sha256": "7cbc65ea770a2f479ed180a24555b48732c4d1531a6872fe160330e302fc41b9",
+        "first_diff_offset": 1646310,
+        "first_diff_baseline_byte": 99,
+        "first_diff_nim_byte": 98
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "position"
+      }
+    },
+    {
+      "model": "8831901753414439164",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Booth\\Klee\\8831901753414439164.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3305016,
+        "nim_size_bytes": 3304982,
+        "baseline_sha256": "002a0c503714b5675efbe4caef536db5f54099c3f4df1ba3a34c4875839213ce",
+        "nim_sha256": "b5502c69d72baa3fc7065a88417b0c38b72c2ee02b878a2a451a51c7171b5139",
+        "first_diff_offset": 785210,
+        "first_diff_baseline_byte": 0,
+        "first_diff_nim_byte": 128
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 3,
+        "field": "position"
+      }
+    },
+    {
+      "model": "プロレスラー_リンリン",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Booth\\プロレスラー リンリン\\プロレスラー_リンリン.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 6652947,
+        "nim_size_bytes": 6652927,
+        "baseline_sha256": "59e8b05f0d877a5889d248107e93e29e1b1e4a089023d1971d42012030c19b48",
+        "nim_sha256": "d60330aabfdd415340f54ba9bef89e03a41b3eaffeccf929e3aa81f26998797e",
+        "first_diff_offset": 2756202,
+        "first_diff_baseline_byte": 2,
+        "first_diff_nim_byte": 3
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 88,
+        "field": "flag"
+      }
+    },
+    {
+      "model": "和風リメイクあかおに",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\Booth\\あかおに新 VRM形式\\和風リメイクあかおに\\和風リメイクあかおに.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 3318310,
+        "nim_size_bytes": 3318371,
+        "baseline_sha256": "46c68b97a1237e40d243fd59dffb75bf8cab38aac2bfb07bd8dc7845a2e22c55",
+        "nim_sha256": "659bf8f9f5765cc0daf43d2268d9a3a9df4e3200571d1a6f8f6adf61c1f9dba1",
+        "first_diff_offset": 1650021,
+        "first_diff_baseline_byte": 207,
+        "first_diff_nim_byte": 206
+      },
+      "first_diff_location": {
+        "section": "bone",
+        "bone_index": 2,
+        "field": "position"
+      }
+    }
+  ]
+}

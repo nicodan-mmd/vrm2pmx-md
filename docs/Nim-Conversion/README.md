@@ -4,6 +4,8 @@
 
 Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を再発防止しつつ、Python 実装との互換性を維持したまま段階的に検証する。
 
+Rust 経路は現時点の検証結果を踏まえて非推奨扱いとし、継続検証は Nim 経路を優先する。
+
 ## 目的
 
 - Nim 経路を実験モードとして追加し、既存 Python 経路は安全なフォールバックとして維持する
@@ -15,7 +17,9 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 - 01-Roadmap.md: フェーズ計画とゲート条件
 - 02-Metrics-Plan.md: 出力要素数の比較仕様（骨・モーフ・頂点など）
 - 03-Frontend-Toggle.md: Nim チェックボックス導入方針
-- Comparisons/README.md: 比較記録の保存ルール
+- Comparisons/README.md: 比較記録の保存ルールと実行履歴
+- Comparisons/20260412_175514_timing_comparison.md: 28 体の timing 比較（Python/Nim-exe/Wasm）
+- Comparisons/20260412_175624_bitperfect_probe.md: 28 体の bit-perfect probe 結果
 
 ## 最新計測
 
@@ -33,7 +37,7 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 
 ## 参考メモ
 
-- プロジェクト外メモ: D:\Users\maedashingo\Documents\_MyDocument\Dev\_MyWork\vrm2pmx-md\Material\Note\Nim-Convertion.txt
+- プロジェクト外メモ: D:\Users\maedashingo\Documents_MyDocument\Dev_MyWork\vrm2pmx-md\Material\Note\Nim-Convertion.txt
 - 反映済み要点:
   - バイナリ構造体のアライメントずれ防止（packed 指定）
   - リトルエンディアン厳守
@@ -44,3 +48,29 @@ Rust PoC で発生した課題（頂点数の爆増と変換時間増大）を�
 - 主要ケースで Python 比の変換時間が短縮される
 - 出力 PMX の要素数差分が許容範囲内である
 - 頂点数が異常増加した場合は自動で検出し、Nim 経路を失敗扱いでフォールバックできる
+
+## 安全ビルド運用（既存 exe を壊さない）
+
+Nim ソースの修正中は、既存の参照 exe（`src/nim/pmx_lite_main.exe`）を直接置換しない。
+
+1. 候補 exe をビルドする
+2. 同一入力モデルで 参照 exe / 候補 exe を両方実行する
+3. 出力 PMX の SHA256 が一致した時だけ置換する
+
+実行コマンド:
+
+```powershell
+python scripts/nim_safe_rebuild_check.py "D:\Users\maedashingo\Downloads\MMD\VRoid\original\AvatarSample_A.vrm" --report-json tmp/nim/safe_rebuild_report_avatarA.json
+```
+
+- 終了コード `0`: 参照出力と一致
+- 終了コード `2`: 不一致（置換禁止）
+- JSON レポート: `tmp/nim/safe_rebuild_report_*.json`
+
+置換を許可する場合（一致時のみ）:
+
+```powershell
+python scripts/nim_safe_rebuild_check.py "<model.vrm>" --replace-reference
+```
+
+この運用により「ビルドは通るが挙動が壊れる」ケースで参照 exe が守られる。

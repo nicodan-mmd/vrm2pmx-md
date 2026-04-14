@@ -9,14 +9,14 @@ This refactoring track focuses on modernized Web/Wasm code and excludes the orig
 
 In scope:
 
-- frontend/src/**
-- backend/app/** (if needed)
+- frontend/src/\*\*
+- backend/app/\*\* (if needed)
 - frontend scripts/config only when directly required by feature split
 
 Out of scope (fork-origin side):
 
-- src/** (legacy desktop Python implementation)
-- mmd/**, module/**, service/** under legacy tree
+- src/\*\* (legacy desktop Python implementation)
+- mmd/**, module/**, service/\*\* under legacy tree
 - legacy GUI/form pipeline and related conversion internals
 
 ## Survey Summary

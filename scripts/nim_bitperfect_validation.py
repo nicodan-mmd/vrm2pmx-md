@@ -11,10 +11,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import time
 from pathlib import Path
-
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -36,7 +35,11 @@ def first_diff_offset(a: bytes, b: bytes) -> int:
     return -1
 
 
-def run_python_baseline(vrm_path: Path, runs: int) -> tuple[bytes, list[dict[str, object]]]:
+def run_python_baseline(
+    vrm_path: Path,
+    runs: int,
+    version_name: str = "nim-bitperfect-baseline",
+) -> tuple[bytes, list[dict[str, object]]]:
     vrm_bytes = vrm_path.read_bytes()
     run_details: list[dict[str, object]] = []
     first_output: bytes | None = None
@@ -47,7 +50,7 @@ def run_python_baseline(vrm_path: Path, runs: int) -> tuple[bytes, list[dict[str
             vrm_bytes,
             file_suffix=vrm_path.suffix.lower() or ".vrm",
             source_stem=vrm_path.stem,
-            version_name="nim-bitperfect-baseline",
+            version_name=version_name,
             logging_level=MLogger.ERROR,
         )
         elapsed_ms = int((time.perf_counter() - started) * 1000)

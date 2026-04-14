@@ -15,17 +15,21 @@
 ## 論理構成
 
 1. UI Layer
+
 - ファイル選択、設定入力、進捗表示、ダウンロード
 
 2. Worker Layer
+
 - Pyodide 初期化、Python 呼び出し、メッセージ受け渡し
 
 3. Python Core Layer
+
 - 変換ロジック本体
 - GUI 非依存
 - `bytes` 入出力 API
 
 4. Packaging Layer
+
 - PMX 単体出力または ZIP 出力
 
 ## 分離原則

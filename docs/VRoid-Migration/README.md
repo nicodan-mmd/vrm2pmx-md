@@ -43,15 +43,15 @@
 
 ### Completed
 
-| Phase | 内容 | コミット | テスト |
-|---|---|---|---|
-| PR-A | Profile detection API | d481e2c | ✅ |
-| PR-B | Shared utility extraction | d2fd3e2 | ✅ |
-| PR-C | Access guards | ccc66c6 | ✅ |
-| PR-D | Bone/mesh tuning | d28c14b | ✅ |
-| PR-E | Expression mapping + physics guards | 5493c2a | ✅ |
-| PR-F | Frontend detection display | 4c53923 | ✅ |
-| **PR-G** | **Regression testing suite** | **bcda2e6, e33ae40** | **✅ 26/26 PASS** |
+| Phase    | 内容                                | コミット             | テスト            |
+| -------- | ----------------------------------- | -------------------- | ----------------- |
+| PR-A     | Profile detection API               | d481e2c              | ✅                |
+| PR-B     | Shared utility extraction           | d2fd3e2              | ✅                |
+| PR-C     | Access guards                       | ccc66c6              | ✅                |
+| PR-D     | Bone/mesh tuning                    | d28c14b              | ✅                |
+| PR-E     | Expression mapping + physics guards | 5493c2a              | ✅                |
+| PR-F     | Frontend detection display          | 4c53923              | ✅                |
+| **PR-G** | **Regression testing suite**        | **bcda2e6, e33ae40** | **✅ 26/26 PASS** |
 
 | **Gate 2** | **Real VRoid sample validation** | e146aac | **✅ 完全成功** |
 
@@ -65,4 +65,4 @@
 - ✅ VRoid Studio 2.10.0 実サンプル変換成功
 - ✅ ドキュメント完成
 
-**本番環境での利用可能**
+### 本番環境での利用可能

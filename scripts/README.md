@@ -189,6 +189,7 @@ Rust移行の比較記録用に、backend基準の変換時間と出力ZIP情報
 `docs/Rust-Conversion/Comparisons/` へ保存します。
 
 **用途：**
+
 - backend `/api/convert` を複数回実行し時間を記録
 - 1回分のZIPを artifacts に保存
 - SHA256 と ZIP エントリ情報を JSON/Markdown で records に保存

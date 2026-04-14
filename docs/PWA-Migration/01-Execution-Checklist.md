@@ -1,5 +1,7 @@
 # PWA Migration Execution Checklist
 
+<!-- markdownlint-disable MD024 -->
+
 Updated: 2026-03-25
 Owner: frontend
 Branch: feature/pwa-migration-prep

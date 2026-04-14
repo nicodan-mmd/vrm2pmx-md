@@ -5,7 +5,7 @@
 - Date: 2026-03-27
 - Branch: main
 - Environment: backend
-- Input file: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー_リンリン.vrm
+- Input file: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー\_リンリン.vrm
 - Input size bytes: 21938004
 
 ## Timing

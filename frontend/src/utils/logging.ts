@@ -8,18 +8,20 @@ const LOG_SEVERITY: Record<Exclude<RuntimeLogLevel, "silent">, number> = {
   error: 40,
 };
 
-function normalizeRuntimeLogLevel(rawLevel: string | undefined): RuntimeLogLevel | null {
+function normalizeRuntimeLogLevel(
+  rawLevel: string | undefined,
+): RuntimeLogLevel | null {
   if (!rawLevel) {
     return null;
   }
 
   const normalized = rawLevel.trim().toLowerCase();
   if (
-    normalized === "debug"
-    || normalized === "info"
-    || normalized === "warn"
-    || normalized === "error"
-    || normalized === "silent"
+    normalized === "debug" ||
+    normalized === "info" ||
+    normalized === "warn" ||
+    normalized === "error" ||
+    normalized === "silent"
   ) {
     return normalized;
   }
@@ -28,7 +30,9 @@ function normalizeRuntimeLogLevel(rawLevel: string | undefined): RuntimeLogLevel
 }
 
 export function getRuntimeLogLevel(): RuntimeLogLevel {
-  const envLevel = normalizeRuntimeLogLevel(import.meta.env.VITE_LOG_LEVEL as string | undefined);
+  const envLevel = normalizeRuntimeLogLevel(
+    import.meta.env.VITE_LOG_LEVEL as string | undefined,
+  );
   if (envLevel) {
     return envLevel;
   }
@@ -36,7 +40,9 @@ export function getRuntimeLogLevel(): RuntimeLogLevel {
   return import.meta.env.DEV ? "debug" : "warn";
 }
 
-export function toRuntimeLogLevel(level: ConsoleLogLevel): Exclude<RuntimeLogLevel, "silent"> {
+export function toRuntimeLogLevel(
+  level: ConsoleLogLevel,
+): Exclude<RuntimeLogLevel, "silent"> {
   return level === "log" ? "info" : level;
 }
 

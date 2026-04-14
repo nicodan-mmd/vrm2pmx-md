@@ -4,7 +4,8 @@ const ERROR_REPORTING_STORAGE_KEY = "vrm2pmx.errorReporting.enabled.v1";
 
 export function useErrorReportingConsent() {
   const [isErrorReportingEnabled, setIsErrorReportingEnabled] = useState(false);
-  const [isErrorReportingPromptOpen, setIsErrorReportingPromptOpen] = useState(false);
+  const [isErrorReportingPromptOpen, setIsErrorReportingPromptOpen] =
+    useState(false);
 
   useEffect(() => {
     try {
@@ -15,7 +16,10 @@ export function useErrorReportingConsent() {
       }
       setIsErrorReportingEnabled(raw === "true");
     } catch (error) {
-      console.warn("Failed to restore error reporting consent from localStorage", error);
+      console.warn(
+        "Failed to restore error reporting consent from localStorage",
+        error,
+      );
     }
   }, []);
 
@@ -24,7 +28,10 @@ export function useErrorReportingConsent() {
     try {
       window.localStorage.setItem(ERROR_REPORTING_STORAGE_KEY, String(enabled));
     } catch (error) {
-      console.warn("Failed to persist error reporting consent to localStorage", error);
+      console.warn(
+        "Failed to persist error reporting consent to localStorage",
+        error,
+      );
     }
   }
 

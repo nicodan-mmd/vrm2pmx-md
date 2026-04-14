@@ -1,7 +1,10 @@
 import { convertViaWasmWorker } from "../wasm/workerClient";
 import { convertViaRustWorker } from "../rust/workerClient";
 import { convertViaNimWorker } from "../nim/workerClient";
-import type { WorkerLogResponse, WorkerProgressResponse } from "../types/convert";
+import type {
+  WorkerLogResponse,
+  WorkerProgressResponse,
+} from "../types/convert";
 
 export type ConvertMode = "auto" | "backend" | "wasm" | "rust" | "nim";
 export type ConvertExecutionMode = Exclude<ConvertMode, "auto">;
@@ -80,7 +83,10 @@ export function toUserFriendlyConvertError(
     return "Wasm conversion failed and backend fallback is disabled in this build.";
   }
 
-  if (normalized.includes("no known package") || normalized.includes("pillow")) {
+  if (
+    normalized.includes("no known package") ||
+    normalized.includes("pillow")
+  ) {
     return "Pyodide package initialization failed. Reload the page and retry. If it persists, check network access to cdn.jsdelivr.net.";
   }
 
@@ -92,11 +98,17 @@ export function toUserFriendlyConvertError(
     return "Python runtime manifest could not be loaded. Run npm run dev/build again to regenerate synced py_src files.";
   }
 
-  if (normalized.includes("invalid vrm") || normalized.includes("file_suffix")) {
+  if (
+    normalized.includes("invalid vrm") ||
+    normalized.includes("file_suffix")
+  ) {
     return "The selected file format is not supported or the VRM/GLB content is invalid.";
   }
 
-  if (normalized.includes("wasm_convert_failed") || normalized.includes("pyodide")) {
+  if (
+    normalized.includes("wasm_convert_failed") ||
+    normalized.includes("pyodide")
+  ) {
     return "Wasm runtime error occurred during conversion. Reload the page and try again.";
   }
 
@@ -105,12 +117,10 @@ export function toUserFriendlyConvertError(
 
 async function convertViaBackend(
   file: File,
-  requestedMode: "backend" | "nim",
   options?: ConvertOptions,
 ): Promise<ConvertResult> {
   const formData = new FormData();
   formData.append("vrm_file", file);
-  formData.append("mode", requestedMode);
 
   const response = await fetch(`${API_BASE}/api/convert`, {
     method: "POST",
@@ -128,7 +138,7 @@ async function convertViaBackend(
   return {
     blob: await response.blob(),
     fileExtension: "zip",
-    usedMode: requestedMode,
+    usedMode: "backend",
   };
 }
 
@@ -152,7 +162,9 @@ async function convertViaWasm(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -178,7 +190,9 @@ async function convertViaRust(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -204,7 +218,9 @@ async function convertViaNim(
   }
 
   return {
-    blob: new Blob([response.outputBuffer], { type: "application/octet-stream" }),
+    blob: new Blob([response.outputBuffer], {
+      type: "application/octet-stream",
+    }),
     fileExtension: response.fileExtension,
     usedMode: response.usedMode,
   };
@@ -218,7 +234,7 @@ export async function convertWithMode(
   const startedAt = performance.now();
 
   if (mode === "backend") {
-    const result = await convertViaBackend(file, "backend", options);
+    const result = await convertViaBackend(file, options);
     console.info(
       JSON.stringify({
         event: "convert.completed",
@@ -260,7 +276,8 @@ export async function convertWithMode(
         throw error;
       }
 
-      const fallbackReason = error instanceof Error ? error.message : "Unknown rust error";
+      const fallbackReason =
+        error instanceof Error ? error.message : "Unknown rust error";
       console.warn(
         JSON.stringify({
           event: "convert.rust.unavailable",
@@ -308,75 +325,36 @@ export async function convertWithMode(
         throw error;
       }
 
-      const nimWasmFallbackReason = error instanceof Error ? error.message : "Unknown nim wasm error";
+      const fallbackReason =
+        error instanceof Error ? error.message : "Unknown nim error";
       console.warn(
         JSON.stringify({
-          event: "convert.nim.wasm.unavailable",
+          event: "convert.nim.failed",
           requestedMode: "nim",
           attemptedMode: "nim",
-          fallbackMode: "backend",
-          fallbackReason: nimWasmFallbackReason,
+          fallbackMode: "wasm",
+          fallbackReason,
           elapsedMs: Math.round(performance.now() - startedAt),
         }),
       );
 
-      try {
-        const backendResult = await convertViaBackend(file, "nim", options);
-        console.info(
-          JSON.stringify({
-            event: "convert.fallback.completed",
-            requestedMode: mode,
-            attemptedMode: "nim",
-            fallbackMode: backendResult.usedMode,
-            fallbackReason: nimWasmFallbackReason,
-            finalMode: backendResult.usedMode,
-            elapsedMs: Math.round(performance.now() - startedAt),
-          }),
-        );
+      const wasmResult = await convertViaWasm(file, options);
+      console.info(
+        JSON.stringify({
+          event: "convert.fallback.completed",
+          requestedMode: mode,
+          attemptedMode: "nim",
+          fallbackMode: wasmResult.usedMode,
+          fallbackReason,
+          finalMode: wasmResult.usedMode,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        }),
+      );
 
-        return {
-          ...backendResult,
-          fallbackReason: nimWasmFallbackReason,
-        };
-      } catch (backendError) {
-        if (backendError instanceof Error && backendError.name === "AbortError") {
-          throw backendError;
-        }
-
-        const finalFallbackReason = [
-          `nim-wasm: ${nimWasmFallbackReason}`,
-          `nim-backend: ${backendError instanceof Error ? backendError.message : "Unknown nim backend error"}`,
-        ].join(" | ");
-
-        console.warn(
-          JSON.stringify({
-            event: "convert.nim.backend.unavailable",
-            requestedMode: "nim",
-            attemptedMode: "backend",
-            fallbackMode: "wasm",
-            fallbackReason: finalFallbackReason,
-            elapsedMs: Math.round(performance.now() - startedAt),
-          }),
-        );
-
-        const wasmResult = await convertViaWasm(file, options);
-        console.info(
-          JSON.stringify({
-            event: "convert.fallback.completed",
-            requestedMode: mode,
-            attemptedMode: "nim",
-            fallbackMode: wasmResult.usedMode,
-            fallbackReason: finalFallbackReason,
-            finalMode: wasmResult.usedMode,
-            elapsedMs: Math.round(performance.now() - startedAt),
-          }),
-        );
-
-        return {
-          ...wasmResult,
-          fallbackReason: finalFallbackReason,
-        };
-      }
+      return {
+        ...wasmResult,
+        fallbackReason,
+      };
     }
   }
 
@@ -416,7 +394,7 @@ export async function convertWithMode(
       );
     }
 
-    const backendResult = await convertViaBackend(file, "backend", options);
+    const backendResult = await convertViaBackend(file, options);
     console.info(
       JSON.stringify({
         event: "convert.fallback.completed",

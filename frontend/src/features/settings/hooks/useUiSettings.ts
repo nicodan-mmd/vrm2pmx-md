@@ -3,8 +3,8 @@ import type { ConvertMode } from "../../../services/convertClient";
 
 const UI_SETTINGS_STORAGE_KEY = "vrm2pmx.ui.settings.v1";
 
-export const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.0;
-export const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.0;
+export const PMX_LIGHT_DEFAULT_INTENSITY_SCALE = 1.2;
+export const PMX_LIGHT_DEFAULT_CONTRAST_FACTOR = 1.1;
 
 type UiSettingsSnapshot = {
   mode: ConvertMode;
@@ -12,6 +12,7 @@ type UiSettingsSnapshot = {
   orbitSyncEnabled: boolean;
   logEnabled: boolean;
   rustEnabled: boolean;
+  turboLabsEnabled: boolean;
   nimEnabled: boolean;
   worldCounterParticipationEnabled: boolean;
   pmxBrightnessScale: number;
@@ -30,12 +31,20 @@ export function useUiSettings() {
   const [logEnabled, setLogEnabled] = useState(false);
   const logEnabledRef = useRef(false);
   const [rustEnabled, setRustEnabled] = useState(false);
+  const [turboLabsEnabled, setTurboLabsEnabled] = useState(false);
   const [nimEnabled, setNimEnabled] = useState(false);
-  const [worldCounterParticipationEnabled, setWorldCounterParticipationEnabled] = useState(true);
+  const [
+    worldCounterParticipationEnabled,
+    setWorldCounterParticipationEnabled,
+  ] = useState(true);
   const [gridEnabled, setGridEnabled] = useState(false);
   const gridEnabledRef = useRef(false);
-  const [pmxBrightnessScale, setPmxBrightnessScale] = useState(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
-  const [pmxContrastFactor, setPmxContrastFactor] = useState(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
+  const [pmxBrightnessScale, setPmxBrightnessScale] = useState(
+    PMX_LIGHT_DEFAULT_INTENSITY_SCALE,
+  );
+  const [pmxContrastFactor, setPmxContrastFactor] = useState(
+    PMX_LIGHT_DEFAULT_CONTRAST_FACTOR,
+  );
   const [isUiSettingsHydrated, setIsUiSettingsHydrated] = useState(false);
   const skipNextSettingsPersistRef = useRef(false);
 
@@ -64,10 +73,17 @@ export function useUiSettings() {
       const raw = window.localStorage.getItem(UI_SETTINGS_STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<UiSettingsSnapshot>;
-        if (saved.mode === "wasm" || saved.mode === "auto" || saved.mode === "backend") {
+        if (
+          saved.mode === "wasm" ||
+          saved.mode === "auto" ||
+          saved.mode === "backend"
+        ) {
           setMode(saved.mode);
         }
-        if (typeof saved.taPoseAngle === "number" && Number.isFinite(saved.taPoseAngle)) {
+        if (
+          typeof saved.taPoseAngle === "number" &&
+          Number.isFinite(saved.taPoseAngle)
+        ) {
           const snapped = Math.round(clamp(saved.taPoseAngle, 0, 90) / 5) * 5;
           setTaPoseAngle(snapped);
         }
@@ -80,17 +96,30 @@ export function useUiSettings() {
         if (typeof saved.rustEnabled === "boolean") {
           setRustEnabled(saved.rustEnabled);
         }
+        const savedTurboLabsEnabled =
+          typeof saved.turboLabsEnabled === "boolean"
+            ? saved.turboLabsEnabled
+            : false;
+        setTurboLabsEnabled(savedTurboLabsEnabled);
         if (typeof saved.nimEnabled === "boolean") {
-          setNimEnabled(saved.nimEnabled);
+          setNimEnabled(savedTurboLabsEnabled ? saved.nimEnabled : false);
         }
         if (typeof saved.worldCounterParticipationEnabled === "boolean") {
-          setWorldCounterParticipationEnabled(saved.worldCounterParticipationEnabled);
+          setWorldCounterParticipationEnabled(
+            saved.worldCounterParticipationEnabled,
+          );
         }
-        if (typeof saved.pmxBrightnessScale === "number" && Number.isFinite(saved.pmxBrightnessScale)) {
-          setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.05));
+        if (
+          typeof saved.pmxBrightnessScale === "number" &&
+          Number.isFinite(saved.pmxBrightnessScale)
+        ) {
+          setPmxBrightnessScale(clamp(saved.pmxBrightnessScale, 0.6, 1.2));
         }
-        if (typeof saved.pmxContrastFactor === "number" && Number.isFinite(saved.pmxContrastFactor)) {
-          setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.2));
+        if (
+          typeof saved.pmxContrastFactor === "number" &&
+          Number.isFinite(saved.pmxContrastFactor)
+        ) {
+          setPmxContrastFactor(clamp(saved.pmxContrastFactor, 0.8, 1.4));
         }
       }
     } catch (error) {
@@ -99,6 +128,12 @@ export function useUiSettings() {
       setIsUiSettingsHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!turboLabsEnabled && nimEnabled) {
+      setNimEnabled(false);
+    }
+  }, [turboLabsEnabled, nimEnabled]);
 
   useEffect(() => {
     if (!isUiSettingsHydrated) {
@@ -116,6 +151,7 @@ export function useUiSettings() {
       orbitSyncEnabled,
       logEnabled,
       rustEnabled,
+      turboLabsEnabled,
       nimEnabled,
       worldCounterParticipationEnabled,
       pmxBrightnessScale,
@@ -123,7 +159,10 @@ export function useUiSettings() {
     };
 
     try {
-      window.localStorage.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(
+        UI_SETTINGS_STORAGE_KEY,
+        JSON.stringify(snapshot),
+      );
     } catch (error) {
       console.warn("Failed to persist UI settings to localStorage", error);
     }
@@ -134,6 +173,7 @@ export function useUiSettings() {
     orbitSyncEnabled,
     logEnabled,
     rustEnabled,
+    turboLabsEnabled,
     nimEnabled,
     worldCounterParticipationEnabled,
     pmxBrightnessScale,
@@ -148,6 +188,7 @@ export function useUiSettings() {
     setOrbitSyncEnabled(true);
     setLogEnabled(false);
     setRustEnabled(false);
+    setTurboLabsEnabled(false);
     setNimEnabled(false);
     setWorldCounterParticipationEnabled(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
@@ -167,6 +208,8 @@ export function useUiSettings() {
     logEnabledRef,
     rustEnabled,
     setRustEnabled,
+    turboLabsEnabled,
+    setTurboLabsEnabled,
     nimEnabled,
     setNimEnabled,
     worldCounterParticipationEnabled,

@@ -11,6 +11,9 @@ type AboutDialogProps = {
   installControl?: ReactNode;
   worldCounterParticipationEnabled: boolean;
   onWorldCounterParticipationChange: (enabled: boolean) => void;
+  turboLabsEnabled: boolean;
+  onTurboLabsEnabledChange: (enabled: boolean) => void;
+  turboLabsSettingLabel: string;
   onAllReset: () => void;
   onClose: () => void;
 };
@@ -191,6 +194,9 @@ export default function AboutDialog({
   installControl,
   worldCounterParticipationEnabled,
   onWorldCounterParticipationChange,
+  turboLabsEnabled,
+  onTurboLabsEnabledChange,
+  turboLabsSettingLabel,
   onAllReset,
   onClose,
 }: AboutDialogProps) {
@@ -238,10 +244,20 @@ export default function AboutDialog({
         }
       }}
     >
-      <section className="about-modal" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <section
+        className="about-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-title"
+      >
         <header className="about-modal-header">
           <h2 id="about-title">About</h2>
-          <button type="button" className="about-close-button" onClick={onClose} aria-label="Close about dialog">
+          <button
+            type="button"
+            className="about-close-button"
+            onClick={onClose}
+            aria-label="Close about dialog"
+          >
             Close
           </button>
         </header>
@@ -250,23 +266,32 @@ export default function AboutDialog({
             type="button"
             className={`about-tab${activeTab === "about" ? " about-tab-active" : ""}`}
             onClick={() => setActiveTab("about")}
-          >About</button>
+          >
+            About
+          </button>
           <button
             type="button"
             className={`about-tab${activeTab === "history" ? " about-tab-active" : ""}`}
             onClick={() => setActiveTab("history")}
-          >Version</button>
+          >
+            Version
+          </button>
           <button
             type="button"
             className={`about-tab${activeTab === "setting" ? " about-tab-active" : ""}`}
             onClick={() => setActiveTab("setting")}
-          >Setting</button>
+          >
+            Setting
+          </button>
         </div>
         {activeTab === "history" ? (
           <div className="about-modal-body about-history-body">
             {HISTORY.map((entry) => (
               <div key={entry.version} className="history-entry">
-                <p className="history-version">{entry.version} <span className="history-date">{entry.date}</span></p>
+                <p className="history-version">
+                  {entry.version}{" "}
+                  <span className="history-date">{entry.date}</span>
+                </p>
                 <ul className="history-list">
                   {entry.items.map((item, i) => (
                     <li key={i}>{item[locale]}</li>
@@ -277,15 +302,33 @@ export default function AboutDialog({
           </div>
         ) : activeTab === "setting" ? (
           <div className="about-modal-body about-settings-body">
-            <p><strong>Setting</strong></p>
+            <p>
+              <strong>Setting</strong>
+            </p>
             <label className="about-settings-toggle">
               <input
                 type="checkbox"
                 checked={worldCounterParticipationEnabled}
-                onChange={(event) => onWorldCounterParticipationChange(event.target.checked)}
+                onChange={(event) =>
+                  onWorldCounterParticipationChange(event.target.checked)
+                }
               />
-              <span>WORLD CONVERT COUNTER に参加する (外すと表示のみになります)</span>
+              <span>
+                WORLD CONVERT COUNTER に参加する (外すと表示のみになります)
+              </span>
             </label>
+
+            {/* Ver 1.6.0 release */}
+            {/*
+            <label className="about-settings-toggle">
+              <input
+                type="checkbox"
+                checked={turboLabsEnabled}
+                onChange={(event) => onTurboLabsEnabledChange(event.target.checked)}
+              />
+              <span>{turboLabsSettingLabel}</span>
+            </label>
+            */}
             <div className="about-settings-actions">
               {installControl}
               <button
@@ -298,69 +341,133 @@ export default function AboutDialog({
             </div>
           </div>
         ) : (
-        <div className="about-modal-body">
-          <p><strong>VRM to MMD Converter</strong></p>
-          <p>This tool converts VRM models to PMX format in browser using Wasm/Pyodide runtime.</p>
+          <div className="about-modal-body">
+            <p>
+              <strong>VRM to MMD Converter</strong>
+            </p>
+            <p>
+              This tool converts VRM models to PMX format in browser using
+              Wasm/Pyodide runtime.
+            </p>
 
-          <hr className="about-divider" />
+            <hr className="about-divider" />
 
-          <p>
-            <a
-              href="https://github.com/nicodan-mmd/vrm2pmx-md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="about-link"
-            >
-              <FaGithub className="about-link-icon" />
-              vrm2pmx-md
-            </a>
-          </p>
+            <p>
+              <a
+                href="https://github.com/nicodan-mmd/vrm2pmx-md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                <FaGithub className="about-link-icon" />
+                vrm2pmx-md
+              </a>
+            </p>
 
-          <hr className="about-divider" />
+            <hr className="about-divider" />
 
-          <p><strong>Special thanks:</strong></p>
-          <p>
-            <a
-              href="https://github.com/miu200521358"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="about-link"
-            >
-              miu200521358
-            </a>
-          </p>
-          <p>
-            Forked from{" "}
-            <a
-              href="https://github.com/miu200521358/vrm2pmx"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="about-link"
-            >
-              vrm2pmx
-            </a>
-          </p>
+            <p>
+              <strong>Special thanks:</strong>
+            </p>
+            <p>
+              <a
+                href="https://github.com/miu200521358"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                miu200521358
+              </a>
+            </p>
+            <p>
+              Forked from{" "}
+              <a
+                href="https://github.com/miu200521358/vrm2pmx"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                vrm2pmx
+              </a>
+            </p>
 
-          <hr className="about-divider" />
+            <hr className="about-divider" />
 
-          <p><strong>Libraries:</strong>{" "}
-            <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer" className="about-link">three.js</a>{" · "}
-            <a href="https://github.com/pmndrs/three-stdlib" target="_blank" rel="noopener noreferrer" className="about-link">three-stdlib</a>{" · "}
-            <a href="https://github.com/pixiv/three-vrm" target="_blank" rel="noopener noreferrer" className="about-link">@pixiv/three-vrm</a>{" · "}
-            <a href="https://pyodide.org/" target="_blank" rel="noopener noreferrer" className="about-link">Pyodide</a>{" · "}
-            <a href="https://react.dev/" target="_blank" rel="noopener noreferrer" className="about-link">React</a>{" · "}
-            <a href="https://gildas-lormeau.github.io/zip.js/" target="_blank" rel="noopener noreferrer" className="about-link">zip.js</a>{" · "}
-            <a href="https://react-icons.github.io/react-icons/" target="_blank" rel="noopener noreferrer" className="about-link">react-icons</a>
-          </p>
+            <p>
+              <strong>Libraries:</strong>{" "}
+              <a
+                href="https://threejs.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                three.js
+              </a>
+              {" · "}
+              <a
+                href="https://github.com/pmndrs/three-stdlib"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                three-stdlib
+              </a>
+              {" · "}
+              <a
+                href="https://github.com/pixiv/three-vrm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                @pixiv/three-vrm
+              </a>
+              {" · "}
+              <a
+                href="https://pyodide.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                Pyodide
+              </a>
+              {" · "}
+              <a
+                href="https://react.dev/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                React
+              </a>
+              {" · "}
+              <a
+                href="https://gildas-lormeau.github.io/zip.js/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                zip.js
+              </a>
+              {" · "}
+              <a
+                href="https://react-icons.github.io/react-icons/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                react-icons
+              </a>
+            </p>
 
-          <hr className="about-divider" />
-          <p><strong>{privacyPolicyTitle[locale]}:</strong></p>
-          <p>{privacyPolicyText[locale]}</p>
+            <hr className="about-divider" />
+            <p>
+              <strong>{privacyPolicyTitle[locale]}:</strong>
+            </p>
+            <p>{privacyPolicyText[locale]}</p>
 
-          <hr className="about-divider" />
-          <p>Powered by GitHub Copilot</p>
-
-        </div>
+            <hr className="about-divider" />
+            <p>Powered by GitHub Copilot</p>
+          </div>
         )}
       </section>
     </div>

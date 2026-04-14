@@ -52,7 +52,9 @@ async function copyTree() {
     const pyFiles = await listPyFiles(sourceDir);
 
     for (const filePath of pyFiles) {
-      const relativeFromSrc = path.relative(srcRoot, filePath).replaceAll("\\", "/");
+      const relativeFromSrc = path
+        .relative(srcRoot, filePath)
+        .replaceAll("\\", "/");
       const destinationPath = path.join(targetRoot, relativeFromSrc);
 
       await ensureDir(path.dirname(destinationPath));
@@ -62,9 +64,15 @@ async function copyTree() {
   }
 
   manifest.sort();
-  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+  await fs.writeFile(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf-8",
+  );
 
-  console.log(`Synced ${manifest.length} python files to frontend/public/py_src`);
+  console.log(
+    `Synced ${manifest.length} python files to frontend/public/py_src`,
+  );
 }
 
 copyTree().catch((error) => {

@@ -10,11 +10,7 @@
   "runs": {
     "warmup": 1,
     "measured": 3,
-    "python_sec": [
-      10.624367,
-      10.530873,
-      10.578981
-    ],
+    "python_sec": [10.624367, 10.530873, 10.578981],
     "rust_requested_sec": []
   },
   "summary": {
@@ -244,9 +240,7 @@
     "load_success": false,
     "visual_equivalent": false,
     "structural_equivalent": false,
-    "notes": [
-      "Pending external-app verification by user."
-    ]
+    "notes": ["Pending external-app verification by user."]
   },
   "status": "warn",
   "next_action": "Ask user to verify loadability with external applications."

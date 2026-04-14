@@ -14,7 +14,12 @@
   },
   "js_bridge": {
     "added": ["readAccessor()", "GLTF_COMPONENT map", "GLTF_TYPE_COUNT map"],
-    "convert_outputs": ["vrmVersion", "jsonChunkSize", "binChunkSize", "vertexCount"]
+    "convert_outputs": [
+      "vrmVersion",
+      "jsonChunkSize",
+      "binChunkSize",
+      "vertexCount"
+    ]
   },
   "validation": {
     "type_errors": false,

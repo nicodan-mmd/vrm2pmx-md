@@ -14,17 +14,17 @@
 ## 2. 判定キー棚卸し（現時点）
 
 - [x] extensions.VRM
-	- 根拠: src/mmd/VrmReader.py で extensions["VRM"] を参照
+  - 根拠: src/mmd/VrmReader.py で extensions["VRM"] を参照
 - [x] extensions.VRMC_vrm
-	- 根拠: frontend/src/features/preview/lib/glbPose.ts で VRMC_vrm を参照
+  - 根拠: frontend/src/features/preview/lib/glbPose.ts で VRMC_vrm を参照
 - [ ] extensions.VRMC_springBone
-	- 現時点では参照点未確認（要追加調査）
+  - 現時点では参照点未確認（要追加調査）
 - [x] humanoid関連配置
-	- 判定候補として採用（詳細キーは判定API設計時に固定）
+  - 判定候補として採用（詳細キーは判定API設計時に固定）
 - [x] expression/blendShape関連配置
-	- 根拠: src/mmd/VrmReader.py で blendShapeMaster / blendShapeGroups を参照
+  - 根拠: src/mmd/VrmReader.py で blendShapeMaster / blendShapeGroups を参照
 - [ ] 補助メタデータ（ベンダー/生成ツール等）
-	- 補助キーとして利用可否を要検討
+  - 補助キーとして利用可否を要検討
 
 ## 3. サンプルセット棚卸し（記入用）
 
@@ -36,17 +36,20 @@
 - 管理ファイル: docs/VRoid-Migration/sample-set-20260325.json
 
 ### 非VRoid VRM（既存成功ケース）
+
 - [x] sample-nv-01: D:/Users/maedashingo/Downloads/MMD/opensourceavatars.com/CosmicPerson.vrm
-- [x] sample-nv-02: D:/Users/maedashingo/Downloads/MMD/Model_/ユニティちゃん/UnityChan/UnityChan.vrm
-- [x] sample-nv-03: D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM09A.vrm
+- [x] sample-nv-02: D:/Users/maedashingo/Downloads/MMD/Model\_/ユニティちゃん/UnityChan/UnityChan.vrm
+- [x] sample-nv-03: D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット\_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM09A.vrm
 
 ### VRM1.0
+
 - [x] sample-10-01: D:/Users/maedashingo/Downloads/MMD/VRoid/original/v1.0/AvatarSample_A.vrm
-- [x] sample-10-02: D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM10A.vrm
+- [x] sample-10-02: D:/Users/maedashingo/Downloads/MMD/Model/ずんだもん/ずんだもん2025モデルセット\_ver.A1/ずんだもん2025モデルセット ver.A1/VRM/Zundamon_2025_VRM10A.vrm
 - [x] 予備: D:/Users/maedashingo/Downloads/MMD/VRoid/original/AvatarSample_A_1.0.vrm
 
 ### VRoid
-- [x] sample-vr-01: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー_リンリン.vrm
+
+- [x] sample-vr-01: D:/Users/maedashingo/Downloads/MMD/VRoid/Booth/プロレスラー リンリン/プロレスラー\_リンリン.vrm
 - [x] sample-vr-02: D:/Users/maedashingo/Downloads/MMD/VRoid/VRoid Hub/仮面ライダーブルーアイズ/4590875026920364234.vrm
 
 ### パス補正メモ

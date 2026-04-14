@@ -3,6 +3,7 @@
 """
 Test VrmCounterService against known baselines.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -54,7 +55,7 @@ def main():
     # Compare with baseline if provided
     if baseline_file and Path(baseline_file).exists():
         print(f"\nComparing with baseline: {baseline_file}")
-        baseline_data = json.loads(Path(baseline_file).read_text(encoding='utf-8'))
+        baseline_data = json.loads(Path(baseline_file).read_text(encoding="utf-8"))
 
         baseline_counts = baseline_data.get("counts", {})
 

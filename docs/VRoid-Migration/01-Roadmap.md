@@ -1,5 +1,7 @@
 # Roadmap
 
+<!-- markdownlint-disable MD024 -->
+
 ## Goal
 
 - 既存VRM変換の互換性を保ったまま、VRoid由来の変換ロジックを段階導入する。

@@ -1,0 +1,81 @@
+{
+  "search_path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid",
+  "mode": "wasm",
+  "target_path": "frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
+  "exclude_bitperfect_path": [],
+  "nim_exe": null,
+  "wasm": "frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
+  "nim_environment": {
+    "mode": "wasm",
+    "wasm_path": "D:\\Users\\maedashingo\\Documents\\_MyDocument\\Dev\\_MyWork\\vrm2pmx-md\\vrm2pmx-md\\frontend\\public\\nim\\vrm2pmx_nim_runtime.wasm",
+    "wasm_sha256": "7a0ad19bdad5c2821d928156a7eeb9a50c0b05fc28f455d812d4334b20e69577",
+    "wasm_size_bytes": 450414,
+    "node_version_probe": {
+      "ok": true,
+      "returncode": 0,
+      "stdout_first_line": "v22.19.0",
+      "stderr_first_line": ""
+    }
+  },
+  "nim_lock_check": {
+    "checked": false,
+    "ok": true,
+    "mismatches": []
+  },
+  "summary": {
+    "total": 2,
+    "ok": 2,
+    "preview_ok": 2,
+    "bitperfect_target_models": 2,
+    "excluded_models": 0,
+    "bit_perfect": 0,
+    "non_bit_perfect": 2,
+    "errors": 0,
+    "vertex_weight0": 0,
+    "bit_perfect_ratio_percent": 0.0
+  },
+  "results": [
+    {
+      "model": "AvatarSample_A",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\AvatarSample_A.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358195,
+        "nim_size_bytes": 4358195,
+        "baseline_sha256": "a91647bd9ac46b917c86f8d15b7cc8d62fe8f098e02176f7438374a27bdd8bcb",
+        "nim_sha256": "23fbc21aceaa520f208c3977ec97c7392360416206a85f504efa835bcc55065b",
+        "first_diff_offset": 1088462,
+        "first_diff_baseline_byte": 92,
+        "first_diff_nim_byte": 47
+      },
+      "bitperfect_excluded": false,
+      "first_diff_location": {
+        "section": "texture",
+        "texture_index": 1,
+        "field": "path"
+      }
+    },
+    {
+      "model": "AvatarSample_A_1.0",
+      "path": "D:\\Users\\maedashingo\\Downloads\\MMD\\VRoid\\original\\AvatarSample_A_1.0.vrm",
+      "nim_comparison": {
+        "status": "ok",
+        "bit_perfect": false,
+        "baseline_size_bytes": 4358127,
+        "nim_size_bytes": 4358127,
+        "baseline_sha256": "3ebc07e0769574549ab46bc37d6b0632ba435533f7d4dd668491db1d4a667241",
+        "nim_sha256": "de7636b02560cb8d9c9fcc257fa9a8b1b34acd39b25f04b37d451e834ba7d051",
+        "first_diff_offset": 1088470,
+        "first_diff_baseline_byte": 92,
+        "first_diff_nim_byte": 47
+      },
+      "bitperfect_excluded": false,
+      "first_diff_location": {
+        "section": "texture",
+        "texture_index": 1,
+        "field": "path"
+      }
+    }
+  ]
+}

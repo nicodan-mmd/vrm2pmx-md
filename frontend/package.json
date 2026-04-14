@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "sync:py-src": "node scripts/sync_py_src.mjs",
+    "build:nim-runtime": "node scripts/build_nim_runtime.mjs",
     "build:rust-runtime": "node scripts/build_rust_runtime.mjs",
-    "build:nim-runtime": "pwsh -File ../scripts/build_nim_wasm.ps1 -OutDir frontend/public/nim -OutWasm vrm2pmx_nim_runtime.wasm -ManifestName vrm2pmx_nim_manifest.json",
-    "dev": "npm run sync:py-src && vite",
-    "build": "npm run sync:py-src && tsc -b && vite build",
+    "dev": "npm run sync:py-src && npm run build:nim-runtime && vite",
+    "build": "npm run sync:py-src && npm run build:nim-runtime && tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "wabt": "^1.0.39"
   }
 }

@@ -1,21 +1,25 @@
 const BASE_URL = import.meta.env.BASE_URL;
 const APP_BASE_URL = new URL(BASE_URL, self.location.origin);
-const NIM_RUNTIME_MANIFEST = new URL("nim/vrm2pmx_nim_manifest.json", APP_BASE_URL);
-
-export type NimRuntimeManifest = {
-  name: string;
-  version: string;
-  status: string;
-  entryWasm: string;
-  capabilities: string[];
-  notes?: string[];
-};
+const NIM_RUNTIME_MANIFEST = new URL(
+  "nim/vrm2pmx_nim_manifest.json",
+  APP_BASE_URL,
+);
 
 export type NimRuntimeAvailability = {
   available: boolean;
   manifestUrl: string;
   reason?: string;
   manifest?: NimRuntimeManifest;
+};
+
+export type NimRuntimeManifest = {
+  name: string;
+  version: string;
+  status: string;
+  entryJs: string;
+  entryWasm: string;
+  capabilities: string[];
+  notes?: string[];
 };
 
 let nimAvailabilityPromise: Promise<NimRuntimeAvailability> | null = null;
@@ -34,6 +38,7 @@ function isNimRuntimeManifest(value: unknown): value is NimRuntimeManifest {
     typeof manifest.name === "string" &&
     typeof manifest.version === "string" &&
     typeof manifest.status === "string" &&
+    typeof manifest.entryJs === "string" &&
     typeof manifest.entryWasm === "string" &&
     Array.isArray(manifest.capabilities)
   );
@@ -50,7 +55,7 @@ export async function getNimRuntimeAvailability(): Promise<NimRuntimeAvailabilit
       return {
         available: false,
         manifestUrl: NIM_RUNTIME_MANIFEST.toString(),
-        reason: `NIM_RUNTIME_UNAVAILABLE: Nim runtime manifest was not found at ${NIM_RUNTIME_MANIFEST.toString()}`,
+        reason: `Nim runtime manifest was not found at ${NIM_RUNTIME_MANIFEST.toString()}`,
       };
     }
 
@@ -59,7 +64,7 @@ export async function getNimRuntimeAvailability(): Promise<NimRuntimeAvailabilit
       return {
         available: false,
         manifestUrl: NIM_RUNTIME_MANIFEST.toString(),
-        reason: `NIM_RUNTIME_UNAVAILABLE: Nim runtime manifest is invalid at ${NIM_RUNTIME_MANIFEST.toString()}`,
+        reason: `Nim runtime manifest is invalid at ${NIM_RUNTIME_MANIFEST.toString()}`,
       };
     }
 

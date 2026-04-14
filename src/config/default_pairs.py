@@ -1491,5 +1491,3 @@ MORPH_PAIRS = {
     },
     "TongueOut": {"name": "舌", "panel": MORPH_LIP},
 }
-
-

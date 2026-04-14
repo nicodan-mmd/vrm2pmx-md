@@ -4,6 +4,7 @@
 Multi-model VRM conversion validation.
 Automatically discovers VRM files and measures conversion metrics.
 """
+
 import json
 import sys
 from datetime import datetime
@@ -30,11 +31,15 @@ def find_vrm_files(search_path: str, max_count: int = 10) -> list[str]:
     return vrm_files
 
 
-def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None) -> dict:
+def run_multiple_validations(
+    vrm_paths: list[str], output_dir: str | None = None
+) -> dict:
     """Run validation on multiple VRM files."""
     results = {}
 
-    output_dir_path = Path(output_dir) if output_dir else Path("tmp") / "multi_model_validation"
+    output_dir_path = (
+        Path(output_dir) if output_dir else Path("tmp") / "multi_model_validation"
+    )
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
     for idx, vrm_path in enumerate(vrm_paths, 1):
@@ -72,10 +77,11 @@ def run_multiple_validations(vrm_paths: list[str], output_dir: str | None = None
             }
 
     # Save results
-    results_file = output_dir_path / f"validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    results_file = (
+        output_dir_path / f"validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     results_file.write_text(
-        json.dumps(results, indent=2, ensure_ascii=False),
-        encoding='utf-8'
+        json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
     print(f"\n\nResults saved to: {results_file}")
