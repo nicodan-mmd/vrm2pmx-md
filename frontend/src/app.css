@@ -438,11 +438,23 @@ body.preview-maximized-open {
 
 .pmx-tools {
   justify-self: start;
+  display: grid;
+  gap: 6px;
+  align-self: start;
+  padding-top: 2px;
+}
+
+.pmx-tools-main {
   display: flex;
   align-items: center;
   gap: 14px;
-  align-self: start;
-  padding-top: 2px;
+  flex-wrap: nowrap;
+}
+
+.pmx-tools-secondary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .pmx-tool-button {
@@ -454,6 +466,7 @@ body.preview-maximized-open {
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .pmx-tool-button:hover:not(:disabled) {
@@ -468,6 +481,10 @@ body.preview-maximized-open {
   font-size: 0.88rem;
   color: #2f3f56;
   font-weight: 600;
+}
+
+.pmx-tool-checkbox span {
+  white-space: nowrap;
 }
 
 .pmx-tool-checkbox input {
@@ -1398,6 +1415,10 @@ button:disabled {
   .pmx-tools {
     justify-self: start;
     padding-top: 0;
+  }
+
+  .pmx-tools-main {
+    gap: 12px;
   }
 
   .file-picker-row {

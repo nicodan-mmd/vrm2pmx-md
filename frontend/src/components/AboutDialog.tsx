@@ -319,7 +319,7 @@ export default function AboutDialog({
             </label>
 
             {/* Ver 1.6.0 release */}
-            {/*
+
             <label className="about-settings-toggle">
               <input
                 type="checkbox"
@@ -328,7 +328,8 @@ export default function AboutDialog({
               />
               <span>{turboLabsSettingLabel}</span>
             </label>
-            */}
+
+
             <div className="about-settings-actions">
               {installControl}
               <button

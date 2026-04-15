@@ -247,7 +247,8 @@ const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
 const METRICS_BASELINE_KEY_PREFIX = "vrm2pmx.metrics.baseline";
-const MAX_USER_CONVERT_LOG_LINES = 10;
+const MAX_USER_CONVERT_LOG_LINES = 240;
+const CONVERT_HEARTBEAT_INTERVAL_MS = 2000;
 const NIM_VERTEX_RATIO_LIMIT = 1.05;
 const NIM_BONE_RATIO_TOLERANCE = 0.01;
 const NIM_MORPH_RATIO_TOLERANCE = 0.01;
@@ -1765,6 +1766,10 @@ export default function App() {
   >(null);
   const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const convertHeartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const convertHeartbeatStartedAtRef = useRef(0);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -2164,8 +2169,12 @@ export default function App() {
     }
   }
 
-  function appendConsoleLine(args: unknown[], level: ConsoleLogLevel = "info") {
-    if (!shouldCaptureLog(level, APP_LOG_LEVEL)) {
+  function appendConsoleLine(
+    args: unknown[],
+    level: ConsoleLogLevel = "info",
+    options?: { force?: boolean },
+  ) {
+    if (!options?.force && !shouldCaptureLog(level, APP_LOG_LEVEL)) {
       return;
     }
 
@@ -2257,7 +2266,7 @@ export default function App() {
 
     convertUiLogSeenRef.current.add(key);
     convertUiLogCountRef.current += 1;
-    appendConsoleLine([line], level);
+    appendConsoleLine([line], level, { force: true });
   }
 
   function appendUserConvertStageLog(
@@ -2290,6 +2299,42 @@ export default function App() {
       appendUserConvertLog("[INFO] 出力を最終化中...");
     }
   }
+
+  function stopConvertHeartbeat() {
+    if (convertHeartbeatTimerRef.current) {
+      clearInterval(convertHeartbeatTimerRef.current);
+      convertHeartbeatTimerRef.current = null;
+    }
+  }
+
+  function startConvertHeartbeat() {
+    stopConvertHeartbeat();
+    convertHeartbeatStartedAtRef.current = Date.now();
+
+    convertHeartbeatTimerRef.current = setInterval(() => {
+      if (!idleAnimationRef.current.isConverting) {
+        return;
+      }
+
+      const elapsedSec = Math.max(
+        1,
+        Math.floor((Date.now() - convertHeartbeatStartedAtRef.current) / 1000),
+      );
+      appendUserConvertLog(`[INFO] 変換処理中... ${elapsedSec}s 経過`);
+
+      if (elapsedSec % 30 === 0) {
+        appendUserConvertLog(
+          "[INFO] 大きめのモデルのため時間がかかっています。処理は継続中です。",
+        );
+      }
+    }, CONVERT_HEARTBEAT_INTERVAL_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      stopConvertHeartbeat();
+    };
+  }, []);
 
   useEffect(() => {
     const runtime = pmxLightRuntimeRef.current;
@@ -3432,6 +3477,7 @@ export default function App() {
     );
     appendUserConvertLog(`[INFO] 変換を開始します: ${file.name}`);
     appendUserConvertLog(`[INFO] 変換モード: ${requestedMode}`);
+    startConvertHeartbeat();
 
     try {
       const convertLogStartIndex = logLinesRef.current.length;
@@ -3711,6 +3757,7 @@ export default function App() {
         });
       }
     } finally {
+      stopConvertHeartbeat();
       abortControllerRef.current = null;
     }
   }
@@ -3882,18 +3929,23 @@ export default function App() {
 
     console.log = (...args: unknown[]) => {
       originalLog(...args);
+      appendConsoleLine(args, "log");
     };
     console.info = (...args: unknown[]) => {
       originalInfo(...args);
+      appendConsoleLine(args, "info");
     };
     console.warn = (...args: unknown[]) => {
       originalWarn(...args);
+      appendConsoleLine(args, "warn");
     };
     console.error = (...args: unknown[]) => {
       originalError(...args);
+      appendConsoleLine(args, "error");
     };
     console.debug = (...args: unknown[]) => {
       originalDebug(...args);
+      appendConsoleLine(args, "debug");
     };
 
     return () => {
@@ -4744,75 +4796,78 @@ export default function App() {
               </div>
             </div>
             <div className="pmx-tools">
-              <button
-                type="button"
-                className="pmx-tool-button"
-                onClick={onOrbitReset}
-              >
-                Orbit Reset
-              </button>
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="orbit-sync"
-                  checked={orbitSyncEnabled}
-                  onChange={(event) =>
-                    setOrbitSyncEnabled(event.target.checked)
-                  }
-                />
-                <span>Orbit Sync</span>
-              </label>
-              {/*
-                TODO: Grid toggle UI (debug feature)
-                Grid rendering is intentionally disabled while viewport fit tuning is in progress.
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="grid"
-                  checked={gridEnabled}
-                  onChange={(event) => setGridEnabled(event.target.checked)}
-                />
-                <span>Grid</span>
-              </label>
-              */}
-              {/* Rust mode toggle — hidden until Rust converter is production-ready
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="rust-mode"
-                  checked={rustEnabled}
-                  onChange={(event) => setRustEnabled(event.target.checked)}
-                  disabled={status === "uploading"}
-                />
-                <span>Rust</span>
-              </label>
-              */}
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="pmx-log"
-                  checked={logEnabled}
-                  onChange={(event) => setLogEnabled(event.target.checked)}
-                />
-                <span>Log</span>
-              </label>
-              {/* Ver 1.6.0 release */}
-              {/*
-              <label
-                className="pmx-tool-checkbox"
-                title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
-              >
-                <input
-                  type="checkbox"
-                  name="nim-mode"
-                  checked={nimEnabled}
-                  onChange={(event) => setNimEnabled(event.target.checked)}
-                  disabled={status === "uploading" || !turboLabsEnabled}
+              <div className="pmx-tools-main">
+                <button
+                  type="button"
+                  className="pmx-tool-button"
+                  onClick={onOrbitReset}
+                >
+                  Orbit Reset
+                </button>
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="orbit-sync"
+                    checked={orbitSyncEnabled}
+                    onChange={(event) =>
+                      setOrbitSyncEnabled(event.target.checked)
+                    }
+                  />
+                  <span>Orbit Sync</span>
+                </label>
+                {/*
+                  TODO: Grid toggle UI (debug feature)
+                  Grid rendering is intentionally disabled while viewport fit tuning is in progress.
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="grid"
+                    checked={gridEnabled}
+                    onChange={(event) => setGridEnabled(event.target.checked)}
+                  />
+                  <span>Grid</span>
+                </label>
+                */}
+                {/* Rust mode toggle — hidden until Rust converter is production-ready
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="rust-mode"
+                    checked={rustEnabled}
+                    onChange={(event) => setRustEnabled(event.target.checked)}
+                    disabled={status === "uploading"}
+                  />
+                  <span>Rust</span>
+                </label>
+                */}
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="pmx-log"
+                    checked={logEnabled}
+                    onChange={(event) => setLogEnabled(event.target.checked)}
+                  />
+                  <span>Log</span>
+                </label>
+              </div>
+
+              <div className="pmx-tools-secondary">
+                {/* Ver 1.6.0 release */}
+                <label
+                  className="pmx-tool-checkbox"
                   title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
-                />
-                <span>{i18n.turboLabsLabel}</span>
-              </label>
-              */}
+                >
+                  <input
+                    type="checkbox"
+                    name="nim-mode"
+                    checked={nimEnabled}
+                    onChange={(event) => setNimEnabled(event.target.checked)}
+                    disabled={status === "uploading" || !turboLabsEnabled}
+                    title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                  />
+                  <span>{i18n.turboLabsLabel}</span>
+                </label>
+              </div>
             </div>
           </div>
 
