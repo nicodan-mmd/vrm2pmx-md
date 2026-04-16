@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type DragEvent,
   FormEvent,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -25,7 +26,7 @@ import {
   GLTFLoader,
   type GLTFParser,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { MMDLoader } from "three-stdlib";
+import { MMDAnimationHelper, MMDLoader } from "three-stdlib";
 import { useReactPWAInstall } from "react-pwa-install";
 import AboutDialog, {
   type TabId as AboutTabId,
@@ -1107,6 +1108,11 @@ function isPreviewSupportedInputFile(fileName: string): boolean {
 function isPmxPreviewSupportedInputFile(fileName: string): boolean {
   const ext = getFileExtensionLower(fileName);
   return ext === ".pmx" || ext === ".zip";
+}
+
+function isPmxMotionOrPoseInputFile(fileName: string): boolean {
+  const ext = getFileExtensionLower(fileName);
+  return ext === ".vmd" || ext === ".vpd";
 }
 
 type ResolvedPreviewInput =
@@ -2203,6 +2209,8 @@ export default function App() {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isPmxPreviewing, setIsPmxPreviewing] = useState(false);
   const [isPmxReady, setIsPmxReady] = useState(false);
+  const [isPmxMotionActive, setIsPmxMotionActive] = useState(false);
+  const [isPmxMotionPaused, setIsPmxMotionPaused] = useState(false);
   const [pmxPreviewFileName, setPmxPreviewFileName] = useState<string | null>(null);
   const [pmxPreviewSourceMode, setPmxPreviewSourceMode] = useState<
     ConvertMode | "manual" | null
@@ -2242,6 +2250,17 @@ export default function App() {
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vrmSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
   const pmxSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
+  const pmxModelMeshRef = useRef<THREE.SkinnedMesh | null>(null);
+  const pmxModelLoaderRef = useRef<MMDLoader | null>(null);
+  const pmxAnimationHelperRef = useRef<MMDAnimationHelper | null>(null);
+  const pmxMotionActiveRef = useRef(false);
+  const pmxMotionPausedRef = useRef(false);
+  const pmxClickCandidateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const previewCleanupRef = useRef<(() => void) | null>(null);
   const pmxPreviewCleanupRef = useRef<(() => void) | null>(null);
   const vrmViewRef = useRef<{
@@ -2814,6 +2833,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    pmxMotionActiveRef.current = isPmxMotionActive;
+  }, [isPmxMotionActive]);
+
+  useEffect(() => {
+    pmxMotionPausedRef.current = isPmxMotionPaused;
+  }, [isPmxMotionPaused]);
+
+  useEffect(() => {
     const runtime = pmxLightRuntimeRef.current;
     if (!runtime) {
       return;
@@ -2996,8 +3023,14 @@ export default function App() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
     setIsPmxReady(false);
+    setIsPmxMotionActive(false);
+    setIsPmxMotionPaused(false);
     setPmxPreviewFileName(null);
     setPmxPreviewSourceMode(null);
+    pmxModelMeshRef.current = null;
+    pmxModelLoaderRef.current = null;
+    pmxAnimationHelperRef.current = null;
+    pmxClickCandidateRef.current = null;
     pmxSkeletonHelpersRef.current = [];
     setHasPmxSkeleton(false);
     pmxViewRef.current = null;
@@ -3178,7 +3211,7 @@ export default function App() {
     const loadingManager = new THREE.LoadingManager();
     let onPmxOrbitChanged: (() => void) | null = null;
     let frameId = 0;
-    let loadedMesh: THREE.Object3D | null = null;
+    let loadedMesh: THREE.SkinnedMesh | null = null;
     let hasShownShaderErrorDialog = false;
     let hasAppliedMaterialFallback = false;
     const skeletonHelpers: THREE.SkeletonHelper[] = [];
@@ -3321,8 +3354,19 @@ export default function App() {
       pmxSkeletonHelpersRef.current = [];
       setHasPmxSkeleton(false);
       if (loadedMesh) {
+        const helper = pmxAnimationHelperRef.current;
+        if (helper) {
+          try {
+            helper.remove(loadedMesh);
+          } catch {
+            // Ignore if the mesh is not registered in helper state.
+          }
+        }
         scene.remove(loadedMesh);
       }
+      pmxModelMeshRef.current = null;
+      pmxModelLoaderRef.current = null;
+      pmxAnimationHelperRef.current = null;
       if (pmxGridRef.current) {
         scene.remove(pmxGridRef.current);
         pmxGridRef.current = null;
@@ -3458,6 +3502,7 @@ export default function App() {
       });
 
       const loader = new MMDLoader(loadingManager);
+      pmxModelLoaderRef.current = loader;
       const originalConsoleWarn = console.warn;
       const shouldSuppressWarn = createThreeWarnFilter();
       let mesh: THREE.SkinnedMesh;
@@ -3473,6 +3518,12 @@ export default function App() {
         console.warn = originalConsoleWarn;
       }
       loadedMesh = mesh;
+      pmxModelMeshRef.current = mesh;
+      const helper = new MMDAnimationHelper({ afterglow: 0 });
+      helper.add(mesh, { physics: false });
+      pmxAnimationHelperRef.current = helper;
+      setIsPmxMotionActive(false);
+      setIsPmxMotionPaused(false);
       setPmxInfoData(extractPmxInfoData(mesh));
 
       // MMDLoader does not tag color textures as sRGB, causing double-gamma and
@@ -3898,6 +3949,9 @@ export default function App() {
         lastFrameTime = now;
 
         controls.update();
+        if (pmxMotionActiveRef.current && !pmxMotionPausedRef.current) {
+          pmxAnimationHelperRef.current?.update(deltaTime);
+        }
         pmxIdleManager!.updateRotation(deltaTime * 1000);
         try {
           renderer.render(scene, camera);
@@ -4951,6 +5005,148 @@ export default function App() {
     void previewPmxSourceFile(selected);
   }
 
+  async function applyPmxMotionOrPoseFile(selected: File): Promise<void> {
+    const mesh = pmxModelMeshRef.current;
+    const loader = pmxModelLoaderRef.current;
+    if (!mesh || !loader) {
+      setMessage("Load a PMX model first, then drop a .vmd/.vpd file.");
+      return;
+    }
+
+    const ext = getFileExtensionLower(selected.name);
+    if (!isPmxMotionOrPoseInputFile(selected.name)) {
+      setMessage("Unsupported PMX input. Please drop .pmx/.zip/.vmd/.vpd.");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selected);
+    try {
+      loader.setAnimationPath("");
+      let helper = pmxAnimationHelperRef.current;
+      if (!helper) {
+        helper = new MMDAnimationHelper({ afterglow: 0 });
+        helper.add(mesh, { physics: false });
+        pmxAnimationHelperRef.current = helper;
+      }
+
+      if (ext === ".vmd") {
+        const clip = await new Promise<THREE.AnimationClip>((resolve, reject) => {
+          loader.loadAnimation(
+            objectUrl,
+            mesh,
+            (animation) => {
+              if (animation instanceof THREE.AnimationClip) {
+                resolve(animation);
+                return;
+              }
+              reject(new Error("Loaded VMD did not produce AnimationClip."));
+            },
+            undefined,
+            (error) => reject(error),
+          );
+        });
+
+        try {
+          helper.remove(mesh);
+        } catch {
+          // Ignore if helper didn't manage the mesh yet.
+        }
+        // Reset bones before applying motion so prior VPD pose doesn't leak.
+        mesh.pose();
+        mesh.updateMatrixWorld(true);
+        helper.add(mesh, { animation: clip, physics: false });
+        setIsPmxMotionActive(true);
+        setIsPmxMotionPaused(false);
+        setMessage(`PMX motion applied: ${selected.name}`);
+        return;
+      }
+
+      const vpd = await new Promise<unknown>((resolve, reject) => {
+        loader.loadVPD(
+          objectUrl,
+          false,
+          (parsed) => resolve(parsed),
+          undefined,
+          (error) => reject(error),
+        );
+      });
+
+      try {
+        helper.remove(mesh);
+      } catch {
+        // Ignore if helper didn't manage the mesh yet.
+      }
+      helper.add(mesh, { physics: false });
+      helper.pose(mesh, vpd as Record<string, unknown>, {
+        resetPose: true,
+        ik: true,
+        grant: true,
+      });
+      setIsPmxMotionActive(false);
+      setIsPmxMotionPaused(false);
+      setMessage(`PMX pose applied: ${selected.name}`);
+    } catch (error) {
+      setErrorDetail(error instanceof Error ? error.message : String(error));
+      setMessage("Failed to apply PMX motion/pose file.");
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  function onPmxCanvasPointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+    pmxClickCandidateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+  }
+
+  function onPmxCanvasPointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const candidate = pmxClickCandidateRef.current;
+    if (!candidate || candidate.pointerId !== event.pointerId || candidate.moved) {
+      return;
+    }
+
+    const dx = event.clientX - candidate.startX;
+    const dy = event.clientY - candidate.startY;
+    if (dx * dx + dy * dy > 25) {
+      candidate.moved = true;
+    }
+  }
+
+  function onPmxCanvasPointerCancel(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const candidate = pmxClickCandidateRef.current;
+    if (candidate && candidate.pointerId === event.pointerId) {
+      pmxClickCandidateRef.current = null;
+    }
+  }
+
+  function onPmxCanvasPointerUp(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const candidate = pmxClickCandidateRef.current;
+    pmxClickCandidateRef.current = null;
+    if (!candidate || candidate.pointerId !== event.pointerId || candidate.moved) {
+      return;
+    }
+
+    if (!pmxMotionActiveRef.current) {
+      return;
+    }
+
+    setIsPmxMotionPaused((prev) => {
+      const next = !prev;
+      setMessage(next ? "PMX motion paused." : "PMX motion resumed.");
+      return next;
+    });
+  }
+
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
     applySelectedVrmFile(selected);
@@ -5045,9 +5241,15 @@ export default function App() {
     event.preventDefault();
     setIsPmxDropActive(false);
     const droppedFile = event.dataTransfer.files?.[0] ?? null;
-    if (droppedFile && isPmxPreviewSupportedInputFile(droppedFile.name)) {
-      applySelectedPmxFile(droppedFile);
-      return;
+    if (droppedFile) {
+      if (isPmxPreviewSupportedInputFile(droppedFile.name)) {
+        applySelectedPmxFile(droppedFile);
+        return;
+      }
+      if (isPmxMotionOrPoseInputFile(droppedFile.name)) {
+        await applyPmxMotionOrPoseFile(droppedFile);
+        return;
+      }
     }
 
     const items = Array.from(event.dataTransfer.items ?? []);
@@ -5067,7 +5269,18 @@ export default function App() {
         const allEntries = await Promise.all(
           directoryEntries.map((entry) => collectFolderEntriesRecursively(entry, "")),
         );
-        const zipped = await buildZipFromFolderEntries(allEntries.flat());
+        const flattenedEntries = allEntries.flat();
+        const motionOrPoseEntry = flattenedEntries.find((entry) =>
+          isPmxMotionOrPoseInputFile(entry.relativePath),
+        );
+        const hasPmxFile = flattenedEntries.some((entry) =>
+          /\.pmx$/i.test(entry.relativePath),
+        );
+        if (motionOrPoseEntry && !hasPmxFile) {
+          await applyPmxMotionOrPoseFile(motionOrPoseEntry.file);
+          return;
+        }
+        const zipped = await buildZipFromFolderEntries(flattenedEntries);
         applySelectedPmxFile(zipped);
         setMessage(`Dropped PMX folder loaded as ZIP source: ${zipped.name}`);
         return;
@@ -5079,7 +5292,7 @@ export default function App() {
     }
 
     setMessage(
-      "Dropped input is not supported for PMX preview. Please drop a .pmx/.zip file or folder.",
+      "Dropped input is not supported for PMX preview. Please drop a .pmx/.zip/.vmd/.vpd file or folder.",
     );
   }
 
@@ -5301,6 +5514,10 @@ export default function App() {
                 ref={pmxCanvasRef}
                 className="preview-canvas"
                 aria-label="PMX preview canvas"
+                onPointerDown={onPmxCanvasPointerDown}
+                onPointerMove={onPmxCanvasPointerMove}
+                onPointerUp={onPmxCanvasPointerUp}
+                onPointerCancel={onPmxCanvasPointerCancel}
                 onDoubleClick={() => {
                   if (!canOpenPmxMetadata) {
                     return;
@@ -5439,7 +5656,7 @@ export default function App() {
               </button>
               {!canOpenPmxMetadata && !isPmxPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
-                  <div>Drop PMX/ZIP here</div>
+                  <div>Drop PMX/ZIP/VMD/VPD here</div>
                 </div>
               )}
             </div>
