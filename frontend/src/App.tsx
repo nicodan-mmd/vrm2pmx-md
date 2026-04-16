@@ -1104,6 +1104,11 @@ function isPreviewSupportedInputFile(fileName: string): boolean {
   return ext === ".vrm" || ext === ".glb" || ext === ".gltf" || ext === ".zip";
 }
 
+function isPmxPreviewSupportedInputFile(fileName: string): boolean {
+  const ext = getFileExtensionLower(fileName);
+  return ext === ".pmx" || ext === ".zip";
+}
+
 type ResolvedPreviewInput =
   | {
       kind: "binary";
@@ -2196,7 +2201,10 @@ export default function App() {
   const [message, setMessage] = useState("VRM file is not selected yet.");
   const [errorDetail, setErrorDetail] = useState("");
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isPmxPreviewing, setIsPmxPreviewing] = useState(false);
+  const [isPmxReady, setIsPmxReady] = useState(false);
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
+  const [isPmxDropActive, setIsPmxDropActive] = useState(false);
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
   const [convertProgressStage, setConvertProgressStage] = useState<
     WorkerProgressStage | "done" | null
@@ -2226,7 +2234,6 @@ export default function App() {
   );
   const convertHeartbeatStartedAtRef = useRef(0);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
-  const vrmFolderInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vrmSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
@@ -2602,8 +2609,8 @@ export default function App() {
     [isPreviewing, isVrmReady],
   );
   const canOpenPmxMetadata = useMemo(
-    () => !!convertedOutput && status !== "uploading",
-    [convertedOutput, status],
+    () => isPmxReady && !isPmxPreviewing,
+    [isPmxPreviewing, isPmxReady],
   );
   const pmxSummaryRowsForDisplay = useMemo(
     () =>
@@ -2982,6 +2989,7 @@ export default function App() {
   function cleanupPmxPreview() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
+    setIsPmxReady(false);
     pmxSkeletonHelpersRef.current = [];
     setHasPmxSkeleton(false);
     pmxViewRef.current = null;
@@ -3145,6 +3153,7 @@ export default function App() {
     }
 
     cleanupPmxPreview();
+    setIsPmxReady(false);
     setPmxInfoData({ summaryRows: [], licenseRows: [] });
 
     const canvas = pmxCanvasRef.current;
@@ -3897,10 +3906,12 @@ export default function App() {
         }
       };
       renderLoop();
+      setIsPmxReady(true);
     } catch (error) {
       disposePreview();
       pmxPreviewCleanupRef.current = null;
       pmxIdleManager?.stopRotation();
+      setIsPmxReady(false);
       throw error;
     }
   }
@@ -4516,15 +4527,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const input = vrmFolderInputRef.current;
-    if (!input) {
-      return;
-    }
-    input.setAttribute("webkitdirectory", "");
-    input.setAttribute("directory", "");
-  }, []);
-
-  useEffect(() => {
     applyUpperArmAngle(taPoseAngle);
   }, [taPoseAngle]);
 
@@ -4887,39 +4889,59 @@ export default function App() {
     return new File([zipBlob], `${rootDir}.zip`, { type: "application/zip" });
   }
 
-  async function buildZipFromFolderFiles(files: File[]): Promise<File> {
-    const entries: FolderZipEntry[] = files.map((file) => {
-      const relativePath =
-        (file as File & { webkitRelativePath?: string }).webkitRelativePath ||
-        file.name;
-      return { file, relativePath };
+  async function buildZipFromSinglePmxFile(file: File): Promise<File> {
+    const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
+    await zipWriter.add(normalizeAssetPath(file.name), new BlobReader(file));
+    const zipBlob = await zipWriter.close();
+    const baseName = file.name.replace(/\.pmx$/i, "");
+    return new File([zipBlob], `${baseName || "model"}.zip`, {
+      type: "application/zip",
     });
-    return buildZipFromFolderEntries(entries);
+  }
+
+  async function previewPmxSourceFile(selected: File): Promise<void> {
+    setIsPmxPreviewing(true);
+    setErrorDetail("");
+    setMessage("Loading PMX preview...");
+
+    try {
+      const ext = getFileExtensionLower(selected.name);
+      const zipSource =
+        ext === ".pmx" ? await buildZipFromSinglePmxFile(selected) : selected;
+
+      await previewPmxFromZip(zipSource, orbitSyncEnabled);
+      if (ext === ".pmx") {
+        setMessage(
+          `PMX preview loaded: ${selected.name}. If textures are missing, load ZIP or folder with texture files.`,
+        );
+      } else {
+        setMessage(`PMX preview loaded: ${selected.name}.`);
+      }
+    } catch (error) {
+      setErrorDetail(error instanceof Error ? error.message : String(error));
+      setMessage("Failed to load PMX preview input.");
+    } finally {
+      setIsPmxPreviewing(false);
+    }
+  }
+
+  function applySelectedPmxFile(selected: File | null) {
+    setIsPmxMetadataOpen(false);
+    setErrorDetail("");
+
+    if (!selected) {
+      cleanupPmxPreview();
+      setPmxInfoData({ summaryRows: [], licenseRows: [] });
+      setMessage("PMX preview source is not selected yet.");
+      return;
+    }
+
+    void previewPmxSourceFile(selected);
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
     applySelectedVrmFile(selected);
-  }
-
-  async function onFolderChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = Array.from(event.target.files ?? []);
-    if (selectedFiles.length === 0) {
-      return;
-    }
-
-    try {
-      const zipFile = await buildZipFromFolderFiles(selectedFiles);
-      applySelectedVrmFile(zipFile);
-      setMessage(
-        `Folder loaded as ZIP source: ${zipFile.name}. Preview is running...`,
-      );
-    } catch (error) {
-      setMessage("Failed to load selected folder.");
-      setErrorDetail(error instanceof Error ? error.message : String(error));
-    } finally {
-      event.currentTarget.value = "";
-    }
   }
 
   function onVrmDropAreaDragOver(event: DragEvent<HTMLElement>) {
@@ -4989,6 +5011,63 @@ export default function App() {
 
     setMessage(
       "Dropped file is not supported. Please drop a .vrm/.glb/.gltf/.zip file.",
+    );
+  }
+
+  function onPmxDropAreaDragOver(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+    if (!isPmxDropActive) {
+      setIsPmxDropActive(true);
+    }
+  }
+
+  function onPmxDropAreaDragLeave(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsPmxDropActive(false);
+  }
+
+  async function onPmxDropAreaDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setIsPmxDropActive(false);
+    const droppedFile = event.dataTransfer.files?.[0] ?? null;
+    if (droppedFile && isPmxPreviewSupportedInputFile(droppedFile.name)) {
+      applySelectedPmxFile(droppedFile);
+      return;
+    }
+
+    const items = Array.from(event.dataTransfer.items ?? []);
+    const entryCandidates = items
+      .map((item) =>
+        (item as DataTransferItem & {
+          webkitGetAsEntry?: () => FileSystemEntry | null;
+        }).webkitGetAsEntry?.(),
+      )
+      .filter((entry): entry is FileSystemEntry => entry !== null);
+
+    const directoryEntries = entryCandidates.filter(
+      (entry): entry is FileSystemDirectoryEntry => entry.isDirectory,
+    );
+    if (directoryEntries.length > 0) {
+      try {
+        const allEntries = await Promise.all(
+          directoryEntries.map((entry) => collectFolderEntriesRecursively(entry, "")),
+        );
+        const zipped = await buildZipFromFolderEntries(allEntries.flat());
+        applySelectedPmxFile(zipped);
+        setMessage(`Dropped PMX folder loaded as ZIP source: ${zipped.name}`);
+        return;
+      } catch (error) {
+        setMessage("Failed to read dropped PMX folder.");
+        setErrorDetail(error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
+
+    setMessage(
+      "Dropped input is not supported for PMX preview. Please drop a .pmx/.zip file or folder.",
     );
   }
 
@@ -5173,7 +5252,12 @@ export default function App() {
               </button>
             </div>
           </figure>
-          <figure className="preview-panel">
+          <figure
+            className={`preview-panel${isPmxDropActive ? " preview-panel-dropping" : ""}`}
+            onDragOver={onPmxDropAreaDragOver}
+            onDragLeave={onPmxDropAreaDragLeave}
+            onDrop={onPmxDropAreaDrop}
+          >
             <figcaption className="preview-caption">
               <span>PMX Preview</span>
               <a
@@ -5331,6 +5415,11 @@ export default function App() {
               >
                 <FaCircleInfo />
               </button>
+              {!canOpenPmxMetadata && !isPmxPreviewing && (
+                <div className="vrm-drop-placeholder" aria-hidden="true">
+                  <div>Drop PMX/ZIP here</div>
+                </div>
+              )}
             </div>
             {/* 明るさデバッグ用（必要時にコメント解除）
             <div className="pmx-preview-adjustments" aria-label="PMX preview tuning">
@@ -5529,22 +5618,6 @@ export default function App() {
               }}
               onChange={onFileChange}
             />
-            <input
-              ref={vrmFolderInputRef}
-              type="file"
-              className="folder-input-hidden"
-              title="Choose model folder"
-              multiple
-              onChange={onFolderChange}
-            />
-            <button
-              type="button"
-              className="preview-button"
-              onClick={() => vrmFolderInputRef.current?.click()}
-              disabled={status === "uploading" || isPreviewing}
-            >
-              Choose Folder
-            </button>
             <button
               type="button"
               className="preview-button"
