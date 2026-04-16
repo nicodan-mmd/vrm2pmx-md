@@ -2204,6 +2204,9 @@ export default function App() {
   const [isPmxPreviewing, setIsPmxPreviewing] = useState(false);
   const [isPmxReady, setIsPmxReady] = useState(false);
   const [pmxPreviewFileName, setPmxPreviewFileName] = useState<string | null>(null);
+  const [pmxPreviewSourceMode, setPmxPreviewSourceMode] = useState<
+    ConvertMode | "manual" | null
+  >(null);
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
   const [isPmxDropActive, setIsPmxDropActive] = useState(false);
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
@@ -2816,15 +2819,17 @@ export default function App() {
       return;
     }
 
+    const sourceBrightnessBoost = pmxPreviewSourceMode === "nim" ? 1.8 : 1.0;
+
     const tuned = applyPmxLightTuning(
       runtime.baseAmbient,
       runtime.baseDirectional,
-      pmxBrightnessScale,
+      pmxBrightnessScale * sourceBrightnessBoost,
       pmxContrastFactor,
     );
     runtime.ambientLight.intensity = tuned.ambientIntensity;
     runtime.keyLight.intensity = tuned.directionalIntensity;
-  }, [pmxBrightnessScale, pmxContrastFactor]);
+  }, [pmxBrightnessScale, pmxContrastFactor, pmxPreviewSourceMode]);
 
   useEffect(() => {
     for (const helper of vrmSkeletonHelpersRef.current) {
@@ -2992,6 +2997,7 @@ export default function App() {
     pmxPreviewCleanupRef.current = null;
     setIsPmxReady(false);
     setPmxPreviewFileName(null);
+    setPmxPreviewSourceMode(null);
     pmxSkeletonHelpersRef.current = [];
     setHasPmxSkeleton(false);
     pmxViewRef.current = null;
@@ -4041,6 +4047,7 @@ export default function App() {
       if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
         setPmxPreviewFileName(file.name.replace(/\.[^.]+$/, "") + ".pmx");
+        setPmxPreviewSourceMode(result.usedMode);
       } else {
         throw new Error(
           "Current preview supports ZIP output with PMX resources.",
@@ -4914,6 +4921,7 @@ export default function App() {
 
       await previewPmxFromZip(zipSource, orbitSyncEnabled);
       setPmxPreviewFileName(selected.name);
+      setPmxPreviewSourceMode("manual");
       if (ext === ".pmx") {
         setMessage(
           `PMX preview loaded: ${selected.name}. If textures are missing, load ZIP or folder with texture files.`,
