@@ -4607,7 +4607,8 @@ export default function App() {
       scene.background = new THREE.Color("#eaf1fb");
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.NoToneMapping;
-      scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambientLight);
       const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
       keyLight.position.set(1.5, 2.0, 2.0);
       scene.add(keyLight);
@@ -4674,6 +4675,14 @@ export default function App() {
         isRedistributionOrModificationNG(infoData),
       );
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
+      const isGenericModelPreview = !vrm;
+
+      if (isGenericModelPreview) {
+        // Generic GLB/GLTF from DCC tools (e.g. Sketchfab) tends to look dim
+        // compared to VRM defaults, so lift key/ambient only for this path.
+        ambientLight.intensity = 1.25;
+        keyLight.intensity = 1.75;
+      }
 
       previewRoot = vrm?.scene ?? gltf.scene;
       scene.add(previewRoot);
