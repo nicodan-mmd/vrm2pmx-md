@@ -5656,7 +5656,8 @@ export default function App() {
               </button>
               {!canOpenPmxMetadata && !isPmxPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
-                  <div>Drop PMX/ZIP/VMD/VPD here</div>
+                  <div>Drop PMX/ZIP here</div>
+                  <div style={{ fontSize: "0.75em", marginTop: "0.25em", opacity: 0.75 }}>Also, VMD(motion) / VPD(pose) view</div>
                 </div>
               )}
             </div>
@@ -5972,7 +5973,9 @@ export default function App() {
                 setAboutDefaultTab("history");
                 setIsAboutOpen(true);
               }}
-            ></button>
+            >
+              Version {APP_VERSION}
+            </button>
             <p className="app-launch-state">{launchStateLabel}</p>
             <button
               type="button"
