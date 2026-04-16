@@ -871,12 +871,173 @@ function createThreeWarnFilter() {
     "'morphTargets' is not a property of THREE.MeshToonMaterial",
     "'envMap' is not a property of THREE.MeshToonMaterial",
     "'combine' is not a property of THREE.MeshToonMaterial",
+    'THREE.GLTFLoader: Unknown extension "KHR_materials_pbrSpecularGlossiness"',
+    'Unknown extension "KHR_materials_pbrSpecularGlossiness"',
   ];
 
   return (...args: unknown[]) => {
     const first = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
     return noisyPatterns.some((pattern) => first.includes(pattern));
   };
+}
+
+async function applySpecGlossinessFallback(gltf: unknown): Promise<void> {
+  const parsed = gltf as {
+    scene?: THREE.Object3D;
+    parser?: {
+      associations?: Map<unknown, { materials?: number }>;
+      json?: { materials?: Array<Record<string, unknown>> };
+      getDependency?: (type: string, index: number) => Promise<unknown>;
+    };
+  };
+  const parser = parsed.parser;
+  if (!parsed.scene || !parser || !parser.associations || !parser.json) {
+    return;
+  }
+
+  const associations = parser.associations;
+  const materialDefs = parser.json.materials ?? [];
+  const textureTasks: Promise<void>[] = [];
+  const visited = new Set<THREE.Material>();
+
+  parsed.scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material) {
+      return;
+    }
+
+    const materials = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
+    for (const material of materials) {
+      if (!material || visited.has(material)) {
+        continue;
+      }
+      visited.add(material);
+
+      const relation = associations.get(material);
+      const materialIndex = relation?.materials;
+      if (typeof materialIndex !== "number") {
+        continue;
+      }
+
+      const materialDef = materialDefs[materialIndex] ?? null;
+      const extensions = (materialDef?.extensions ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const specGloss = (extensions.KHR_materials_pbrSpecularGlossiness ??
+        null) as Record<string, unknown> | null;
+      if (!specGloss) {
+        continue;
+      }
+
+      const standardMaterial = material as THREE.MeshStandardMaterial;
+      const diffuseFactor = Array.isArray(specGloss.diffuseFactor)
+        ? (specGloss.diffuseFactor as number[])
+        : [1, 1, 1, 1];
+
+      if (standardMaterial.color) {
+        standardMaterial.color.setRGB(
+          Number(diffuseFactor[0] ?? 1),
+          Number(diffuseFactor[1] ?? 1),
+          Number(diffuseFactor[2] ?? 1),
+        );
+      }
+
+      const alpha = Number(diffuseFactor[3] ?? 1);
+      if (Number.isFinite(alpha)) {
+        standardMaterial.opacity = alpha;
+        standardMaterial.transparent = alpha < 1;
+      }
+
+      const diffuseTexture = specGloss.diffuseTexture as
+        | { index?: number }
+        | undefined;
+      if (
+        diffuseTexture &&
+        typeof diffuseTexture.index === "number" &&
+        typeof parser.getDependency === "function"
+      ) {
+        textureTasks.push(
+          parser
+            .getDependency("texture", diffuseTexture.index)
+            .then((texture) => {
+              const map = texture as THREE.Texture;
+              standardMaterial.map = map;
+              map.colorSpace = THREE.SRGBColorSpace;
+              map.needsUpdate = true;
+              standardMaterial.needsUpdate = true;
+            })
+            .catch(() => {
+              // Keep fallback color when texture cannot be loaded.
+            }),
+        );
+      } else {
+        standardMaterial.needsUpdate = true;
+      }
+    }
+  });
+
+  if (textureTasks.length > 0) {
+    await Promise.all(textureTasks);
+  }
+}
+
+type FolderZipEntry = {
+  file: File;
+  relativePath: string;
+};
+
+function readFileEntry(entry: FileSystemFileEntry): Promise<File> {
+  return new Promise((resolve, reject) => {
+    entry.file(resolve, reject);
+  });
+}
+
+function readDirectoryEntries(entry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+  return new Promise((resolve, reject) => {
+    const reader = entry.createReader();
+
+    const all: FileSystemEntry[] = [];
+    const loop = () => {
+      reader.readEntries(
+        (batch) => {
+          if (!batch || batch.length === 0) {
+            resolve(all);
+            return;
+          }
+          all.push(...batch);
+          loop();
+        },
+        (error) => reject(error),
+      );
+    };
+    loop();
+  });
+}
+
+async function collectFolderEntriesRecursively(
+  entry: FileSystemEntry,
+  prefix: string,
+): Promise<FolderZipEntry[]> {
+  const pathPart = entry.name || "";
+  const relativePath = prefix ? `${prefix}/${pathPart}` : pathPart;
+
+  if (entry.isFile) {
+    const file = await readFileEntry(entry as FileSystemFileEntry);
+    return [{ file, relativePath }];
+  }
+
+  if (!entry.isDirectory) {
+    return [];
+  }
+
+  const children = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
+  const nestedResults = await Promise.all(
+    children.map((child) => collectFolderEntriesRecursively(child, relativePath)),
+  );
+  return nestedResults.flat();
 }
 
 function normalizeAssetPath(path: string): string {
@@ -923,6 +1084,166 @@ function buildAssetLookupCandidates(path: string): string[] {
   }
 
   return [...candidates];
+}
+
+function getFileExtensionLower(fileName: string): string {
+  const index = fileName.lastIndexOf(".");
+  if (index < 0) {
+    return "";
+  }
+  return fileName.slice(index).toLowerCase();
+}
+
+function isConvertSupportedInputFile(fileName: string): boolean {
+  const ext = getFileExtensionLower(fileName);
+  return ext === ".vrm" || ext === ".glb";
+}
+
+function isPreviewSupportedInputFile(fileName: string): boolean {
+  const ext = getFileExtensionLower(fileName);
+  return ext === ".vrm" || ext === ".glb" || ext === ".gltf" || ext === ".zip";
+}
+
+type ResolvedPreviewInput =
+  | {
+      kind: "binary";
+      fileName: string;
+      buffer: ArrayBuffer;
+      cleanup: () => void;
+    }
+  | {
+      kind: "gltf-json";
+      fileName: string;
+      gltfText: string;
+      baseDir: string;
+      assetUrlMap: Map<string, string>;
+      cleanup: () => void;
+    };
+
+async function resolvePreviewInput(targetFile: File): Promise<ResolvedPreviewInput> {
+  const ext = getFileExtensionLower(targetFile.name);
+  if (ext === ".vrm" || ext === ".glb") {
+    return {
+      kind: "binary",
+      fileName: targetFile.name,
+      buffer: await targetFile.arrayBuffer(),
+      cleanup: () => undefined,
+    };
+  }
+
+  if (ext === ".gltf") {
+    return {
+      kind: "gltf-json",
+      fileName: targetFile.name,
+      gltfText: await targetFile.text(),
+      baseDir: "",
+      assetUrlMap: new Map<string, string>(),
+      cleanup: () => undefined,
+    };
+  }
+
+  if (ext !== ".zip") {
+    throw new Error("Unsupported preview input. Please use .vrm/.glb/.gltf/.zip");
+  }
+
+  const zipReader = new ZipReader(new BlobReader(targetFile));
+  const objectUrls: string[] = [];
+  try {
+    const entries = await zipReader.getEntries();
+    const fileEntries = entries.filter((entry) => {
+      const current = entry as unknown as {
+        directory?: boolean;
+        filename?: string;
+      };
+      return !current.directory && Boolean(current.filename);
+    });
+
+    const gltfEntry = fileEntries.find((entry) => {
+      const current = entry as unknown as { filename?: string };
+      return current.filename?.toLowerCase().endsWith(".gltf");
+    });
+    const glbEntry = fileEntries.find((entry) => {
+      const current = entry as unknown as { filename?: string };
+      return current.filename?.toLowerCase().endsWith(".glb");
+    });
+
+    const mainEntry = gltfEntry ?? glbEntry;
+    if (!mainEntry) {
+      throw new Error("ZIP must contain a .gltf or .glb file.");
+    }
+
+    const mainCurrent = mainEntry as unknown as {
+      filename?: string;
+      getData?: (writer: BlobWriter) => Promise<Blob>;
+    };
+    if (!mainCurrent.filename || !mainCurrent.getData) {
+      throw new Error("Failed to read main model entry from ZIP.");
+    }
+
+    const assetUrlMap = new Map<string, string>();
+    let mainBlob: Blob | null = null;
+    let mainName = "";
+
+    for (const entry of fileEntries) {
+      const current = entry as unknown as {
+        filename?: string;
+        getData?: (writer: BlobWriter) => Promise<Blob>;
+      };
+      if (!current.filename || !current.getData) {
+        continue;
+      }
+
+      const blob = await current.getData(new BlobWriter());
+      const url = URL.createObjectURL(blob);
+      objectUrls.push(url);
+
+      const candidates = buildAssetLookupCandidates(current.filename);
+      for (const candidate of candidates) {
+        if (!assetUrlMap.has(candidate)) {
+          assetUrlMap.set(candidate, url);
+        }
+      }
+
+      if (current.filename === mainCurrent.filename) {
+        mainBlob = blob;
+        mainName = current.filename;
+      }
+    }
+
+    if (!mainBlob) {
+      throw new Error("Failed to load main model data from ZIP.");
+    }
+
+    const cleanup = () => {
+      for (const url of objectUrls) {
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    if (mainName.toLowerCase().endsWith(".glb")) {
+      return {
+        kind: "binary",
+        fileName: mainName,
+        buffer: await mainBlob.arrayBuffer(),
+        cleanup,
+      };
+    }
+
+    const normalizedMainPath = normalizeAssetPath(mainName);
+    const slashIndex = normalizedMainPath.lastIndexOf("/");
+    const baseDir = slashIndex >= 0 ? normalizedMainPath.slice(0, slashIndex + 1) : "";
+
+    return {
+      kind: "gltf-json",
+      fileName: mainName,
+      gltfText: await mainBlob.text(),
+      baseDir,
+      assetUrlMap,
+      cleanup,
+    };
+  } finally {
+    await zipReader.close();
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1905,6 +2226,7 @@ export default function App() {
   );
   const convertHeartbeatStartedAtRef = useRef(0);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
+  const vrmFolderInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vrmSkeletonHelpersRef = useRef<THREE.SkeletonHelper[]>([]);
@@ -2257,9 +2579,19 @@ export default function App() {
     return isStandalone ? "Local" : "Web";
   }, [isInstalledState]);
 
+  const isConvertSupportedInput = useMemo(
+    () => (file ? isConvertSupportedInputFile(file.name) : false),
+    [file],
+  );
+
   const canConvert = useMemo(
-    () => !!file && status !== "uploading" && !isPreviewing && isVrmReady,
-    [file, isPreviewing, isVrmReady, status],
+    () =>
+      !!file &&
+      isConvertSupportedInput &&
+      status !== "uploading" &&
+      !isPreviewing &&
+      isVrmReady,
+    [file, isConvertSupportedInput, isPreviewing, isVrmReady, status],
   );
   const canDownload = useMemo(
     () => !!convertedOutput && status !== "uploading",
@@ -2625,7 +2957,17 @@ export default function App() {
 
   async function buildConvertInputFile(sourceFile: File): Promise<File> {
     const sourceBuffer = await sourceFile.arrayBuffer();
-    const posedBuffer = poseUpperArmsInGlb(sourceBuffer, taPoseAngle);
+    let posedBuffer = sourceBuffer;
+    try {
+      posedBuffer = poseUpperArmsInGlb(sourceBuffer, taPoseAngle);
+    } catch (error) {
+      // Non-VRM GLB may not have humanoid arm bones. Continue conversion with original input.
+      console.warn(
+        "pose_upper_arms.skipped",
+        sourceFile.name,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     poseDebug("convert input built", {
       fileName: sourceFile.name,
       angleDeg: taPoseAngle,
@@ -4174,6 +4516,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const input = vrmFolderInputRef.current;
+    if (!input) {
+      return;
+    }
+    input.setAttribute("webkitdirectory", "");
+    input.setAttribute("directory", "");
+  }, []);
+
+  useEffect(() => {
     applyUpperArmAngle(taPoseAngle);
   }, [taPoseAngle]);
 
@@ -4209,6 +4560,8 @@ export default function App() {
     const timer = new THREE.Timer();
     let frameId = 0;
     let vrm: VRM | null = null;
+    let previewRoot: THREE.Object3D | null = null;
+    let cleanupResolvedInput: (() => void) | null = null;
     const skeletonHelpers: THREE.SkeletonHelper[] = [];
 
     const fitRendererSize = () => {
@@ -4236,10 +4589,15 @@ export default function App() {
       if (vrm) {
         scene.remove(vrm.scene);
       }
+      if (previewRoot && previewRoot !== vrm?.scene) {
+        scene.remove(previewRoot);
+      }
       if (vrmGridRef.current) {
         scene.remove(vrmGridRef.current);
         vrmGridRef.current = null;
       }
+      cleanupResolvedInput?.();
+      cleanupResolvedInput = null;
       renderer.dispose();
     };
 
@@ -4262,10 +4620,54 @@ export default function App() {
       controls.minDistance = 0.4;
       controls.maxDistance = 30;
 
-      const loader = new GLTFLoader();
+      const loadingManager = new THREE.LoadingManager();
+      const loader = new GLTFLoader(loadingManager);
       loader.register((parser: GLTFParser) => new VRMLoaderPlugin(parser));
-      const arrayBuffer = await targetFile.arrayBuffer();
-      const gltf = await loader.parseAsync(arrayBuffer, "");
+      const resolvedInput = await resolvePreviewInput(targetFile);
+      cleanupResolvedInput = resolvedInput.cleanup;
+      let gltf;
+      const originalConsoleWarn = console.warn;
+      const shouldSuppressWarn = createThreeWarnFilter();
+      try {
+        console.warn = (...args: unknown[]) => {
+          if (shouldSuppressWarn(...args)) {
+            return;
+          }
+          originalConsoleWarn(...args);
+        };
+
+        if (resolvedInput.kind === "binary") {
+          gltf = await loader.parseAsync(resolvedInput.buffer, "");
+        } else {
+          const assetMap = resolvedInput.assetUrlMap;
+          const baseDir = resolvedInput.baseDir;
+          loadingManager.setURLModifier((rawUrl) => {
+            const normalized = normalizeAssetPath(rawUrl);
+            const withBase = baseDir
+              ? normalizeAssetPath(`${baseDir}${normalized}`)
+              : normalized;
+
+            const candidates = [
+              ...buildAssetLookupCandidates(withBase),
+              ...buildAssetLookupCandidates(normalized),
+            ];
+
+            for (const candidate of candidates) {
+              const hit = assetMap.get(candidate);
+              if (hit) {
+                return hit;
+              }
+            }
+
+            return rawUrl;
+          });
+          gltf = await loader.parseAsync(resolvedInput.gltfText, "");
+        }
+      } finally {
+        console.warn = originalConsoleWarn;
+      }
+
+      await applySpecGlossinessFallback(gltf);
       const infoData = extractVrmInfoData(gltf);
       setVrmInfoData(infoData);
       setIsVrmRedistributionOrModificationNG(
@@ -4273,14 +4675,13 @@ export default function App() {
       );
       vrm = (gltf.userData.vrm as VRM | undefined) ?? null;
 
-      if (!vrm) {
-        throw new Error("Selected file does not contain VRM data.");
+      previewRoot = vrm?.scene ?? gltf.scene;
+      scene.add(previewRoot);
+      if (vrm) {
+        vrm.scene.rotation.y = previewRootYaw;
       }
 
-      scene.add(vrm.scene);
-      vrm.scene.rotation.y = previewRootYaw;
-
-      const vrmRootHelper = new THREE.SkeletonHelper(vrm.scene);
+      const vrmRootHelper = new THREE.SkeletonHelper(previewRoot);
       vrmRootHelper.visible = vrmBonesVisible;
       vrmRootHelper.setColors(
         new THREE.Color("#63f5ff"),
@@ -4294,7 +4695,7 @@ export default function App() {
       vrmSkeletonHelpersRef.current = skeletonHelpers;
       setHasVrmSkeleton(true);
 
-      const humanoid = vrm.humanoid;
+      const humanoid = vrm?.humanoid;
       const leftUpperArm =
         humanoid?.getNormalizedBoneNode?.("leftUpperArm" as never) ??
         humanoid?.getRawBoneNode?.("leftUpperArm" as never) ??
@@ -4317,10 +4718,10 @@ export default function App() {
       };
       applyUpperArmAngle(taPoseAngle);
 
-      const bounds = new THREE.Box3().setFromObject(vrm.scene);
+      const bounds = new THREE.Box3().setFromObject(previewRoot);
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
-      vrm.scene.position.sub(center);
+      previewRoot.position.sub(center);
 
       const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const fitHeightDistance = (size.y * 0.5) / Math.tan(halfFov);
@@ -4337,7 +4738,7 @@ export default function App() {
 
       // Resync spring-bone runtime state after scene transforms to avoid
       // temporary hair jitter right after model load.
-      vrm.springBoneManager?.reset();
+      vrm?.springBoneManager?.reset();
 
       // TODO: Grid visualization (debug feature)
       // Grid helper size calculation needs refinement to match camera view proportions
@@ -4381,12 +4782,17 @@ export default function App() {
       renderLoop();
       setIsVrmReady(true);
       setMessage(
-        `Preview loaded: ${targetFile.name}. Drag to rotate, wheel to zoom.`,
+        vrm
+          ? `Preview loaded: ${targetFile.name}. Drag to rotate, wheel to zoom.`
+          : `Preview loaded (GLB/GLTF): ${targetFile.name}. Drag to rotate, wheel to zoom.`,
       );
     } catch (error) {
       const rawDetail = error instanceof Error ? error.message : String(error);
       setErrorDetail(rawDetail);
-      setMessage("Failed to load VRM preview.");
+      setMessage("Failed to load VRM/GLB/GLTF preview.");
+      appendConsoleLine(["[ERROR] preview.load_failed", rawDetail], "error", {
+        force: true,
+      });
       disposePreview();
       previewCleanupRef.current = null;
     } finally {
@@ -4448,9 +4854,63 @@ export default function App() {
     void previewVrmFile(selected);
   }
 
+  async function buildZipFromFolderEntries(entries: FolderZipEntry[]): Promise<File> {
+    if (entries.length === 0) {
+      throw new Error("No files found in selected folder.");
+    }
+
+    const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
+    const firstRelativePath = entries[0]?.relativePath || entries[0]?.file.name;
+    const rootDir = normalizeAssetPath(firstRelativePath).split("/")[0] || "model";
+
+    for (const entry of entries) {
+      const normalized = normalizeAssetPath(entry.relativePath || entry.file.name);
+      const entryPath = normalized.startsWith(`${rootDir}/`)
+        ? normalized.slice(rootDir.length + 1)
+        : normalized;
+      if (!entryPath) {
+        continue;
+      }
+      await zipWriter.add(entryPath, new BlobReader(entry.file));
+    }
+
+    const zipBlob = await zipWriter.close();
+    return new File([zipBlob], `${rootDir}.zip`, { type: "application/zip" });
+  }
+
+  async function buildZipFromFolderFiles(files: File[]): Promise<File> {
+    const entries: FolderZipEntry[] = files.map((file) => {
+      const relativePath =
+        (file as File & { webkitRelativePath?: string }).webkitRelativePath ||
+        file.name;
+      return { file, relativePath };
+    });
+    return buildZipFromFolderEntries(entries);
+  }
+
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
     applySelectedVrmFile(selected);
+  }
+
+  async function onFolderChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    try {
+      const zipFile = await buildZipFromFolderFiles(selectedFiles);
+      applySelectedVrmFile(zipFile);
+      setMessage(
+        `Folder loaded as ZIP source: ${zipFile.name}. Preview is running...`,
+      );
+    } catch (error) {
+      setMessage("Failed to load selected folder.");
+      setErrorDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      event.currentTarget.value = "";
+    }
   }
 
   function onVrmDropAreaDragOver(event: DragEvent<HTMLElement>) {
@@ -4468,33 +4928,59 @@ export default function App() {
     setIsVrmDropActive(false);
   }
 
-  function onVrmDropAreaDrop(event: DragEvent<HTMLElement>) {
+  async function onVrmDropAreaDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setIsVrmDropActive(false);
     const droppedFile = event.dataTransfer.files?.[0] ?? null;
-    if (!droppedFile) {
-      return;
-    }
+    if (droppedFile) {
+      const lowerName = droppedFile.name.toLowerCase();
+      if (isPreviewSupportedInputFile(lowerName)) {
+        if (vrmInputRef.current) {
+          try {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(droppedFile);
+            vrmInputRef.current.files = dataTransfer.files;
+          } catch {
+            // Some environments may block programmatic file list updates.
+          }
+        }
 
-    const lowerName = droppedFile.name.toLowerCase();
-    if (!(lowerName.endsWith(".vrm") || lowerName.endsWith(".glb"))) {
-      setMessage(
-        "Dropped file is not supported. Please drop a .vrm or .glb file.",
-      );
-      return;
-    }
-
-    if (vrmInputRef.current) {
-      try {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(droppedFile);
-        vrmInputRef.current.files = dataTransfer.files;
-      } catch {
-        // Some environments may block programmatic file list updates.
+        applySelectedVrmFile(droppedFile);
+        return;
       }
     }
 
-    applySelectedVrmFile(droppedFile);
+    const items = Array.from(event.dataTransfer.items ?? []);
+    const entryCandidates = items
+      .map((item) =>
+        (item as DataTransferItem & {
+          webkitGetAsEntry?: () => FileSystemEntry | null;
+        }).webkitGetAsEntry?.(),
+      )
+      .filter((entry): entry is FileSystemEntry => entry !== null);
+
+    const directoryEntries = entryCandidates.filter(
+      (entry): entry is FileSystemDirectoryEntry => entry.isDirectory,
+    );
+    if (directoryEntries.length > 0) {
+      try {
+        const allEntries = await Promise.all(
+          directoryEntries.map((entry) => collectFolderEntriesRecursively(entry, "")),
+        );
+        const zipped = await buildZipFromFolderEntries(allEntries.flat());
+        applySelectedVrmFile(zipped);
+        setMessage(`Dropped folder loaded as ZIP source: ${zipped.name}`);
+        return;
+      } catch (error) {
+        setMessage("Failed to read dropped folder.");
+        setErrorDetail(error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
+
+    setMessage(
+      "Dropped file is not supported. Please drop a .vrm/.glb/.gltf/.zip file.",
+    );
   }
 
   return (
@@ -4923,6 +5409,7 @@ export default function App() {
                   }
                   disabled={
                     !file ||
+                    !isConvertSupportedInput ||
                     isPreviewing ||
                     !isVrmReady ||
                     status === "done" ||
@@ -5027,12 +5514,28 @@ export default function App() {
               ref={vrmInputRef}
               id="vrm-input"
               type="file"
-              accept=".vrm,.glb"
+              accept=".vrm,.glb,.gltf,.zip"
               onClick={(event) => {
                 event.currentTarget.value = "";
               }}
               onChange={onFileChange}
             />
+            <input
+              ref={vrmFolderInputRef}
+              type="file"
+              className="folder-input-hidden"
+              title="Choose model folder"
+              multiple
+              onChange={onFolderChange}
+            />
+            <button
+              type="button"
+              className="preview-button"
+              onClick={() => vrmFolderInputRef.current?.click()}
+              disabled={status === "uploading" || isPreviewing}
+            >
+              Choose Folder
+            </button>
             <button
               type="button"
               className="preview-button"
