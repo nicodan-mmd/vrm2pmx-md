@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type DragEvent,
   FormEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -219,6 +220,8 @@ type AppI18n = {
   taPoseZeroCanceled: string;
   turboLabsLabel: string;
   turboLabsEnableInSettingTooltip: string;
+  turboLabsDisabledDialogTitle: string;
+  turboLabsDisabledDialogMessage: string;
   turboLabsSettingLabel: string;
   installButtonLabel: string;
   installUnsupportedHint: string;
@@ -391,6 +394,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     turboLabsLabel: "Turbo (Labs)",
     turboLabsEnableInSettingTooltip:
       "有効にするにはセッティングを変更してください。",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "この機能は実験的です、Setting から有効にしてください",
     turboLabsSettingLabel: "Turbo: 爆速化を有効にする",
     installButtonLabel: "Install",
     installUnsupportedHint:
@@ -447,6 +453,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     turboLabsLabel: "Turbo (Labs)",
     turboLabsEnableInSettingTooltip:
       "To enable this, please change the setting.",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "This feature is experimental. Please enable it from Settings.",
     turboLabsSettingLabel: "Turbo: Enable high-speed mode",
     installButtonLabel: "Install",
     installUnsupportedHint:
@@ -500,6 +509,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     taPoseZeroCanceled: "因 0 度姿势设置，已取消转换。",
     turboLabsLabel: "Turbo (Labs)",
     turboLabsEnableInSettingTooltip: "要启用此功能，请先在设置中更改。",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "此功能为实验性功能，请先在设置中启用。",
     turboLabsSettingLabel: "Turbo：启用高速模式",
     installButtonLabel: "Install",
     installUnsupportedHint: "请从浏览器菜单中选择「添加到主屏幕」。",
@@ -556,6 +568,9 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     turboLabsLabel: "Turbo (Labs)",
     turboLabsEnableInSettingTooltip:
       "활성화하려면 설정에서 먼저 변경해 주세요.",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "이 기능은 실험적 기능입니다. 설정에서 먼저 활성화해 주세요.",
     turboLabsSettingLabel: "Turbo: 고속 모드 활성화",
     installButtonLabel: "Install",
     installUnsupportedHint:
@@ -3961,10 +3976,14 @@ export default function App() {
         lastFrameTime = now;
 
         controls.update();
-        if (pmxMotionActiveRef.current && !pmxMotionPausedRef.current) {
+        const isPmxMotionPlaying =
+          pmxMotionActiveRef.current && !pmxMotionPausedRef.current;
+        if (isPmxMotionPlaying) {
           pmxAnimationHelperRef.current?.update(deltaTime);
+          pmxIdleManager!.stopRotation();
+        } else {
+          pmxIdleManager!.updateRotation(deltaTime * 1000);
         }
-        pmxIdleManager!.updateRotation(deltaTime * 1000);
         try {
           renderer.render(scene, camera);
         } catch (error) {
@@ -4447,6 +4466,20 @@ export default function App() {
 
   function onCancel() {
     abortControllerRef.current?.abort();
+  }
+
+  function onTurboLabsLabelClick(event: ReactMouseEvent<HTMLLabelElement>) {
+    if (turboLabsEnabled) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    showDialog({
+      title: i18n.turboLabsDisabledDialogTitle,
+      message: i18n.turboLabsDisabledDialogMessage,
+      type: "alert",
+      okLabel: "OK",
+    });
   }
 
   function cleanupPreview() {
@@ -4941,6 +4974,98 @@ export default function App() {
     void previewVrmFile(selected);
   }
 
+  async function detectZipPreviewTarget(
+    zipFile: File,
+  ): Promise<"vrm" | "pmx" | "unknown"> {
+    try {
+      const zipReader = new ZipReader(new BlobReader(zipFile));
+      const entries = await zipReader.getEntries();
+      await zipReader.close();
+
+      let hasPmx = false;
+      let hasVrmLike = false;
+      for (const entry of entries) {
+        const current = entry as unknown as {
+          filename?: string;
+          directory?: boolean;
+        };
+        if (current.directory || !current.filename) {
+          continue;
+        }
+
+        const normalizedName = normalizeAssetPath(current.filename);
+        if (/\.pmx$/i.test(normalizedName)) {
+          hasPmx = true;
+        }
+        if (/\.(vrm|glb|gltf)$/i.test(normalizedName)) {
+          hasVrmLike = true;
+        }
+      }
+
+      if (hasPmx) {
+        return "pmx";
+      }
+      if (hasVrmLike) {
+        return "vrm";
+      }
+      return "unknown";
+    } catch {
+      return "unknown";
+    }
+  }
+
+  async function applySelectedInputFile(selected: File | null) {
+    if (!selected) {
+      applySelectedVrmFile(null);
+      return;
+    }
+
+    const ext = getFileExtensionLower(selected.name);
+    if (ext === ".vrm") {
+      applySelectedVrmFile(selected);
+      return;
+    }
+
+    if (ext === ".pmx") {
+      cleanupPreview();
+      setFile(null);
+      setIsVrmReady(false);
+      setDetectedProfileResult(null);
+      applySelectedPmxFile(selected);
+      return;
+    }
+
+    if (ext === ".vmd" || ext === ".vpd") {
+      await applyPmxMotionOrPoseFile(selected);
+      return;
+    }
+
+    if (ext === ".zip") {
+      const target = await detectZipPreviewTarget(selected);
+      if (target === "pmx") {
+        cleanupPreview();
+        setFile(null);
+        setIsVrmReady(false);
+        setDetectedProfileResult(null);
+        applySelectedPmxFile(selected);
+        return;
+      }
+      if (target === "vrm") {
+        applySelectedVrmFile(selected);
+        return;
+      }
+
+      setErrorDetail("");
+      setMessage(
+        "Unsupported ZIP content. Include a .pmx or .vrm/.glb/.gltf file in ZIP.",
+      );
+      return;
+    }
+
+    setErrorDetail("");
+    setMessage("Unsupported file. Please choose .vrm/.pmx/.zip/.vmd/.vpd.");
+  }
+
   async function buildZipFromFolderEntries(entries: FolderZipEntry[]): Promise<File> {
     if (entries.length === 0) {
       throw new Error("No files found in selected folder.");
@@ -5161,7 +5286,7 @@ export default function App() {
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
-    applySelectedVrmFile(selected);
+    void applySelectedInputFile(selected);
   }
 
   function onVrmDropAreaDragOver(event: DragEvent<HTMLElement>) {
@@ -5309,7 +5434,7 @@ export default function App() {
   }
 
   return (
-    <main className="page">
+    <main className={`page${nimEnabled ? " page-turbo-active" : ""}`}>
       <div className="halo" />
       <section className="card">
         <h1 className="app-title">
@@ -5839,6 +5964,7 @@ export default function App() {
                 <label
                   className="pmx-tool-checkbox"
                   title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                  onClick={onTurboLabsLabelClick}
                 >
                   <input
                     type="checkbox"
@@ -5855,9 +5981,6 @@ export default function App() {
           </div>
 
           <div className="file-label-row">
-            <label htmlFor="vrm-input" className="input-label file-input-label">
-              Choose VRM file
-            </label>
             {status === "done" && convertedOutput && (
               <button
                 type="button"
@@ -5870,11 +5993,14 @@ export default function App() {
             )}
           </div>
           <div className="file-picker-row">
+            <label htmlFor="vrm-input" className="input-label file-input-label">
+              Choose file
+            </label>
             <input
               ref={vrmInputRef}
               id="vrm-input"
               type="file"
-              accept=".vrm,.glb,.gltf,.zip"
+              accept=".vrm,.pmx,.zip,.vmd,.vpd"
               onClick={(event) => {
                 event.currentTarget.value = "";
               }}

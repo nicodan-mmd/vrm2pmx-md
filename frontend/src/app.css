@@ -153,6 +153,9 @@ h2 {
       #dce8f533 28px
     );
 }
+.page.page-turbo-active .preview-canvas {
+  border-color: #ff6b6b;
+}
 
 .preview-canvas-wrap {
   position: relative;
@@ -593,7 +596,7 @@ body.preview-maximized-open {
 
 .file-picker-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
 }
@@ -683,8 +686,9 @@ input[type="file"] {
 }
 
 .file-input-label {
-  align-self: flex-end;
+  align-self: center;
   margin: 0;
+  white-space: nowrap;
 }
 
 .file-label-row .quality-report-button {
