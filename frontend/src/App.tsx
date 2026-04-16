@@ -190,7 +190,7 @@ function getProfileFlags(result: ProfileDetectionResult): string[] {
   return flags;
 }
 
-type AppLocale = "ja" | "en" | "zh";
+type AppLocale = "ja" | "en" | "zh" | "ko";
 
 type AppI18n = {
   errorReportingModalTitle: string;
@@ -247,7 +247,8 @@ const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
 const METRICS_BASELINE_KEY_PREFIX = "vrm2pmx.metrics.baseline";
-const MAX_USER_CONVERT_LOG_LINES = 10;
+const MAX_USER_CONVERT_LOG_LINES = 240;
+const CONVERT_HEARTBEAT_INTERVAL_MS = 2000;
 const NIM_VERTEX_RATIO_LIMIT = 1.05;
 const NIM_BONE_RATIO_TOLERANCE = 0.01;
 const NIM_MORPH_RATIO_TOLERANCE = 0.01;
@@ -521,12 +522,72 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartDialogError: "发送失败，请稍后重试。",
     heartAlreadySent: "感谢支持，已收到您的爱心。",
   },
+  ko: {
+    errorReportingModalTitle: "오류 리포트 전송",
+    errorReportingModalDescription1:
+      "변환 품질 개선을 위해 익명 오류 리포트 전송을 활성화할 수 있습니다.",
+    errorReportingModalDescription2:
+      "파일 내용 자체는 전송되지 않습니다. 설정은 푸터에서 언제든 변경할 수 있습니다.",
+    errorReportingEnable: "활성화",
+    errorReportingNotNow: "나중에",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `폴백으로 변환되었습니다.\n\n요청 모드: ${requestedMode}\n사용 모드: ${usedMode}\n이유: ${reason}\n\n익명 리포트를 전송하시겠습니까?\n전송하면 향후 이 케이스의 품질 개선에 도움이 됩니다.`,
+    fallbackReportSubmittedMessage:
+      "익명 리포트를 전송했습니다. 향후 변환 품질 개선에 도움이 됩니다.",
+    qualityReportButton: "품질 문제 신고",
+    qualityReportConfirm:
+      "변환은 완료되었지만 화면 품질이 올바르지 않습니다. 이 케이스를 익명으로 신고하시겠습니까?\n전송하면 향후 개선에 도움이 됩니다.",
+    qualityReportDialogSend: "전송",
+    qualityReportDialogCancel: "취소",
+    qualityReportSubmittedMessage:
+      "익명 리포트를 전송했습니다. 향후 변환 품질 개선에 도움이 됩니다.",
+    qualityReportEnableHint:
+      "Error Reporting을 활성화하면 성공한 변환의 품질 문제를 익명으로 보고할 수 있습니다.",
+    qualityAutoReportConfirm: (signals) =>
+      `변환은 성공했지만 로그에서 품질 저하 가능 신호가 감지되었습니다.\n\n감지 신호: ${signals}\n\n익명 리포트를 전송하시겠습니까?\n전송하면 향후 개선에 도움이 됩니다.`,
+    allResetConfirmTitle: "리셋 확인",
+    allResetConfirmMessage:
+      "모든 설정을 리셋하고 로컬 스토리지를 초기화하시겠습니까?",
+    allResetCounterLabel: "변환 카운터도 함께 리셋",
+    taPoseZeroConfirm:
+      "T/A Pose가 0도로 설정되어 있습니다. 이 상태로 변환을 계속하시겠습니까?",
+    taPoseZeroCanceled: "0도 포즈 설정으로 인해 변환이 취소되었습니다.",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip:
+      "활성화하려면 설정에서 먼저 변경해 주세요.",
+    turboLabsSettingLabel: "Turbo: 고속 모드 활성화",
+    installButtonLabel: "Install",
+    installUnsupportedHint:
+      "브라우저 메뉴에서 \"홈 화면에 추가\"를 선택해 주세요.",
+    installDialogTitle: "앱 설치",
+    installDialogDescription: "홈 화면이나 데스크톱에서 빠르게 실행할 수 있습니다.",
+    restrictedRedistributionModificationConfirm:
+      "이 모델은 개변 또는 재배포가 금지되어 있습니다. 변환을 진행하는 경우 개인 책임 하에 실행해 주세요.",
+    restrictedRedistributionModificationCancel: "취소",
+    restrictedRedistributionModificationProceed: "계속",
+    previewShaderErrorTitle: "PMX 미리보기 오류",
+    previewShaderErrorMessage:
+      "변환은 성공했지만 PMX 미리보기 렌더링 중 오류가 발생했습니다.\nZIP은 다운로드할 수 있습니다.\n\"품질 문제 신고\"를 보내주시면 향후 개선에 도움이 됩니다.",
+    previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "개발자에게 하트 보내기",
+    heartDialogTitle: "개발자에게 하트 보내기",
+    heartDialogPlaceholder: "한 줄 메시지(선택)",
+    heartDialogCancel: "취소",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `${remaining}자 남음`,
+    heartDialogSent: "하트를 보냈습니다. 감사합니다.",
+    heartDialogError: "전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    heartAlreadySent: "감사합니다. 이미 하트를 전달받았습니다.",
+  },
 };
 
 function detectAppLocale(language: string | undefined): AppLocale {
   const normalized = (language ?? "").toLowerCase();
   if (normalized.startsWith("ja")) {
     return "ja";
+  }
+  if (normalized.startsWith("ko")) {
+    return "ko";
   }
   if (normalized.startsWith("zh")) {
     return "zh";
@@ -593,7 +654,30 @@ function localizeAllowDisallow(
     unnecessary: { text: "不需要", isNg: false },
   };
 
-  const valueMap = locale === "zh" ? zhValueMap : jaValueMap;
+  const koValueMap: Record<string, { text: string; isNg: boolean }> = {
+    allow: { text: "허용", isNg: false },
+    disallow: { text: "금지", isNg: true },
+    prohibited: { text: "금지", isNg: true },
+    true: { text: "허용", isNg: false },
+    false: { text: "금지", isNg: true },
+    allow_modification: { text: "허용", isNg: false },
+    allow_modification_redistribution: { text: "허용", isNg: false },
+    allowmodification: { text: "허용", isNg: false },
+    allowmodificationredistribution: { text: "허용", isNg: false },
+    redistribution_prohibited: { text: "재배포 금지", isNg: true },
+    modification_prohibited: { text: "개변 금지", isNg: true },
+    onlyauthor: { text: "아바타 작성자만", isNg: false },
+    explicitlylicensedperson: { text: "명시적으로 허가된 사람만", isNg: false },
+    everyone: { text: "누구나", isNg: false },
+    personalnonprofit: { text: "개인·비영리", isNg: false },
+    personalprofit: { text: "개인·영리", isNg: false },
+    corporation: { text: "법인", isNg: false },
+    required: { text: "필수", isNg: false },
+    unnecessary: { text: "불필요", isNg: false },
+  };
+
+  const valueMap =
+    locale === "zh" ? zhValueMap : locale === "ko" ? koValueMap : jaValueMap;
   const mapped = valueMap[normalized];
   if (mapped) {
     return mapped;
@@ -609,6 +693,53 @@ function localizeAllowDisallow(
 function localizeMetadataLabel(label: string, locale: AppLocale): string {
   if (locale === "en") {
     return label;
+  }
+
+  if (locale === "ko") {
+    if (label.startsWith("Reference URL ")) {
+      return label.replace("Reference URL ", "참조 URL ");
+    }
+    if (label.startsWith("Reference ")) {
+      return label.replace("Reference ", "참조 ");
+    }
+    const koLabelMap: Record<string, string> = {
+      Title: "제목",
+      Author: "작성자",
+      Contact: "연락처",
+      Reference: "참조",
+      Version: "버전",
+      Copyright: "저작권",
+      "Avatar Permission": "아바타 인격 부여 허용 범위",
+      "Commercial Usage": "상업적 이용 허가",
+      "Credit Notation": "크레딧 표기",
+      Modification: "개변 허가",
+      "Allow Redistribution": "재배포 허가",
+      "Allow Violent Usage": "폭력적 표현 허가",
+      "Allow Sexual Usage": "성적 표현 허가",
+      "Allow Political/Religious": "정치/종교 이용 허가",
+      "Allow Antisocial/Hate": "반사회/혐오 이용 허가",
+      "License URL": "라이선스 URL",
+      "Other License URL": "기타 라이선스 URL",
+      "Third Party Licenses": "서드파티 라이선스",
+      "Allowed User": "허용 사용자",
+      "Violent Usage": "폭력적 표현 허가",
+      "Sexual Usage": "성적 표현 허가",
+      "License Name": "라이선스 이름",
+      "Other Permission URL": "기타 허가 조건 URL",
+      "Model Name": "모델명",
+      "Model Name EN": "모델명(영문)",
+      Comment: "코멘트",
+      "Comment EN": "코멘트(영문)",
+      Vertices: "정점 수",
+      Faces: "면 수",
+      Materials: "재질 수",
+      Bones: "본 수",
+      Morphs: "모프 수",
+      "Rigid Bodies": "강체 수",
+      Constraints: "조인트 수",
+      License: "라이선스",
+    };
+    return koLabelMap[label] ?? label;
   }
 
   if (locale === "zh") {
@@ -991,6 +1122,8 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
     lines.push(
       locale === "ja"
         ? "=== 基本情報 ==="
+        : locale === "ko"
+          ? "=== 기본 정보 ==="
         : locale === "zh"
           ? "=== 基本信息 ==="
           : "=== Basic Information ===",
@@ -1006,6 +1139,8 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
     lines.push(
       locale === "ja"
         ? "=== ライセンス情報 ==="
+        : locale === "ko"
+          ? "=== 라이선스 정보 ==="
         : locale === "zh"
           ? "=== 许可证信息 ==="
           : "=== License Information ===",
@@ -1765,6 +1900,10 @@ export default function App() {
   >(null);
   const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const convertHeartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const convertHeartbeatStartedAtRef = useRef(0);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pmxCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -2164,8 +2303,12 @@ export default function App() {
     }
   }
 
-  function appendConsoleLine(args: unknown[], level: ConsoleLogLevel = "info") {
-    if (!shouldCaptureLog(level, APP_LOG_LEVEL)) {
+  function appendConsoleLine(
+    args: unknown[],
+    level: ConsoleLogLevel = "info",
+    options?: { force?: boolean },
+  ) {
+    if (!options?.force && !shouldCaptureLog(level, APP_LOG_LEVEL)) {
       return;
     }
 
@@ -2257,7 +2400,7 @@ export default function App() {
 
     convertUiLogSeenRef.current.add(key);
     convertUiLogCountRef.current += 1;
-    appendConsoleLine([line], level);
+    appendConsoleLine([line], level, { force: true });
   }
 
   function appendUserConvertStageLog(
@@ -2290,6 +2433,42 @@ export default function App() {
       appendUserConvertLog("[INFO] 出力を最終化中...");
     }
   }
+
+  function stopConvertHeartbeat() {
+    if (convertHeartbeatTimerRef.current) {
+      clearInterval(convertHeartbeatTimerRef.current);
+      convertHeartbeatTimerRef.current = null;
+    }
+  }
+
+  function startConvertHeartbeat() {
+    stopConvertHeartbeat();
+    convertHeartbeatStartedAtRef.current = Date.now();
+
+    convertHeartbeatTimerRef.current = setInterval(() => {
+      if (!idleAnimationRef.current.isConverting) {
+        return;
+      }
+
+      const elapsedSec = Math.max(
+        1,
+        Math.floor((Date.now() - convertHeartbeatStartedAtRef.current) / 1000),
+      );
+      appendUserConvertLog(`[INFO] 変換処理中... ${elapsedSec}s 経過`);
+
+      if (elapsedSec % 30 === 0) {
+        appendUserConvertLog(
+          "[INFO] 大きめのモデルのため時間がかかっています。処理は継続中です。",
+        );
+      }
+    }, CONVERT_HEARTBEAT_INTERVAL_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      stopConvertHeartbeat();
+    };
+  }, []);
 
   useEffect(() => {
     const runtime = pmxLightRuntimeRef.current;
@@ -2656,6 +2835,8 @@ export default function App() {
       setMessage(
         appLocale === "ja"
           ? "変換は成功しているので、ZIPはダウンロード可能です。PMXプレビュー描画ではエラーが発生しました。"
+          : appLocale === "ko"
+            ? "변환은 성공했으므로 ZIP 다운로드가 가능합니다. PMX 미리보기 렌더링에서 오류가 발생했습니다."
           : "Conversion succeeded, so ZIP download is available. PMX preview rendering failed.",
       );
       void Swal.fire({
@@ -3432,6 +3613,7 @@ export default function App() {
     );
     appendUserConvertLog(`[INFO] 変換を開始します: ${file.name}`);
     appendUserConvertLog(`[INFO] 変換モード: ${requestedMode}`);
+    startConvertHeartbeat();
 
     try {
       const convertLogStartIndex = logLinesRef.current.length;
@@ -3711,6 +3893,7 @@ export default function App() {
         });
       }
     } finally {
+      stopConvertHeartbeat();
       abortControllerRef.current = null;
     }
   }
@@ -3882,18 +4065,23 @@ export default function App() {
 
     console.log = (...args: unknown[]) => {
       originalLog(...args);
+      appendConsoleLine(args, "log");
     };
     console.info = (...args: unknown[]) => {
       originalInfo(...args);
+      appendConsoleLine(args, "info");
     };
     console.warn = (...args: unknown[]) => {
       originalWarn(...args);
+      appendConsoleLine(args, "warn");
     };
     console.error = (...args: unknown[]) => {
       originalError(...args);
+      appendConsoleLine(args, "error");
     };
     console.debug = (...args: unknown[]) => {
       originalDebug(...args);
+      appendConsoleLine(args, "debug");
     };
 
     return () => {
@@ -4744,75 +4932,78 @@ export default function App() {
               </div>
             </div>
             <div className="pmx-tools">
-              <button
-                type="button"
-                className="pmx-tool-button"
-                onClick={onOrbitReset}
-              >
-                Orbit Reset
-              </button>
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="orbit-sync"
-                  checked={orbitSyncEnabled}
-                  onChange={(event) =>
-                    setOrbitSyncEnabled(event.target.checked)
-                  }
-                />
-                <span>Orbit Sync</span>
-              </label>
-              {/*
-                TODO: Grid toggle UI (debug feature)
-                Grid rendering is intentionally disabled while viewport fit tuning is in progress.
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="grid"
-                  checked={gridEnabled}
-                  onChange={(event) => setGridEnabled(event.target.checked)}
-                />
-                <span>Grid</span>
-              </label>
-              */}
-              {/* Rust mode toggle — hidden until Rust converter is production-ready
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="rust-mode"
-                  checked={rustEnabled}
-                  onChange={(event) => setRustEnabled(event.target.checked)}
-                  disabled={status === "uploading"}
-                />
-                <span>Rust</span>
-              </label>
-              */}
-              <label className="pmx-tool-checkbox">
-                <input
-                  type="checkbox"
-                  name="pmx-log"
-                  checked={logEnabled}
-                  onChange={(event) => setLogEnabled(event.target.checked)}
-                />
-                <span>Log</span>
-              </label>
-              {/* Ver 1.6.0 release */}
-              {/*
-              <label
-                className="pmx-tool-checkbox"
-                title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
-              >
-                <input
-                  type="checkbox"
-                  name="nim-mode"
-                  checked={nimEnabled}
-                  onChange={(event) => setNimEnabled(event.target.checked)}
-                  disabled={status === "uploading" || !turboLabsEnabled}
+              <div className="pmx-tools-main">
+                <button
+                  type="button"
+                  className="pmx-tool-button"
+                  onClick={onOrbitReset}
+                >
+                  Orbit Reset
+                </button>
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="orbit-sync"
+                    checked={orbitSyncEnabled}
+                    onChange={(event) =>
+                      setOrbitSyncEnabled(event.target.checked)
+                    }
+                  />
+                  <span>Orbit Sync</span>
+                </label>
+                {/*
+                  TODO: Grid toggle UI (debug feature)
+                  Grid rendering is intentionally disabled while viewport fit tuning is in progress.
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="grid"
+                    checked={gridEnabled}
+                    onChange={(event) => setGridEnabled(event.target.checked)}
+                  />
+                  <span>Grid</span>
+                </label>
+                */}
+                {/* Rust mode toggle — hidden until Rust converter is production-ready
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="rust-mode"
+                    checked={rustEnabled}
+                    onChange={(event) => setRustEnabled(event.target.checked)}
+                    disabled={status === "uploading"}
+                  />
+                  <span>Rust</span>
+                </label>
+                */}
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="pmx-log"
+                    checked={logEnabled}
+                    onChange={(event) => setLogEnabled(event.target.checked)}
+                  />
+                  <span>Log</span>
+                </label>
+              </div>
+
+              <div className="pmx-tools-secondary">
+                {/* Ver 1.6.0 release */}
+                <label
+                  className="pmx-tool-checkbox"
                   title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
-                />
-                <span>{i18n.turboLabsLabel}</span>
-              </label>
-              */}
+                >
+                  <input
+                    type="checkbox"
+                    name="nim-mode"
+                    checked={nimEnabled}
+                    onChange={(event) => setNimEnabled(event.target.checked)}
+                    disabled={status === "uploading" || !turboLabsEnabled}
+                    title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                  />
+                  <span>{i18n.turboLabsLabel}</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -4979,7 +5170,7 @@ export default function App() {
               >
                 <img
                   className="footer-social-icon"
-                  src="/assets/social/x-logo-black.png"
+                  src={`${import.meta.env.BASE_URL}assets/social/x-logo-black.png`}
                   alt="X"
                 />
               </a>
@@ -4993,7 +5184,7 @@ export default function App() {
               >
                 <img
                   className="footer-social-icon footer-social-icon-nico"
-                  src="/assets/social/nico2tv.png"
+                  src={`${import.meta.env.BASE_URL}assets/social/nico2tv.png`}
                   alt="ニコニコ動画"
                 />
               </a>
