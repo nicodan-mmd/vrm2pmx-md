@@ -2203,6 +2203,7 @@ export default function App() {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isPmxPreviewing, setIsPmxPreviewing] = useState(false);
   const [isPmxReady, setIsPmxReady] = useState(false);
+  const [pmxPreviewFileName, setPmxPreviewFileName] = useState<string | null>(null);
   const [isVrmDropActive, setIsVrmDropActive] = useState(false);
   const [isPmxDropActive, setIsPmxDropActive] = useState(false);
   const [convertProgressPercent, setConvertProgressPercent] = useState(0);
@@ -2990,6 +2991,7 @@ export default function App() {
     pmxPreviewCleanupRef.current?.();
     pmxPreviewCleanupRef.current = null;
     setIsPmxReady(false);
+    setPmxPreviewFileName(null);
     pmxSkeletonHelpersRef.current = [];
     setHasPmxSkeleton(false);
     pmxViewRef.current = null;
@@ -4038,6 +4040,7 @@ export default function App() {
 
       if (outputExtension === "zip") {
         await previewPmxFromZip(outputBlob, orbitSyncEnabled);
+        setPmxPreviewFileName(file.name.replace(/\.[^.]+$/, "") + ".pmx");
       } else {
         throw new Error(
           "Current preview supports ZIP output with PMX resources.",
@@ -4910,6 +4913,7 @@ export default function App() {
         ext === ".pmx" ? await buildZipFromSinglePmxFile(selected) : selected;
 
       await previewPmxFromZip(zipSource, orbitSyncEnabled);
+      setPmxPreviewFileName(selected.name);
       if (ext === ".pmx") {
         setMessage(
           `PMX preview loaded: ${selected.name}. If textures are missing, load ZIP or folder with texture files.`,
@@ -5105,6 +5109,11 @@ export default function App() {
                 vrmIdleManagerRef.current?.stopRotation();
               }}
             >
+              {file && (
+                <div className="preview-model-name" title={file.name}>
+                  {file.name}
+                </div>
+              )}
               <canvas
                 ref={vrmCanvasRef}
                 className="preview-canvas"
@@ -5275,6 +5284,11 @@ export default function App() {
                 pmxIdleManagerRef.current?.stopRotation();
               }}
             >
+              {pmxPreviewFileName && (
+                <div className="preview-model-name" title={pmxPreviewFileName}>
+                  {pmxPreviewFileName}
+                </div>
+              )}
               <canvas
                 ref={pmxCanvasRef}
                 className="preview-canvas"
