@@ -5034,7 +5034,7 @@ export default function App() {
               >
                 <img
                   className="footer-social-icon"
-                  src="/assets/social/x-logo-black.png"
+                  src={`${import.meta.env.BASE_URL}assets/social/x-logo-black.png`}
                   alt="X"
                 />
               </a>
@@ -5048,7 +5048,7 @@ export default function App() {
               >
                 <img
                   className="footer-social-icon footer-social-icon-nico"
-                  src="/assets/social/nico2tv.png"
+                  src={`${import.meta.env.BASE_URL}assets/social/nico2tv.png`}
                   alt="ニコニコ動画"
                 />
               </a>
