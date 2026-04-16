@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 
-type HistoryLocale = "ja" | "en" | "zh";
+type HistoryLocale = "ja" | "en" | "zh" | "ko";
 
 type AboutDialogProps = {
   open: boolean;
@@ -23,7 +23,7 @@ export type TabId = "about" | "history" | "setting";
 const HISTORY: Array<{
   version: string;
   date: string;
-  items: Record<HistoryLocale, string>[];
+  items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
     version: "v1.5.3",
@@ -205,11 +205,13 @@ export default function AboutDialog({
     ja: "Privacy Policy",
     en: "Privacy Policy",
     zh: "隐私政策",
+    ko: "개인정보 처리방침",
   };
   const privacyPolicyText: Record<HistoryLocale, string> = {
     ja: "Thank You ❤ を送ると、匿名ID付きで記録されます。",
     en: "When you send Thank You ❤, it is recorded with an anonymous ID.",
     zh: "发送 Thank You ❤ 时，会以匿名 ID 进行记录。",
+    ko: "Thank You ❤를 보내면 익명 ID와 함께 기록됩니다.",
   };
 
   useEffect(() => {
@@ -294,7 +296,7 @@ export default function AboutDialog({
                 </p>
                 <ul className="history-list">
                   {entry.items.map((item, i) => (
-                    <li key={i}>{item[locale]}</li>
+                    <li key={i}>{item[locale] ?? item.en ?? item.ja ?? ""}</li>
                   ))}
                 </ul>
               </div>
