@@ -26,6 +26,72 @@ const HISTORY: Array<{
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
+    version: "v1.6.0",
+    date: "2026/04/17",
+    items: [
+      {
+        ja: "爆速変換モード追加 (実験的, 一次検証済)",
+        en: "Added high-speed conversion mode (experimental, first-stage validated)",
+        zh: "新增极速转换模式（实验性，已完成第一阶段验证）",
+        ko: "초고속 변환 모드 추가 (실험적, 1차 검증 완료)",
+      },
+      {
+        ja: "オートコンバート機能追加",
+        en: "Added auto convert feature",
+        zh: "新增自动转换功能",
+        ko: "자동 변환 기능 추가",
+      },
+      {
+        ja: "Pmx Preview にPMX,VMD,VPD 読込対応",
+        en: "PMX Preview now supports PMX/VMD/VPD loading",
+        zh: "PMX 预览支持 PMX/VMD/VPD 读取",
+        ko: "PMX 미리보기에서 PMX/VMD/VPD 로딩 지원",
+      },
+      {
+        ja: "VRM Preview にGLB 読込対応 (変換未検証)",
+        en: "VRM Preview now supports GLB loading (conversion not verified)",
+        zh: "VRM 预览支持 GLB 读取（转换尚未验证）",
+        ko: "VRM 미리보기에서 GLB 로딩 지원 (변환 미검증)",
+      },
+      {
+        ja: "※ ファイル読込時に自動切替",
+        en: "Auto switching on file load",
+        zh: "文件读取时自动切换",
+        ko: "파일 로드 시 자동 전환",
+      },
+    ],
+  },
+  {
+    version: "v1.5.4",
+    date: "2026/04/12",
+    items: [
+      {
+        ja: "韓国語対応",
+        en: "Added Korean language support",
+        zh: "新增韩语支持",
+        ko: "한국어 지원 추가",
+      },
+      {
+        ja: "UI調整",
+        en: "UI adjustments",
+        zh: "UI 调整",
+        ko: "UI 조정",
+      },
+      {
+        ja: "ログ出力調整",
+        en: "Adjusted log output",
+        zh: "日志输出调整",
+        ko: "로그 출력 조정",
+      },
+      {
+        ja: "外部サービスについてAboutに追記",
+        en: "Added external services section to About",
+        zh: "在 About 中补充外部服务说明",
+        ko: "About에 외부 서비스 항목 추가",
+      },
+    ],
+  },
+  {
     version: "v1.5.3",
     date: "2026-04-07",
     items: [
@@ -435,6 +501,15 @@ export default function AboutDialog({
               </a>
               {" · "}
               <a
+                href="https://nim-lang.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                Nim
+              </a>
+              {" · "}
+              <a
                 href="https://react.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -461,6 +536,69 @@ export default function AboutDialog({
                 react-icons
               </a>
             </p>
+
+            <hr className="about-divider" />
+
+            <p>
+              <strong>External Services:</strong>
+            </p>
+            <ul>
+              <li>
+                <a
+                  href="https://sentry.io/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="about-link"
+                >
+                  Sentry
+                </a>{" "}
+                - Error Tracking.
+              </li>
+              <li>
+                <a
+                  href="https://slack.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="about-link"
+                >
+                  Slack
+                </a>{" "}
+                - Notifications
+              </li>
+              <li>
+                <a
+                  href="https://analytics.google.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="about-link"
+                >
+                  Google Analytics
+                </a>{" "}
+                - Usage analysis
+              </li>
+              <li>
+                <a
+                  href="https://script.google.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="about-link"
+                >
+                  Google Apps Script
+                </a>{" "}
+                - API security
+              </li>
+              <li>
+                <a
+                  href="https://firebase.google.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="about-link"
+                >
+                  Firebase
+                </a>{" "}
+                - Convert Counter
+              </li>
+            </ul>
 
             <hr className="about-divider" />
             <p>

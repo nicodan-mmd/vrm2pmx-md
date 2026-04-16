@@ -176,7 +176,14 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
+}
+
+.pmx-drop-subtext {
+  font-size: 0.75em;
+  margin-top: 0.25em;
+  opacity: 0.75;
 }
 
 .metadata-info-button.preview-maximize-button {

@@ -5794,7 +5794,9 @@ export default function App() {
               {!canOpenPmxMetadata && !isPmxPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
                   <div>Drop PMX/ZIP here</div>
-                  <div style={{ fontSize: "0.75em", marginTop: "0.25em", opacity: 0.75 }}>Also, VMD(motion) / VPD(pose) view</div>
+                  <div className="pmx-drop-subtext">
+                    Also, VMD(motion) / VPD(pose) view
+                  </div>
                 </div>
               )}
             </div>
