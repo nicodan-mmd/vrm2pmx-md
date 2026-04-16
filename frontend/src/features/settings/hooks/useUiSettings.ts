@@ -17,6 +17,7 @@ type UiSettingsSnapshot = {
   worldCounterParticipationEnabled: boolean;
   pmxBrightnessScale: number;
   pmxContrastFactor: number;
+  autoConvertEnabled: boolean;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -33,6 +34,7 @@ export function useUiSettings() {
   const [rustEnabled, setRustEnabled] = useState(false);
   const [turboLabsEnabled, setTurboLabsEnabled] = useState(false);
   const [nimEnabled, setNimEnabled] = useState(false);
+  const [autoConvertEnabled, setAutoConvertEnabled] = useState(false);
   const [
     worldCounterParticipationEnabled,
     setWorldCounterParticipationEnabled,
@@ -109,6 +111,9 @@ export function useUiSettings() {
             saved.worldCounterParticipationEnabled,
           );
         }
+        if (typeof saved.autoConvertEnabled === "boolean") {
+          setAutoConvertEnabled(saved.autoConvertEnabled);
+        }
         if (
           typeof saved.pmxBrightnessScale === "number" &&
           Number.isFinite(saved.pmxBrightnessScale)
@@ -156,6 +161,7 @@ export function useUiSettings() {
       worldCounterParticipationEnabled,
       pmxBrightnessScale,
       pmxContrastFactor,
+      autoConvertEnabled,
     };
 
     try {
@@ -178,6 +184,7 @@ export function useUiSettings() {
     worldCounterParticipationEnabled,
     pmxBrightnessScale,
     pmxContrastFactor,
+    autoConvertEnabled,
   ]);
 
   function resetToDefaults() {
@@ -190,6 +197,7 @@ export function useUiSettings() {
     setRustEnabled(false);
     setTurboLabsEnabled(false);
     setNimEnabled(false);
+    setAutoConvertEnabled(false);
     setWorldCounterParticipationEnabled(true);
     setPmxBrightnessScale(PMX_LIGHT_DEFAULT_INTENSITY_SCALE);
     setPmxContrastFactor(PMX_LIGHT_DEFAULT_CONTRAST_FACTOR);
@@ -212,6 +220,8 @@ export function useUiSettings() {
     setTurboLabsEnabled,
     nimEnabled,
     setNimEnabled,
+    autoConvertEnabled,
+    setAutoConvertEnabled,
     worldCounterParticipationEnabled,
     setWorldCounterParticipationEnabled,
     gridEnabled,

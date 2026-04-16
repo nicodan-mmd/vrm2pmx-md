@@ -2124,6 +2124,8 @@ export default function App() {
     setTurboLabsEnabled,
     nimEnabled,
     setNimEnabled,
+    autoConvertEnabled,
+    setAutoConvertEnabled,
     worldCounterParticipationEnabled,
     setWorldCounterParticipationEnabled,
     gridEnabled,
@@ -2839,6 +2841,16 @@ export default function App() {
   useEffect(() => {
     pmxMotionPausedRef.current = isPmxMotionPaused;
   }, [isPmxMotionPaused]);
+
+  useEffect(() => {
+    if (!isVrmReady || !autoConvertEnabled) {
+      return;
+    }
+    const requestedMode: ConvertMode =
+      turboLabsEnabled && nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
+    void performConvertWithMode(requestedMode);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVrmReady]);
 
   useEffect(() => {
     const runtime = pmxLightRuntimeRef.current;
@@ -5813,6 +5825,16 @@ export default function App() {
               </div>
 
               <div className="pmx-tools-secondary">
+                <label className="pmx-tool-checkbox">
+                  <input
+                    type="checkbox"
+                    name="auto-convert"
+                    checked={autoConvertEnabled}
+                    onChange={(event) => setAutoConvertEnabled(event.target.checked)}
+                    disabled={status === "uploading"}
+                  />
+                  <span>Auto convert</span>
+                </label>
                 {/* Ver 1.6.0 release */}
                 <label
                   className="pmx-tool-checkbox"
