@@ -21,6 +21,8 @@ GPATH
 .github/*
 !.github/workflows/
 !.github/workflows/**
+!.github/dependabot.yml
+!.github/dependabot.yaml
 
 build/
 __pycache__/
