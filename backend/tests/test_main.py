@@ -90,7 +90,7 @@ class MainApiTestCase(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
             names = sorted(archive.namelist())
 
-        self.assertIn("result.pmx", names)
+        self.assertIn("avatar.pmx", names)
         self.assertIn("tex/albedo.png", names)
 
 

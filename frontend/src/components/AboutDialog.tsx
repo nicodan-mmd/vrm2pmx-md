@@ -26,6 +26,18 @@ const HISTORY: Array<{
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
+    version: "v1.6.1",
+    date: "2026/05/27",
+    items: [
+      {
+        ja: "セキュリティ(サプライチェーン)リスクチェック",
+        en: "Security (supply chain) risk check",
+        zh: "安全（供应链）风险检查",
+        ko: "보안(공급망) 리스크 체크",
+      },
+    ],
+  },
+  {
     version: "v1.6.0",
     date: "2026/04/17",
     items: [
