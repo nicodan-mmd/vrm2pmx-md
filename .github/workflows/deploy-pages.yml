@@ -46,7 +46,8 @@ jobs:
         run: emcc --version
 
       - name: Build Nim Wasm Runtime
-        run: pwsh -File .\scripts\build_nim_wasm.ps1 -OutDir frontend/public/nim -OutWasm vrm2pmx_nim_runtime.wasm -ManifestName vrm2pmx_nim_manifest.json
+        shell: pwsh
+        run: ./scripts/build_nim_wasm.ps1 -OutDir frontend/public/nim -OutWasm vrm2pmx_nim_runtime.wasm -ManifestName vrm2pmx_nim_manifest.json
 
       - name: Build Frontend
         working-directory: frontend

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import copy
 import base64
+import copy
 import json
 import os
 import shutil
@@ -24,9 +24,9 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from config.default_pairs import BONE_PAIRS, RIGIDBODY_PAIRS  # noqa: E402
+from mmd.PmxReader import PmxReader  # noqa: E402
 from mmd.VrmData import VrmModel  # noqa: E402
 from mmd.VrmReader import VrmReader  # noqa: E402
-from mmd.PmxReader import PmxReader  # noqa: E402
 from module.MOptions import MExportOptions  # noqa: E402
 from service.Vrm2PmxExportService import Vrm2PmxExportService  # noqa: E402
 from utils.MLogger import MLogger  # noqa: E402
@@ -98,8 +98,10 @@ def _extract_glb_embedded_images(glb_path: Path) -> list[tuple[bytes, str | None
     data_len = len(data)
 
     while offset + 8 <= data_len:
-        chunk_len = int.from_bytes(data[offset:offset + 4], "little", signed=False)
-        chunk_type = int.from_bytes(data[offset + 4:offset + 8], "little", signed=False)
+        chunk_len = int.from_bytes(data[offset : offset + 4], "little", signed=False)
+        chunk_type = int.from_bytes(
+            data[offset + 4 : offset + 8], "little", signed=False
+        )
         start = offset + 8
         end = start + chunk_len
         if end > data_len:
@@ -134,11 +136,17 @@ def _extract_glb_embedded_images(glb_path: Path) -> list[tuple[bytes, str | None
             extracted.append((b"", None))
             continue
 
-        mime_type = image.get("mimeType") if isinstance(image.get("mimeType"), str) else None
+        mime_type = (
+            image.get("mimeType") if isinstance(image.get("mimeType"), str) else None
+        )
         blob = b""
 
         buffer_view_idx = image.get("bufferView")
-        if isinstance(buffer_view_idx, int) and 0 <= buffer_view_idx < len(buffer_views) and bin_chunk is not None:
+        if (
+            isinstance(buffer_view_idx, int)
+            and 0 <= buffer_view_idx < len(buffer_views)
+            and bin_chunk is not None
+        ):
             bv = buffer_views[buffer_view_idx]
             if isinstance(bv, dict):
                 start = int(bv.get("byteOffset", 0) or 0)
@@ -179,24 +187,68 @@ def _safe_rel_path(raw: str) -> Path | None:
 
 
 def _build_white_bmp_bytes() -> bytes:
-    return bytes([
-        0x42, 0x4D,  # BM
-        0x3A, 0x00, 0x00, 0x00,  # file size = 58
-        0x00, 0x00, 0x00, 0x00,  # reserved
-        0x36, 0x00, 0x00, 0x00,  # pixel data offset = 54
-        0x28, 0x00, 0x00, 0x00,  # DIB header size = 40
-        0x01, 0x00, 0x00, 0x00,  # width = 1
-        0x01, 0x00, 0x00, 0x00,  # height = 1
-        0x01, 0x00,  # planes = 1
-        0x18, 0x00,  # bits per pixel = 24
-        0x00, 0x00, 0x00, 0x00,  # compression = BI_RGB
-        0x04, 0x00, 0x00, 0x00,  # image size = 4 (row padded to 4 bytes)
-        0x13, 0x0B, 0x00, 0x00,  # x ppm = 2835
-        0x13, 0x0B, 0x00, 0x00,  # y ppm = 2835
-        0x00, 0x00, 0x00, 0x00,  # colors used
-        0x00, 0x00, 0x00, 0x00,  # important colors
-        0xFF, 0xFF, 0xFF, 0x00,  # pixel (BGR white) + row padding
-    ])
+    return bytes(
+        [
+            0x42,
+            0x4D,  # BM
+            0x3A,
+            0x00,
+            0x00,
+            0x00,  # file size = 58
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # reserved
+            0x36,
+            0x00,
+            0x00,
+            0x00,  # pixel data offset = 54
+            0x28,
+            0x00,
+            0x00,
+            0x00,  # DIB header size = 40
+            0x01,
+            0x00,
+            0x00,
+            0x00,  # width = 1
+            0x01,
+            0x00,
+            0x00,
+            0x00,  # height = 1
+            0x01,
+            0x00,  # planes = 1
+            0x18,
+            0x00,  # bits per pixel = 24
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # compression = BI_RGB
+            0x04,
+            0x00,
+            0x00,
+            0x00,  # image size = 4 (row padded to 4 bytes)
+            0x13,
+            0x0B,
+            0x00,
+            0x00,  # x ppm = 2835
+            0x13,
+            0x0B,
+            0x00,
+            0x00,  # y ppm = 2835
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # colors used
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # important colors
+            0xFF,
+            0xFF,
+            0xFF,
+            0x00,  # pixel (BGR white) + row padding
+        ]
+    )
 
 
 def _build_white_png_bytes() -> bytes:
@@ -212,7 +264,9 @@ def _build_placeholder_texture_bytes(path: Path) -> bytes:
     return _build_white_png_bytes()
 
 
-def _materialize_nim_textures(input_path: Path, output_dir: Path, output_path: Path) -> int:
+def _materialize_nim_textures(
+    input_path: Path, output_dir: Path, output_path: Path
+) -> int:
     extracted_images = _extract_glb_embedded_images(input_path)
     if not extracted_images:
         return 0
@@ -239,7 +293,9 @@ def _materialize_nim_textures(input_path: Path, output_dir: Path, output_path: P
 
     image_index = 0
     for rel_path in image_targets:
-        while image_index < len(extracted_images) and not extracted_images[image_index][0]:
+        while (
+            image_index < len(extracted_images) and not extracted_images[image_index][0]
+        ):
             image_index += 1
         if image_index >= len(extracted_images):
             break
@@ -386,7 +442,9 @@ async def convert(
     output_path = output_dir / f"{output_stem}.pmx"
     requested_mode = (mode or "backend").strip().lower()
     if requested_mode not in {"backend", "nim"}:
-        raise HTTPException(status_code=400, detail="mode must be either 'backend' or 'nim'")
+        raise HTTPException(
+            status_code=400, detail="mode must be either 'backend' or 'nim'"
+        )
 
     try:
         with input_path.open("wb") as fh:
@@ -403,7 +461,7 @@ async def convert(
                     status_code=500,
                     detail=(
                         "Nim converter executable was not found. "
-                        "Set VRM2PMX_NIM_EXE or build tmp/nim/pmx_lite_main.exe"
+                        "Set VRM2PMX_NIM_EXE or build tmp/nim/pmx_lite_main(.exe on Windows)"
                     ),
                 )
 
@@ -414,9 +472,13 @@ async def convert(
                     cwd=str(ROOT_DIR),
                 )
             except subprocess.CalledProcessError as exc:
-                raise HTTPException(status_code=500, detail=f"Nim conversion failed: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Nim conversion failed: {exc}"
+                ) from exc
 
-            _copy_python_auxiliary_assets(input_path, output_dir, bone_pairs, physics_pairs)
+            _copy_python_auxiliary_assets(
+                input_path, output_dir, bone_pairs, physics_pairs
+            )
             _materialize_nim_textures(input_path, output_dir, output_path)
         else:
             vrm_model = VrmReader(str(input_path), is_check=False).read_data()
