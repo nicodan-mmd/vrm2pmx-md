@@ -18,6 +18,26 @@ function Test-CommandExists {
     return $null -ne $cmd
 }
 
+function Resolve-CommandPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string[]]$FallbackPaths = @()
+    )
+
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($null -ne $cmd) {
+        return $cmd.Source
+    }
+
+    foreach ($candidate in $FallbackPaths) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
 function Import-LocalEmsdkIfAvailable {
     param([string]$Root)
 
@@ -44,6 +64,28 @@ if (-not (Test-CommandExists "emcc")) {
 
 if (-not (Test-Path (Join-Path $root $Source))) {
     throw "Nim source not found: $Source"
+}
+
+$emccFallbacks = @()
+if ($env:OS -eq "Windows_NT") {
+    $emccFallbacks += Join-Path $root "tmp/emsdk/upstream/emscripten/emcc.bat"
+}
+$emccFallbacks += Join-Path $root "tmp/emsdk/upstream/emscripten/emcc"
+
+$emccCommand = Resolve-CommandPath -Name "emcc" -FallbackPaths $emccFallbacks
+if ([string]::IsNullOrWhiteSpace($emccCommand)) {
+    throw "emcc command path could not be resolved"
+}
+
+$wasmDisFallbacks = @()
+if ($env:OS -eq "Windows_NT") {
+    $wasmDisFallbacks += Join-Path $root "tmp/emsdk/upstream/bin/wasm-dis.exe"
+}
+$wasmDisFallbacks += Join-Path $root "tmp/emsdk/upstream/bin/wasm-dis"
+
+$wasmDisCommand = Resolve-CommandPath -Name "wasm-dis" -FallbackPaths $wasmDisFallbacks
+if ([string]::IsNullOrWhiteSpace($wasmDisCommand)) {
+    throw "wasm-dis command path could not be resolved"
 }
 
 $absOutDir = Join-Path $root $OutDir
@@ -74,8 +116,8 @@ $nimArgs = @(
     "--os:linux",
     "--cpu:wasm32",
     "--cc:clang",
-    "--clang.exe:emcc.bat",
-    "--clang.linkerexe:emcc.bat",
+    "--clang.exe:$emccCommand",
+    "--clang.linkerexe:$emccCommand",
     "--passL:-Wl,--no-entry",
     "--passL:-sALLOW_MEMORY_GROWTH=1",
     "--passL:-sINITIAL_MEMORY=$initialMemoryBytes",
@@ -97,13 +139,8 @@ if (-not (Test-Path $absOutWasm)) {
     throw "Wasm output not found: $absOutWasm"
 }
 
-$wasmDisExe = Join-Path $root "tmp/emsdk/upstream/bin/wasm-dis.exe"
-if (-not (Test-Path $wasmDisExe)) {
-    throw "wasm-dis not found: $wasmDisExe"
-}
-
 $watPath = [System.IO.Path]::ChangeExtension($absOutWasm, ".wat")
-& $wasmDisExe $absOutWasm -o $watPath
+& $wasmDisCommand $absOutWasm -o $watPath
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to disassemble wasm: $absOutWasm"
 }
