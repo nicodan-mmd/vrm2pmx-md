@@ -73,6 +73,8 @@ executor.py.lprof
 *.thread
 *.html
 !frontend/index.html
+!frontend/public/tokushoho.html
+!frontend/public/tokushoho_ja.html
 *.c
 *.pyd
 *.pyd

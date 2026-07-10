@@ -404,11 +404,12 @@ export default function AboutDialog({
               <input
                 type="checkbox"
                 checked={turboLabsEnabled}
-                onChange={(event) => onTurboLabsEnabledChange(event.target.checked)}
+                onChange={(event) =>
+                  onTurboLabsEnabledChange(event.target.checked)
+                }
               />
               <span>{turboLabsSettingLabel}</span>
             </label>
-
 
             <div className="about-settings-actions">
               {installControl}
@@ -617,6 +618,19 @@ export default function AboutDialog({
               <strong>{privacyPolicyTitle[locale]}:</strong>
             </p>
             <p>{privacyPolicyText[locale]}</p>
+
+            <p>
+              <a
+                href={`${import.meta.env.BASE_URL}${locale === "ja" ? "tokushoho_ja.html" : "tokushoho.html"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                {locale === "ja"
+                  ? "特定商取引法に基づく表記"
+                  : "Commercial Disclosure"}
+              </a>
+            </p>
 
             <hr className="about-divider" />
             <p>Powered by GitHub Copilot</p>

@@ -510,8 +510,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     turboLabsLabel: "Turbo (Labs)",
     turboLabsEnableInSettingTooltip: "要启用此功能，请先在设置中更改。",
     turboLabsDisabledDialogTitle: "Turbo (Labs)",
-    turboLabsDisabledDialogMessage:
-      "此功能为实验性功能，请先在设置中启用。",
+    turboLabsDisabledDialogMessage: "此功能为实验性功能，请先在设置中启用。",
     turboLabsSettingLabel: "Turbo：启用高速模式",
     installButtonLabel: "Install",
     installUnsupportedHint: "请从浏览器菜单中选择「添加到主屏幕」。",
@@ -574,16 +573,17 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     turboLabsSettingLabel: "Turbo: 고속 모드 활성화",
     installButtonLabel: "Install",
     installUnsupportedHint:
-      "브라우저 메뉴에서 \"홈 화면에 추가\"를 선택해 주세요.",
+      '브라우저 메뉴에서 "홈 화면에 추가"를 선택해 주세요.',
     installDialogTitle: "앱 설치",
-    installDialogDescription: "홈 화면이나 데스크톱에서 빠르게 실행할 수 있습니다.",
+    installDialogDescription:
+      "홈 화면이나 데스크톱에서 빠르게 실행할 수 있습니다.",
     restrictedRedistributionModificationConfirm:
       "이 모델은 개변 또는 재배포가 금지되어 있습니다. 변환을 진행하는 경우 개인 책임 하에 실행해 주세요.",
     restrictedRedistributionModificationCancel: "취소",
     restrictedRedistributionModificationProceed: "계속",
     previewShaderErrorTitle: "PMX 미리보기 오류",
     previewShaderErrorMessage:
-      "변환은 성공했지만 PMX 미리보기 렌더링 중 오류가 발생했습니다.\nZIP은 다운로드할 수 있습니다.\n\"품질 문제 신고\"를 보내주시면 향후 개선에 도움이 됩니다.",
+      '변환은 성공했지만 PMX 미리보기 렌더링 중 오류가 발생했습니다.\nZIP은 다운로드할 수 있습니다.\n"품질 문제 신고"를 보내주시면 향후 개선에 도움이 됩니다.',
     previewShaderErrorOk: "OK",
     heartButtonAriaLabel: "개발자에게 하트 보내기",
     heartDialogTitle: "개발자에게 하트 보내기",
@@ -1011,7 +1011,9 @@ function readFileEntry(entry: FileSystemFileEntry): Promise<File> {
   });
 }
 
-function readDirectoryEntries(entry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+function readDirectoryEntries(
+  entry: FileSystemDirectoryEntry,
+): Promise<FileSystemEntry[]> {
   return new Promise((resolve, reject) => {
     const reader = entry.createReader();
 
@@ -1049,9 +1051,13 @@ async function collectFolderEntriesRecursively(
     return [];
   }
 
-  const children = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
+  const children = await readDirectoryEntries(
+    entry as FileSystemDirectoryEntry,
+  );
   const nestedResults = await Promise.all(
-    children.map((child) => collectFolderEntriesRecursively(child, relativePath)),
+    children.map((child) =>
+      collectFolderEntriesRecursively(child, relativePath),
+    ),
   );
   return nestedResults.flat();
 }
@@ -1146,7 +1152,9 @@ type ResolvedPreviewInput =
       cleanup: () => void;
     };
 
-async function resolvePreviewInput(targetFile: File): Promise<ResolvedPreviewInput> {
+async function resolvePreviewInput(
+  targetFile: File,
+): Promise<ResolvedPreviewInput> {
   const ext = getFileExtensionLower(targetFile.name);
   if (ext === ".vrm" || ext === ".glb") {
     return {
@@ -1169,7 +1177,9 @@ async function resolvePreviewInput(targetFile: File): Promise<ResolvedPreviewInp
   }
 
   if (ext !== ".zip") {
-    throw new Error("Unsupported preview input. Please use .vrm/.glb/.gltf/.zip");
+    throw new Error(
+      "Unsupported preview input. Please use .vrm/.glb/.gltf/.zip",
+    );
   }
 
   const zipReader = new ZipReader(new BlobReader(targetFile));
@@ -1257,7 +1267,8 @@ async function resolvePreviewInput(targetFile: File): Promise<ResolvedPreviewInp
 
     const normalizedMainPath = normalizeAssetPath(mainName);
     const slashIndex = normalizedMainPath.lastIndexOf("/");
-    const baseDir = slashIndex >= 0 ? normalizedMainPath.slice(0, slashIndex + 1) : "";
+    const baseDir =
+      slashIndex >= 0 ? normalizedMainPath.slice(0, slashIndex + 1) : "";
 
     return {
       kind: "gltf-json",
@@ -1471,9 +1482,9 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
         ? "=== 基本情報 ==="
         : locale === "ko"
           ? "=== 기본 정보 ==="
-        : locale === "zh"
-          ? "=== 基本信息 ==="
-          : "=== Basic Information ===",
+          : locale === "zh"
+            ? "=== 基本信息 ==="
+            : "=== Basic Information ===",
     );
     infoData.summaryRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
@@ -1488,9 +1499,9 @@ function generateLicenseText(infoData: VrmInfoData, locale: AppLocale): string {
         ? "=== ライセンス情報 ==="
         : locale === "ko"
           ? "=== 라이선스 정보 ==="
-        : locale === "zh"
-          ? "=== 许可证信息 ==="
-          : "=== License Information ===",
+          : locale === "zh"
+            ? "=== 许可证信息 ==="
+            : "=== License Information ===",
     );
     infoData.licenseRows.forEach((row) => {
       const localizedLabel = localizeMetadataLabel(row.label, locale);
@@ -2228,7 +2239,9 @@ export default function App() {
   const [isPmxReady, setIsPmxReady] = useState(false);
   const [isPmxMotionActive, setIsPmxMotionActive] = useState(false);
   const [isPmxMotionPaused, setIsPmxMotionPaused] = useState(false);
-  const [pmxPreviewFileName, setPmxPreviewFileName] = useState<string | null>(null);
+  const [pmxPreviewFileName, setPmxPreviewFileName] = useState<string | null>(
+    null,
+  );
   const [pmxPreviewSourceMode, setPmxPreviewSourceMode] = useState<
     ConvertMode | "manual" | null
   >(null);
@@ -2258,9 +2271,9 @@ export default function App() {
   >(null);
   const pmxPreviewDiagnosticsRef = useRef<PmxPreviewDiagnostics | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const convertHeartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const convertHeartbeatTimerRef = useRef<ReturnType<
+    typeof setInterval
+  > | null>(null);
   const convertHeartbeatStartedAtRef = useRef(0);
   const vrmInputRef = useRef<HTMLInputElement | null>(null);
   const vrmCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -2864,7 +2877,7 @@ export default function App() {
     const requestedMode: ConvertMode =
       turboLabsEnabled && nimEnabled ? "nim" : rustEnabled ? "rust" : mode;
     void performConvertWithMode(requestedMode);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVrmReady]);
 
   useEffect(() => {
@@ -3256,7 +3269,7 @@ export default function App() {
           ? "変換は成功しているので、ZIPはダウンロード可能です。PMXプレビュー描画ではエラーが発生しました。"
           : appLocale === "ko"
             ? "변환은 성공했으므로 ZIP 다운로드가 가능합니다. PMX 미리보기 렌더링에서 오류가 발생했습니다."
-          : "Conversion succeeded, so ZIP download is available. PMX preview rendering failed.",
+            : "Conversion succeeded, so ZIP download is available. PMX preview rendering failed.",
       );
       void Swal.fire({
         title: i18n.previewShaderErrorTitle,
@@ -5066,17 +5079,22 @@ export default function App() {
     setMessage("Unsupported file. Please choose .vrm/.pmx/.zip/.vmd/.vpd.");
   }
 
-  async function buildZipFromFolderEntries(entries: FolderZipEntry[]): Promise<File> {
+  async function buildZipFromFolderEntries(
+    entries: FolderZipEntry[],
+  ): Promise<File> {
     if (entries.length === 0) {
       throw new Error("No files found in selected folder.");
     }
 
     const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
     const firstRelativePath = entries[0]?.relativePath || entries[0]?.file.name;
-    const rootDir = normalizeAssetPath(firstRelativePath).split("/")[0] || "model";
+    const rootDir =
+      normalizeAssetPath(firstRelativePath).split("/")[0] || "model";
 
     for (const entry of entries) {
-      const normalized = normalizeAssetPath(entry.relativePath || entry.file.name);
+      const normalized = normalizeAssetPath(
+        entry.relativePath || entry.file.name,
+      );
       const entryPath = normalized.startsWith(`${rootDir}/`)
         ? normalized.slice(rootDir.length + 1)
         : normalized;
@@ -5167,21 +5185,23 @@ export default function App() {
       }
 
       if (ext === ".vmd") {
-        const clip = await new Promise<THREE.AnimationClip>((resolve, reject) => {
-          loader.loadAnimation(
-            objectUrl,
-            mesh,
-            (animation) => {
-              if (animation instanceof THREE.AnimationClip) {
-                resolve(animation);
-                return;
-              }
-              reject(new Error("Loaded VMD did not produce AnimationClip."));
-            },
-            undefined,
-            (error) => reject(error),
-          );
-        });
+        const clip = await new Promise<THREE.AnimationClip>(
+          (resolve, reject) => {
+            loader.loadAnimation(
+              objectUrl,
+              mesh,
+              (animation) => {
+                if (animation instanceof THREE.AnimationClip) {
+                  resolve(animation);
+                  return;
+                }
+                reject(new Error("Loaded VMD did not produce AnimationClip."));
+              },
+              undefined,
+              (error) => reject(error),
+            );
+          },
+        );
 
         try {
           helper.remove(mesh);
@@ -5244,7 +5264,11 @@ export default function App() {
 
   function onPmxCanvasPointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
     const candidate = pmxClickCandidateRef.current;
-    if (!candidate || candidate.pointerId !== event.pointerId || candidate.moved) {
+    if (
+      !candidate ||
+      candidate.pointerId !== event.pointerId ||
+      candidate.moved
+    ) {
       return;
     }
 
@@ -5255,7 +5279,9 @@ export default function App() {
     }
   }
 
-  function onPmxCanvasPointerCancel(event: ReactPointerEvent<HTMLCanvasElement>) {
+  function onPmxCanvasPointerCancel(
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) {
     const candidate = pmxClickCandidateRef.current;
     if (candidate && candidate.pointerId === event.pointerId) {
       pmxClickCandidateRef.current = null;
@@ -5269,7 +5295,11 @@ export default function App() {
 
     const candidate = pmxClickCandidateRef.current;
     pmxClickCandidateRef.current = null;
-    if (!candidate || candidate.pointerId !== event.pointerId || candidate.moved) {
+    if (
+      !candidate ||
+      candidate.pointerId !== event.pointerId ||
+      candidate.moved
+    ) {
       return;
     }
 
@@ -5329,9 +5359,11 @@ export default function App() {
     const items = Array.from(event.dataTransfer.items ?? []);
     const entryCandidates = items
       .map((item) =>
-        (item as DataTransferItem & {
-          webkitGetAsEntry?: () => FileSystemEntry | null;
-        }).webkitGetAsEntry?.(),
+        (
+          item as DataTransferItem & {
+            webkitGetAsEntry?: () => FileSystemEntry | null;
+          }
+        ).webkitGetAsEntry?.(),
       )
       .filter((entry): entry is FileSystemEntry => entry !== null);
 
@@ -5341,7 +5373,9 @@ export default function App() {
     if (directoryEntries.length > 0) {
       try {
         const allEntries = await Promise.all(
-          directoryEntries.map((entry) => collectFolderEntriesRecursively(entry, "")),
+          directoryEntries.map((entry) =>
+            collectFolderEntriesRecursively(entry, ""),
+          ),
         );
         const zipped = await buildZipFromFolderEntries(allEntries.flat());
         applySelectedVrmFile(zipped);
@@ -5392,9 +5426,11 @@ export default function App() {
     const items = Array.from(event.dataTransfer.items ?? []);
     const entryCandidates = items
       .map((item) =>
-        (item as DataTransferItem & {
-          webkitGetAsEntry?: () => FileSystemEntry | null;
-        }).webkitGetAsEntry?.(),
+        (
+          item as DataTransferItem & {
+            webkitGetAsEntry?: () => FileSystemEntry | null;
+          }
+        ).webkitGetAsEntry?.(),
       )
       .filter((entry): entry is FileSystemEntry => entry !== null);
 
@@ -5404,7 +5440,9 @@ export default function App() {
     if (directoryEntries.length > 0) {
       try {
         const allEntries = await Promise.all(
-          directoryEntries.map((entry) => collectFolderEntriesRecursively(entry, "")),
+          directoryEntries.map((entry) =>
+            collectFolderEntriesRecursively(entry, ""),
+          ),
         );
         const flattenedEntries = allEntries.flat();
         const motionOrPoseEntry = flattenedEntries.find((entry) =>
@@ -5957,7 +5995,9 @@ export default function App() {
                     type="checkbox"
                     name="auto-convert"
                     checked={autoConvertEnabled}
-                    onChange={(event) => setAutoConvertEnabled(event.target.checked)}
+                    onChange={(event) =>
+                      setAutoConvertEnabled(event.target.checked)
+                    }
                     disabled={status === "uploading"}
                   />
                   <span>Auto convert</span>
@@ -5965,7 +6005,11 @@ export default function App() {
                 {/* Ver 1.6.0 release */}
                 <label
                   className="pmx-tool-checkbox"
-                  title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                  title={
+                    !turboLabsEnabled
+                      ? i18n.turboLabsEnableInSettingTooltip
+                      : undefined
+                  }
                   onClick={onTurboLabsLabelClick}
                 >
                   <input
@@ -5974,7 +6018,11 @@ export default function App() {
                     checked={nimEnabled}
                     onChange={(event) => setNimEnabled(event.target.checked)}
                     disabled={status === "uploading" || !turboLabsEnabled}
-                    title={!turboLabsEnabled ? i18n.turboLabsEnableInSettingTooltip : undefined}
+                    title={
+                      !turboLabsEnabled
+                        ? i18n.turboLabsEnableInSettingTooltip
+                        : undefined
+                    }
                   />
                   <span>{i18n.turboLabsLabel}</span>
                 </label>
@@ -6168,6 +6216,18 @@ export default function App() {
             </div>
           </div>
           <div className="app-footer-actions">
+            <nav className="footer-legal-links" aria-label="Legal links">
+              <a
+                className="footer-legal-link"
+                href={`${import.meta.env.BASE_URL}${appLocale === "ja" ? "tokushoho_ja.html" : "tokushoho.html"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
+                title={appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
+              >
+                {appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
+              </a>
+            </nav>
             <button
               type="button"
               className="footer-settings-button"
