@@ -1124,6 +1124,12 @@ button:disabled {
   margin-left: 4px;
 }
 
+.footer-legal-links {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+}
+
 .footer-social-link {
   display: inline-flex;
   align-items: center;
@@ -1137,6 +1143,28 @@ button:disabled {
 .footer-social-link:hover,
 .footer-social-link:focus-visible {
   opacity: 1;
+}
+
+.footer-legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid #8fa2b8;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #2f3f56;
+  text-decoration: none;
+  background: #f2f7fc;
+  white-space: nowrap;
+}
+
+.footer-legal-link:hover,
+.footer-legal-link:focus-visible {
+  background: #e3edf8;
+  color: #1f4f9f;
 }
 
 .footer-social-icon {
