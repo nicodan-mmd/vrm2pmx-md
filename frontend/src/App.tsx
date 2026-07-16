@@ -202,7 +202,7 @@ function getProfileFlags(result: ProfileDetectionResult): string[] {
   return flags;
 }
 
-type AppLocale = "ja" | "en" | "zh" | "ko";
+type AppLocale = "ja" | "en" | "zh" | "zh-TW" | "ko" | "id" | "es" | "pt-BR";
 
 type AppI18n = {
   errorReportingModalTitle: string;
@@ -552,6 +552,249 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     supportPromptPrefix: "如果您喜欢它，欢迎通过",
     supportPromptSuffix: "来支持我。",
   },
+  "zh-TW": {
+    errorReportingModalTitle: "錯誤回報傳送",
+    errorReportingModalDescription1:
+      "為了改善轉換品質，您可以啟用匿名錯誤回報傳送。",
+    errorReportingModalDescription2:
+      "不會上傳檔案內容本身。您可以隨時從頁尾更改設定。",
+    errorReportingEnable: "啟用",
+    errorReportingNotNow: "先不要",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `已使用備援方式轉換。\n\n請求模式: ${requestedMode}\n使用模式: ${usedMode}\n原因: ${reason}\n\n要傳送匿名回報嗎？\n送出後，未來此情況有機會獲得改善。`,
+    fallbackReportSubmittedMessage:
+      "已傳送匿名回報。這有助於未來改善轉換品質。",
+    qualityReportButton: "回報品質問題",
+    qualityReportConfirm:
+      "轉換已完成，但外觀有問題。要為此案例傳送匿名回報嗎？\n送出後，未來此情況有機會獲得改善。",
+    qualityReportDialogSend: "傳送",
+    qualityReportDialogCancel: "取消",
+    qualityReportSubmittedMessage: "已傳送匿名回報。這有助於未來改善轉換品質。",
+    qualityReportEnableHint:
+      "啟用錯誤回報後，即可匿名回報成功但有品質問題的轉換。",
+    qualityAutoReportConfirm: (signals) =>
+      `轉換已成功，但在記錄中偵測到可能的品質風險訊號。\n\n偵測到的訊號: ${signals}\n\n要傳送匿名回報嗎？\n送出後，未來此情況有機會獲得改善。`,
+    allResetConfirmTitle: "重設確認",
+    allResetConfirmMessage: "要重設所有設定並清除本機儲存嗎？",
+    allResetCounterLabel: "同時重設轉換計數器",
+    taPoseZeroConfirm: "T/A Pose Convert 已設定為 0 度。要繼續轉換嗎？",
+    taPoseZeroCanceled: "已因 0 度姿勢設定而取消轉換。",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip: "要啟用此功能，請先變更設定。",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage: "此功能為實驗性功能。請先從設定中啟用。",
+    turboLabsSettingLabel: "Turbo：啟用高速模式",
+    installButtonLabel: "Install",
+    installUnsupportedHint: "請從瀏覽器選單選擇「加入主畫面」。",
+    installDialogTitle: "安裝應用程式",
+    installDialogDescription: "可從桌面或主畫面快速啟動。",
+    restrictedRedistributionModificationConfirm:
+      "此模型禁止修改或重新散佈。若要進行轉換，請自行承擔責任。",
+    restrictedRedistributionModificationCancel: "取消",
+    restrictedRedistributionModificationProceed: "繼續",
+    previewShaderErrorTitle: "PMX 預覽錯誤",
+    previewShaderErrorMessage:
+      "轉換已成功，但 PMX 預覽繪製發生錯誤。\nZIP 可供下載。\n若透過「回報品質問題」送出，將有助於未來改善。",
+    previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "送愛心給開發者",
+    heartDialogTitle: "送愛心給開發者",
+    heartDialogPlaceholder: "簡短留言（可選）",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `剩餘 ${remaining} 個字元`,
+    heartDialogSent: "愛心已送出，感謝您。",
+    heartDialogError: "送出失敗，請稍後再試。",
+    heartAlreadySent: "感謝您，您的愛心已收到。",
+    supportPromptPrefix: "如果您喜歡它，歡迎透過",
+    supportPromptSuffix: "來支持我。",
+  },
+  id: {
+    errorReportingModalTitle: "Kirim Laporan Error",
+    errorReportingModalDescription1:
+      "Aktifkan pelaporan error anonim untuk membantu meningkatkan kualitas konversi.",
+    errorReportingModalDescription2:
+      "Isi file tidak diunggah. Anda bisa mengubah opsi ini nanti dari footer.",
+    errorReportingEnable: "Aktifkan",
+    errorReportingNotNow: "Nanti saja",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `Dikonversi dengan fallback.\n\nMode yang diminta: ${requestedMode}\nMode yang digunakan: ${usedMode}\nAlasan: ${reason}\n\nApakah Anda ingin mengirim laporan anonim?\nJika dikirim, kasus ini mungkin akan ditingkatkan di rilis mendatang.`,
+    fallbackReportSubmittedMessage:
+      "Laporan anonim telah dikirim. Kasus ini mungkin akan ditingkatkan di rilis mendatang.",
+    qualityReportButton: "Laporkan masalah kualitas",
+    qualityReportConfirm:
+      "Konversi selesai, tetapi kualitas visual terlihat salah. Kirim laporan anonim untuk kasus ini?\nJika dikirim, kasus ini mungkin akan ditingkatkan di rilis mendatang.",
+    qualityReportDialogSend: "Kirim",
+    qualityReportDialogCancel: "Batal",
+    qualityReportSubmittedMessage:
+      "Laporan anonim telah dikirim. Kasus ini mungkin akan ditingkatkan di rilis mendatang.",
+    qualityReportEnableHint:
+      "Aktifkan Error Reporting untuk melaporkan anonim konversi yang berhasil namun bermasalah kualitasnya.",
+    qualityAutoReportConfirm: (signals) =>
+      `Konversi berhasil, tetapi terdeteksi sinyal yang berpotensi berdampak pada kualitas di log.\n\nSinyal terdeteksi: ${signals}\n\nApakah Anda ingin mengirim laporan anonim?\nJika dikirim, kasus ini mungkin akan ditingkatkan di rilis mendatang.`,
+    allResetConfirmTitle: "Konfirmasi Reset",
+    allResetConfirmMessage: "Reset semua pengaturan dan hapus local storage?",
+    allResetCounterLabel: "Juga reset penghitung konversi",
+    taPoseZeroConfirm:
+      "T/A Pose Convert disetel ke 0 derajat. Apakah Anda ingin melanjutkan konversi?",
+    taPoseZeroCanceled: "Konversi dibatalkan pada pengaturan pose 0 derajat.",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip:
+      "Untuk mengaktifkannya, silakan ubah pengaturannya.",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "Fitur ini masih eksperimental. Silakan aktifkan dari Settings.",
+    turboLabsSettingLabel: "Turbo: Aktifkan mode kecepatan tinggi",
+    installButtonLabel: "Install",
+    installUnsupportedHint:
+      'Gunakan menu browser Anda dan pilih "Add to Home Screen".',
+    installDialogTitle: "Install Aplikasi",
+    installDialogDescription: "Luncurkan dengan cepat dari layar utama Anda.",
+    restrictedRedistributionModificationConfirm:
+      "Model ini melarang modifikasi atau redistribusi. Jika Anda melanjutkan konversi, lakukan atas tanggung jawab Anda sendiri.",
+    restrictedRedistributionModificationCancel: "Batal",
+    restrictedRedistributionModificationProceed: "Lanjutkan",
+    previewShaderErrorTitle: "Kesalahan Pratinjau PMX",
+    previewShaderErrorMessage:
+      'Konversi berhasil, dan ZIP bisa diunduh, tetapi rendering pratinjau PMX gagal.\nMengirim laporan melalui "Laporkan masalah kualitas" membantu perbaikan di masa depan.',
+    previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "Kirim hati ke pengembang",
+    heartDialogTitle: "Kirim hati ke pengembang",
+    heartDialogPlaceholder: "Tinggalkan pesan singkat (opsional)",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `${remaining} karakter tersisa`,
+    heartDialogSent: "Hati terkirim. Terima kasih!",
+    heartDialogError: "Gagal mengirim. Silakan coba lagi nanti.",
+    heartAlreadySent: "Terima kasih. Hati Anda sudah diterima.",
+    supportPromptPrefix: "Jika Anda menyukainya, silakan dukung saya melalui",
+    supportPromptSuffix: ".",
+  },
+  es: {
+    errorReportingModalTitle: "Enviar informe de error",
+    errorReportingModalDescription1:
+      "Activa el envío anónimo de informes de error para ayudar a mejorar la calidad de la conversión.",
+    errorReportingModalDescription2:
+      "El contenido del archivo no se sube. Puedes cambiar esta opción más tarde desde el pie de página.",
+    errorReportingEnable: "Activar",
+    errorReportingNotNow: "Ahora no",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `Se convirtió con modo alternativo.\n\nModo solicitado: ${requestedMode}\nModo usado: ${usedMode}\nMotivo: ${reason}\n\n¿Quieres enviar un informe anónimo?\nSi lo envías, este caso podría mejorar en una futura versión.`,
+    fallbackReportSubmittedMessage:
+      "Informe anónimo enviado. Este caso podría mejorar en una futura versión.",
+    qualityReportButton: "Informar problema de calidad",
+    qualityReportConfirm:
+      "La conversión terminó, pero la calidad visual parece incorrecta. ¿Enviar un informe anónimo para este caso?\nSi lo envías, este caso podría mejorar en una futura versión.",
+    qualityReportDialogSend: "Enviar",
+    qualityReportDialogCancel: "Cancelar",
+    qualityReportSubmittedMessage:
+      "Informe anónimo enviado. Este caso podría mejorar en una futura versión.",
+    qualityReportEnableHint:
+      "Activa Error Reporting para informar de forma anónima conversiones correctas con problemas de calidad.",
+    qualityAutoReportConfirm: (signals) =>
+      `La conversión se completó, pero se detectaron señales de posible problema de calidad en los registros.\n\nSeñales detectadas: ${signals}\n\n¿Quieres enviar un informe anónimo?\nSi lo envías, este caso podría mejorar en una futura versión.`,
+    allResetConfirmTitle: "Confirmar reinicio",
+    allResetConfirmMessage:
+      "¿Restablecer todos los ajustes y borrar el almacenamiento local?",
+    allResetCounterLabel: "Restablecer también el contador de conversiones",
+    taPoseZeroConfirm:
+      "T/A Pose Convert está configurado a 0 grados. ¿Quieres continuar con la conversión?",
+    taPoseZeroCanceled:
+      "Conversión cancelada por la configuración de pose a 0 grados.",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip:
+      "Para activarlo, cambia primero la configuración.",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "Esta función es experimental. Actívala desde Ajustes.",
+    turboLabsSettingLabel: "Turbo: activar modo de alta velocidad",
+    installButtonLabel: "Install",
+    installUnsupportedHint:
+      'Usa el menú del navegador y elige "Añadir a la pantalla de inicio".',
+    installDialogTitle: "Instalar aplicación",
+    installDialogDescription: "Ábrela rápidamente desde la pantalla de inicio.",
+    restrictedRedistributionModificationConfirm:
+      "Este modelo prohíbe la modificación o redistribución. Si continúas con la conversión, hazlo bajo tu propia responsabilidad.",
+    restrictedRedistributionModificationCancel: "Cancelar",
+    restrictedRedistributionModificationProceed: "Continuar",
+    previewShaderErrorTitle: "Error de vista previa PMX",
+    previewShaderErrorMessage:
+      'La conversión se completó y el ZIP está disponible para descargar, pero la renderización de la vista previa PMX falló.\nEnviar un informe mediante "Informar problema de calidad" ayuda a mejorar en el futuro.',
+    previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "Enviar un corazón al desarrollador",
+    heartDialogTitle: "Enviar un corazón al desarrollador",
+    heartDialogPlaceholder: "Deja un mensaje corto (opcional)",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `Quedan ${remaining} caracteres`,
+    heartDialogSent: "Corazón enviado. ¡Gracias!",
+    heartDialogError: "No se pudo enviar. Inténtalo de nuevo más tarde.",
+    heartAlreadySent: "Gracias. Tu corazón ya fue recibido.",
+    supportPromptPrefix: "Si te gusta, apóyame a través de",
+    supportPromptSuffix: ".",
+  },
+  "pt-BR": {
+    errorReportingModalTitle: "Enviar relatório de erro",
+    errorReportingModalDescription1:
+      "Ative o envio anônimo de relatórios de erro para ajudar a melhorar a qualidade da conversão.",
+    errorReportingModalDescription2:
+      "O conteúdo do arquivo não é enviado. Você pode alterar esta opção depois pelo rodapé.",
+    errorReportingEnable: "Ativar",
+    errorReportingNotNow: "Agora não",
+    fallbackReportConfirm: (requestedMode, usedMode, reason) =>
+      `Convertido com fallback.\n\nModo solicitado: ${requestedMode}\nModo usado: ${usedMode}\nMotivo: ${reason}\n\nDeseja enviar um relatório anônimo?\nSe enviado, este caso poderá ser melhorado em uma versão futura.`,
+    fallbackReportSubmittedMessage:
+      "Relatório anônimo enviado. Este caso poderá ser melhorado em uma versão futura.",
+    qualityReportButton: "Reportar problema de qualidade",
+    qualityReportConfirm:
+      "A conversão terminou, mas a qualidade visual parece incorreta. Enviar um relatório anônimo para este caso?\nSe enviado, este caso poderá ser melhorado em uma versão futura.",
+    qualityReportDialogSend: "Enviar",
+    qualityReportDialogCancel: "Cancelar",
+    qualityReportSubmittedMessage:
+      "Relatório anônimo enviado. Este caso poderá ser melhorado em uma versão futura.",
+    qualityReportEnableHint:
+      "Ative Error Reporting para relatar anonimamente conversões bem-sucedidas com problemas de qualidade.",
+    qualityAutoReportConfirm: (signals) =>
+      `A conversão foi concluída, mas sinais de possível problema de qualidade foram detectados nos logs.\n\nSinais detectados: ${signals}\n\nDeseja enviar um relatório anônimo?\nSe enviado, este caso poderá ser melhorado em uma versão futura.`,
+    allResetConfirmTitle: "Confirmar redefinição",
+    allResetConfirmMessage:
+      "Redefinir todas as configurações e limpar o armazenamento local?",
+    allResetCounterLabel: "Redefinir também o contador de conversões",
+    taPoseZeroConfirm:
+      "T/A Pose Convert está definido como 0 graus. Deseja continuar a conversão?",
+    taPoseZeroCanceled:
+      "Conversão cancelada pela configuração de pose em 0 graus.",
+    turboLabsLabel: "Turbo (Labs)",
+    turboLabsEnableInSettingTooltip:
+      "Para ativá-lo, altere a configuração primeiro.",
+    turboLabsDisabledDialogTitle: "Turbo (Labs)",
+    turboLabsDisabledDialogMessage:
+      "Este recurso é experimental. Ative-o em Configurações.",
+    turboLabsSettingLabel: "Turbo: ativar modo de alta velocidade",
+    installButtonLabel: "Install",
+    installUnsupportedHint:
+      'Use o menu do navegador e escolha "Adicionar à tela inicial".',
+    installDialogTitle: "Instalar aplicativo",
+    installDialogDescription: "Abra rapidamente a partir da tela inicial.",
+    restrictedRedistributionModificationConfirm:
+      "Este modelo proíbe modificação ou redistribuição. Se continuar com a conversão, faça-o por sua própria responsabilidade.",
+    restrictedRedistributionModificationCancel: "Cancelar",
+    restrictedRedistributionModificationProceed: "Continuar",
+    previewShaderErrorTitle: "Erro de pré-visualização PMX",
+    previewShaderErrorMessage:
+      'A conversão foi concluída e o ZIP está disponível para download, mas a renderização da pré-visualização PMX falhou.\nEnviar um relatório por meio de "Reportar problema de qualidade" ajuda em melhorias futuras.',
+    previewShaderErrorOk: "OK",
+    heartButtonAriaLabel: "Enviar um coração ao desenvolvedor",
+    heartDialogTitle: "Enviar um coração ao desenvolvedor",
+    heartDialogPlaceholder: "Deixe uma mensagem curta (opcional)",
+    heartDialogCancel: "Cancel",
+    heartDialogSubmit: "Thank You ❤",
+    heartDialogRemaining: (remaining) => `Restam ${remaining} caracteres`,
+    heartDialogSent: "Coração enviado. Obrigado!",
+    heartDialogError: "Falha ao enviar. Tente novamente mais tarde.",
+    heartAlreadySent: "Obrigado. Seu coração já foi recebido.",
+    supportPromptPrefix: "Se você gostou, apoie-me por meio de",
+    supportPromptSuffix: ".",
+  },
   ko: {
     errorReportingModalTitle: "오류 리포트 전송",
     errorReportingModalDescription1:
@@ -622,8 +865,20 @@ function detectAppLocale(language: string | undefined): AppLocale {
   if (normalized.startsWith("ja")) {
     return "ja";
   }
+  if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk")) {
+    return "zh-TW";
+  }
   if (normalized.startsWith("ko")) {
     return "ko";
+  }
+  if (normalized.startsWith("id")) {
+    return "id";
+  }
+  if (normalized.startsWith("es")) {
+    return "es";
+  }
+  if (normalized.startsWith("pt-br") || normalized.startsWith("pt")) {
+    return "pt-BR";
   }
   if (normalized.startsWith("zh")) {
     return "zh";
