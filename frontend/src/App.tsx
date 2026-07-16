@@ -16,6 +16,7 @@ import {
 } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
 import { FaSkullCrossbones } from "react-icons/fa";
+import { SiAfdian } from "react-icons/si";
 import { CiMaximize2 } from "react-icons/ci";
 import { IoCopyOutline } from "react-icons/io5";
 import { MdOutlineSettings } from "react-icons/md";
@@ -69,6 +70,15 @@ import {
   shouldCaptureLog,
   type ConsoleLogLevel,
 } from "./utils/logging";
+
+declare global {
+  interface Window {
+    kofiWidgetOverlay?: {
+      draw: (user: string, options: Record<string, string>) => void;
+    };
+    __vrm2pmxKofiInitialized?: boolean;
+  }
+}
 
 type Status = "idle" | "uploading" | "done" | "error" | "canceled";
 
@@ -2465,6 +2475,51 @@ export default function App() {
     }
     setIsHeartDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined" || window.__vrm2pmxKofiInitialized) {
+      return;
+    }
+
+    const initKoFiOverlay = () => {
+      if (!window.kofiWidgetOverlay?.draw || window.__vrm2pmxKofiInitialized) {
+        return;
+      }
+      window.kofiWidgetOverlay.draw("nicodanp", {
+        type: "floating-chat",
+        "floating-chat.donateButton.text": "Support me",
+        "floating-chat.donateButton.background-color": "#d9534f",
+        "floating-chat.donateButton.text-color": "#fff",
+      });
+      window.__vrm2pmxKofiInitialized = true;
+    };
+
+    const existing = document.querySelector<HTMLScriptElement>(
+      "script[data-kofi-overlay='true']",
+    );
+    if (existing) {
+      if (existing.dataset.loaded === "true") {
+        initKoFiOverlay();
+      } else {
+        existing.addEventListener("load", initKoFiOverlay, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://storage.ko-fi.com/cdn/scripts/overlay-widget.js";
+    script.async = true;
+    script.dataset.kofiOverlay = "true";
+    script.addEventListener(
+      "load",
+      () => {
+        script.dataset.loaded = "true";
+        initKoFiOverlay();
+      },
+      { once: true },
+    );
+    document.body.appendChild(script);
+  }, []);
 
   // Record last_launch_date and open About/History on version change
   useEffect(() => {
@@ -6213,6 +6268,19 @@ export default function App() {
                   alt="ニコニコ動画"
                 />
               </a>
+              <a
+                className="footer-social-link-afdian"
+                href="https://afdian.com/a/vrmtommdconverter"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Sponsor me on Afdian"
+                title="Sponsor me on Afdian"
+              >
+                <SiAfdian
+                  className="footer-social-icon-afdian"
+                  aria-hidden="true"
+                />
+              </a>
             </div>
           </div>
           <div className="app-footer-actions">
@@ -6222,10 +6290,20 @@ export default function App() {
                 href={`${import.meta.env.BASE_URL}${appLocale === "ja" ? "tokushoho_ja.html" : "tokushoho.html"}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
-                title={appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
+                aria-label={
+                  appLocale === "ja"
+                    ? "特定商取引法に基づく表記"
+                    : "Commercial Disclosure"
+                }
+                title={
+                  appLocale === "ja"
+                    ? "特定商取引法に基づく表記"
+                    : "Commercial Disclosure"
+                }
               >
-                {appLocale === "ja" ? "特定商取引法に基づく表記" : "Commercial Disclosure"}
+                {appLocale === "ja"
+                  ? "特定商取引法に基づく表記"
+                  : "Commercial Disclosure"}
               </a>
             </nav>
             <button
