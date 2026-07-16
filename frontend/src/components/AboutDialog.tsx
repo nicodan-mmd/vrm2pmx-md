@@ -26,6 +26,18 @@ const HISTORY: Array<{
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
+    version: "v1.6.2",
+    date: "2026/07/16",
+    items: [
+      {
+        ja: "開発サポートリンク",
+        en: "Development support links",
+        zh: "开发支持链接",
+        ko: "개발 지원 링크",
+      },
+    ],
+  },
+  {
     version: "v1.6.1",
     date: "2026/05/27",
     items: [

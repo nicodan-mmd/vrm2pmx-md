@@ -747,6 +747,62 @@ input[type="file"] {
   background: linear-gradient(120deg, #8cb7a4, #a2c7b7);
 }
 
+.support-callout {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #5b748f;
+  text-align: right;
+}
+
+.support-callout-text {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.support-callout-separator {
+  color: #7c90a8;
+  font-weight: 600;
+}
+
+.support-callout-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #2f3f56;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.support-callout-link:hover,
+.support-callout-link:focus-visible {
+  text-decoration: underline;
+}
+
+.support-callout-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.support-callout-icon-kofi {
+  width: 0.95em;
+  height: 0.95em;
+  color: #d9534f;
+}
+
+.support-callout-icon-afdian {
+  width: 0.95em;
+  height: 0.95em;
+  color: #6f5ad8;
+}
+
 .quality-report-button {
   background: linear-gradient(120deg, #dfaa80, #ebbf9d);
   color: var(--button-ink);

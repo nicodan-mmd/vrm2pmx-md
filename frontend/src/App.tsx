@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import { FaCircleInfo } from "react-icons/fa6";
-import { FaSkullCrossbones } from "react-icons/fa";
+import { FaMugHot, FaSkullCrossbones } from "react-icons/fa";
 import { SiAfdian } from "react-icons/si";
 import { CiMaximize2 } from "react-icons/ci";
 import { IoCopyOutline } from "react-icons/io5";
@@ -252,6 +252,8 @@ type AppI18n = {
   heartDialogSent: string;
   heartDialogError: string;
   heartAlreadySent: string;
+  supportPromptPrefix: string;
+  supportPromptSuffix: string;
 };
 
 const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
@@ -430,6 +432,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartDialogSent: "ハートを送りました。ありがとうございます。",
     heartDialogError: "送信に失敗しました。時間をおいて再試行してください。",
     heartAlreadySent: "ありがとうございます。ハートは受け取り済みです。",
+    supportPromptPrefix: "気に入っていただけましたら",
+    supportPromptSuffix: "でサポートをお願いします",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -489,6 +493,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartDialogSent: "Heart sent. Thank you!",
     heartDialogError: "Failed to send. Please try again later.",
     heartAlreadySent: "Thank you. Your heart has already been received.",
+    supportPromptPrefix: "If you like it, please support me via",
+    supportPromptSuffix: ".",
   },
   zh: {
     errorReportingModalTitle: "错误报告发送",
@@ -543,6 +549,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartDialogSent: "爱心已发送，感谢支持！",
     heartDialogError: "发送失败，请稍后重试。",
     heartAlreadySent: "感谢支持，已收到您的爱心。",
+    supportPromptPrefix: "如果您喜欢它，欢迎通过",
+    supportPromptSuffix: "来支持我。",
   },
   ko: {
     errorReportingModalTitle: "오류 리포트 전송",
@@ -604,6 +612,8 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartDialogSent: "하트를 보냈습니다. 감사합니다.",
     heartDialogError: "전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     heartAlreadySent: "감사합니다. 이미 하트를 전달받았습니다.",
+    supportPromptPrefix: "마음에 드셨다면",
+    supportPromptSuffix: "로 후원해 주세요.",
   },
 };
 
@@ -6168,6 +6178,45 @@ export default function App() {
               Download ZIP
             </button>
           </div>
+          {status === "done" && convertedOutput && (
+            <div className="support-callout" aria-label="Support links">
+              <span className="support-callout-text">
+                {i18n.supportPromptPrefix}
+              </span>
+              <a
+                className="support-callout-link support-callout-link-kofi"
+                href="https://ko-fi.com/nicodanp"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Ko-fi"
+                title="Ko-fi"
+              >
+                <FaMugHot
+                  className="support-callout-icon support-callout-icon-kofi"
+                  aria-hidden="true"
+                />
+                <span>Ko-fi</span>
+              </a>
+              <span className="support-callout-separator">/</span>
+              <a
+                className="support-callout-link support-callout-link-afdian"
+                href="https://afdian.com/a/vrmtommdconverter"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Afdian"
+                title="Afdian"
+              >
+                <SiAfdian
+                  className="support-callout-icon support-callout-icon-afdian"
+                  aria-hidden="true"
+                />
+                <span>Afdian</span>
+              </a>
+              <span className="support-callout-text">
+                {i18n.supportPromptSuffix}
+              </span>
+            </div>
+          )}
           {status === "uploading" && (
             <button type="button" onClick={onCancel}>
               Cancel
