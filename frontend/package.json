@@ -1,7 +1,7 @@
 {
   "name": "vrm2pmx-frontend",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.6.3",
   "type": "module",
   "scripts": {
     "sync:py-src": "node scripts/sync_py_src.mjs",

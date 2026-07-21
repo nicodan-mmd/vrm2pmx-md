@@ -254,6 +254,27 @@ type AppI18n = {
   heartAlreadySent: string;
   supportPromptPrefix: string;
   supportPromptSuffix: string;
+  // UI texts
+  dropVrmPlaceholder: string;
+  dropPmxPlaceholder: string;
+  dropPmxSubtext: string;
+  taPoseConvertLabel: string;
+  orbitResetButton: string;
+  orbitSyncLabel: string;
+  logLabel: string;
+  autoConvertLabel: string;
+  chooseFileButton: string;
+  reloadVrmButton: string;
+  reloadingVrmButton: string;
+  convertButton: string;
+  convertingButton: (percent: number) => string;
+  downloadZipButton: string;
+  cancelButton: string;
+  logViewTitle: string;
+  showTechnicalDetails: string;
+  languageSettingLabel: string;
+  languageAutoLabel: string;
+  worldCounterSettingLabel: string;
 };
 
 const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
@@ -262,6 +283,7 @@ const HEART_LOCK_UNTIL_KEY = "vrm2pmx.heart_lock_until";
 const HEART_FEEDBACK_USER_ID_KEY = "vrm2pmx.feedback_user_id";
 const LOCAL_COUNTER_KEY = "vrm2pmx.local_counter";
 const COUNTER_DISPLAY_MODE_KEY = "vrm2pmx.counter_display_mode";
+const APP_LOCALE_SETTING_KEY = "vrm2pmx.app_locale_setting";
 const METRICS_BASELINE_KEY_PREFIX = "vrm2pmx.metrics.baseline";
 const MAX_USER_CONVERT_LOG_LINES = 240;
 const CONVERT_HEARTBEAT_INTERVAL_MS = 2000;
@@ -434,6 +456,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "ありがとうございます。ハートは受け取り済みです。",
     supportPromptPrefix: "気に入っていただけましたら",
     supportPromptSuffix: "でサポートをお願いします",
+    dropVrmPlaceholder: "VRMファイルをここにドロップ",
+    dropPmxPlaceholder: "PMX/ZIPファイルをここにドロップ",
+    dropPmxSubtext: "VMD(モーション) / VPD(ポーズ) 表示にも対応",
+    taPoseConvertLabel: "T/A Pose 変換",
+    orbitResetButton: "視点リセット",
+    orbitSyncLabel: "視点同期",
+    logLabel: "ログ表示",
+    autoConvertLabel: "自動変換",
+    chooseFileButton: "ファイルを選択",
+    reloadVrmButton: "VRM再読み込み",
+    reloadingVrmButton: "再読み込み中...",
+    convertButton: "変換",
+    convertingButton: (p) => `変換中... ${p}%`,
+    downloadZipButton: "ZIPをダウンロード",
+    cancelButton: "キャンセル",
+    logViewTitle: "ログ表示",
+    showTechnicalDetails: "技術的な詳細を表示",
+    languageSettingLabel: "表示言語",
+    languageAutoLabel: "自動 (ブラウザ言語)",
+    worldCounterSettingLabel:
+      "WORLD CONVERT COUNTER に参加する (外すと表示のみになります)",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -495,6 +538,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "Thank you. Your heart has already been received.",
     supportPromptPrefix: "If you like it, please support me via",
     supportPromptSuffix: ".",
+    dropVrmPlaceholder: "Drop VRM file here",
+    dropPmxPlaceholder: "Drop PMX/ZIP file here",
+    dropPmxSubtext: "Also, VMD(motion) / VPD(pose) view",
+    taPoseConvertLabel: "T/A Pose Convert",
+    orbitResetButton: "Orbit Reset",
+    orbitSyncLabel: "Orbit Sync",
+    logLabel: "Log",
+    autoConvertLabel: "Auto convert",
+    chooseFileButton: "Choose file",
+    reloadVrmButton: "Reload VRM",
+    reloadingVrmButton: "Reloading...",
+    convertButton: "Convert",
+    convertingButton: (p) => `Converting... ${p}%`,
+    downloadZipButton: "Download ZIP",
+    cancelButton: "Cancel",
+    logViewTitle: "Log View",
+    showTechnicalDetails: "Show technical details",
+    languageSettingLabel: "Display Language",
+    languageAutoLabel: "Auto (Browser language)",
+    worldCounterSettingLabel:
+      "Participate in WORLD CONVERT COUNTER (Unchecking will make it display-only)",
   },
   zh: {
     errorReportingModalTitle: "错误报告发送",
@@ -551,6 +615,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "感谢支持，已收到您的爱心。",
     supportPromptPrefix: "如果您喜欢它，欢迎通过",
     supportPromptSuffix: "来支持我。",
+    dropVrmPlaceholder: "拖放 VRM 文件到此处",
+    dropPmxPlaceholder: "拖放 PMX/ZIP 文件到此处",
+    dropPmxSubtext: "支持 VMD (动作) / VPD (姿势) 预览",
+    taPoseConvertLabel: "T/A 姿势转换",
+    orbitResetButton: "重置视角",
+    orbitSyncLabel: "视角同步",
+    logLabel: "日志",
+    autoConvertLabel: "自动转换",
+    chooseFileButton: "选择文件",
+    reloadVrmButton: "重新加载 VRM",
+    reloadingVrmButton: "重新加载中...",
+    convertButton: "转换",
+    convertingButton: (p) => `转换中... ${p}%`,
+    downloadZipButton: "下载 ZIP",
+    cancelButton: "取消",
+    logViewTitle: "日志视图",
+    showTechnicalDetails: "显示技术细节",
+    languageSettingLabel: "显示语言",
+    languageAutoLabel: "自动 (浏览器语言)",
+    worldCounterSettingLabel:
+      "参与 WORLD CONVERT COUNTER (取消勾选将仅作显示)",
   },
   "zh-TW": {
     errorReportingModalTitle: "錯誤回報傳送",
@@ -607,6 +692,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "感謝您，您的愛心已收到。",
     supportPromptPrefix: "如果您喜歡它，歡迎透過",
     supportPromptSuffix: "來支持我。",
+    dropVrmPlaceholder: "拖放 VRM 檔案至此",
+    dropPmxPlaceholder: "拖放 PMX/ZIP 檔案至此",
+    dropPmxSubtext: "支援 VMD (動作) / VPD (姿勢) 預覽",
+    taPoseConvertLabel: "T/A 姿勢轉換",
+    orbitResetButton: "重置視角",
+    orbitSyncLabel: "視角同步",
+    logLabel: "日誌",
+    autoConvertLabel: "自動轉換",
+    chooseFileButton: "選擇檔案",
+    reloadVrmButton: "重新載入 VRM",
+    reloadingVrmButton: "重新載入中...",
+    convertButton: "轉換",
+    convertingButton: (p) => `轉換中... ${p}%`,
+    downloadZipButton: "下載 ZIP",
+    cancelButton: "取消",
+    logViewTitle: "日誌檢視",
+    showTechnicalDetails: "顯示技術細節",
+    languageSettingLabel: "顯示語言",
+    languageAutoLabel: "自動 (瀏覽器語言)",
+    worldCounterSettingLabel:
+      "參與 WORLD CONVERT COUNTER (取消勾選將僅作顯示)",
   },
   id: {
     errorReportingModalTitle: "Kirim Laporan Error",
@@ -668,6 +774,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "Terima kasih. Hati Anda sudah diterima.",
     supportPromptPrefix: "Jika Anda menyukainya, silakan dukung saya melalui",
     supportPromptSuffix: ".",
+    dropVrmPlaceholder: "Drop file VRM di sini",
+    dropPmxPlaceholder: "Drop file PMX/ZIP di sini",
+    dropPmxSubtext: "Juga mendukung tampilan VMD (gerakan) / VPD (pose)",
+    taPoseConvertLabel: "Konversi Pose T/A",
+    orbitResetButton: "Reset Orbit",
+    orbitSyncLabel: "Sinkronkan Orbit",
+    logLabel: "Log",
+    autoConvertLabel: "Konversi otomatis",
+    chooseFileButton: "Pilih file",
+    reloadVrmButton: "Muat ulang VRM",
+    reloadingVrmButton: "Memuat ulang...",
+    convertButton: "Konversi",
+    convertingButton: (p) => `Mengonversi... ${p}%`,
+    downloadZipButton: "Unduh ZIP",
+    cancelButton: "Batal",
+    logViewTitle: "Tampilan Log",
+    showTechnicalDetails: "Tampilkan detail teknis",
+    languageSettingLabel: "Bahasa Tampilan",
+    languageAutoLabel: "Otomatis (Bahasa browser)",
+    worldCounterSettingLabel:
+      "Berpartisipasi dalam WORLD CONVERT COUNTER (Hapus centang untuk mode tampilan saja)",
   },
   es: {
     errorReportingModalTitle: "Enviar informe de error",
@@ -731,6 +858,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "Gracias. Tu corazón ya fue recibido.",
     supportPromptPrefix: "Si te gusta, apóyame a través de",
     supportPromptSuffix: ".",
+    dropVrmPlaceholder: "Arrastra el archivo VRM aquí",
+    dropPmxPlaceholder: "Arrastra el archivo PMX/ZIP aquí",
+    dropPmxSubtext: "También admite vista de VMD (movimiento) / VPD (pose)",
+    taPoseConvertLabel: "Conversión de Pose T/A",
+    orbitResetButton: "Restablecer Órbita",
+    orbitSyncLabel: "Sincronizar Órbita",
+    logLabel: "Registro",
+    autoConvertLabel: "Conversión automática",
+    chooseFileButton: "Seleccionar archivo",
+    reloadVrmButton: "Recargar VRM",
+    reloadingVrmButton: "Recargando...",
+    convertButton: "Convertir",
+    convertingButton: (p) => `Convirtiendo... ${p}%`,
+    downloadZipButton: "Descargar ZIP",
+    cancelButton: "Cancelar",
+    logViewTitle: "Vista de Registro",
+    showTechnicalDetails: "Mostrar detalles técnicos",
+    languageSettingLabel: "Idioma de pantalla",
+    languageAutoLabel: "Automático (Idioma del navegador)",
+    worldCounterSettingLabel:
+      "Participar en WORLD CONVERT COUNTER (Desmarcar será solo visualización)",
   },
   "pt-BR": {
     errorReportingModalTitle: "Enviar relatório de erro",
@@ -794,6 +942,27 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "Obrigado. Seu coração já foi recebido.",
     supportPromptPrefix: "Se você gostou, apoie-me por meio de",
     supportPromptSuffix: ".",
+    dropVrmPlaceholder: "Arraste o arquivo VRM aqui",
+    dropPmxPlaceholder: "Arraste o arquivo PMX/ZIP aqui",
+    dropPmxSubtext: "Também suporta visualização de VMD (movimento) / VPD (pose)",
+    taPoseConvertLabel: "Conversão de Pose T/A",
+    orbitResetButton: "Redefinir Órbita",
+    orbitSyncLabel: "Sincronizar Órbita",
+    logLabel: "Log",
+    autoConvertLabel: "Conversão automática",
+    chooseFileButton: "Escolher arquivo",
+    reloadVrmButton: "Recarregar VRM",
+    reloadingVrmButton: "Recarregando...",
+    convertButton: "Converter",
+    convertingButton: (p) => `Convertendo... ${p}%`,
+    downloadZipButton: "Baixar ZIP",
+    cancelButton: "Cancelar",
+    logViewTitle: "Visualização de Log",
+    showTechnicalDetails: "Mostrar detalhes técnicos",
+    languageSettingLabel: "Idioma de exibição",
+    languageAutoLabel: "Automático (Idioma do navegador)",
+    worldCounterSettingLabel:
+      "Participar do WORLD CONVERT COUNTER (Desmarcar será apenas exibição)",
   },
   ko: {
     errorReportingModalTitle: "오류 리포트 전송",
@@ -857,11 +1026,35 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     heartAlreadySent: "감사합니다. 이미 하트를 전달받았습니다.",
     supportPromptPrefix: "마음에 드셨다면",
     supportPromptSuffix: "로 후원해 주세요.",
+    dropVrmPlaceholder: "여기에 VRM 파일을 드롭하세요",
+    dropPmxPlaceholder: "여기에 PMX/ZIP 파일을 드롭하세요",
+    dropPmxSubtext: "VMD(모션) / VPD(포즈) 보기 지원",
+    taPoseConvertLabel: "T/A 포즈 변환",
+    orbitResetButton: "시점 리셋",
+    orbitSyncLabel: "시점 동기화",
+    logLabel: "로그",
+    autoConvertLabel: "자동 변환",
+    chooseFileButton: "파일 선택",
+    reloadVrmButton: "VRM 새로고침",
+    reloadingVrmButton: "새로고치는 중...",
+    convertButton: "변환",
+    convertingButton: (p) => `변환 중... ${p}%`,
+    downloadZipButton: "ZIP 다운로드",
+    cancelButton: "취소",
+    logViewTitle: "로그 보기",
+    showTechnicalDetails: "기술 세부 정보 보기",
+    languageSettingLabel: "표시 언어",
+    languageAutoLabel: "자동 (브라우저 언어)",
+    worldCounterSettingLabel:
+      "WORLD CONVERT COUNTER에 참여하기 (해제 시 표시 전용이 됩니다)",
   },
 };
 
-function detectAppLocale(language: string | undefined): AppLocale {
-  const normalized = (language ?? "").toLowerCase();
+function parseSingleLocale(language: string | undefined): AppLocale | null {
+  const normalized = (language ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
   if (normalized.startsWith("ja")) {
     return "ja";
   }
@@ -883,6 +1076,55 @@ function detectAppLocale(language: string | undefined): AppLocale {
   if (normalized.startsWith("zh")) {
     return "zh";
   }
+  if (normalized.startsWith("en")) {
+    return "en";
+  }
+  return null;
+}
+
+function detectAppLocale(language: string | undefined): AppLocale {
+  return parseSingleLocale(language) ?? "en";
+}
+
+function resolveAppLocale(selectedSetting?: string): AppLocale {
+  if (selectedSetting && selectedSetting !== "auto") {
+    const parsed = parseSingleLocale(selectedSetting);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = params.get("lang") ?? params.get("locale");
+      if (urlLang) {
+        const parsed = parseSingleLocale(urlLang);
+        if (parsed) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore URL search params error
+    }
+  }
+
+  if (typeof navigator !== "undefined" && Array.isArray(navigator.languages)) {
+    for (const lang of navigator.languages) {
+      const parsed = parseSingleLocale(lang);
+      if (parsed) {
+        return parsed;
+      }
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.language) {
+    const parsed = parseSingleLocale(navigator.language);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
   return "en";
 }
 
@@ -2628,13 +2870,23 @@ export default function App() {
     armPoseSign: 1,
   });
   const [isInstalledState, setIsInstalledState] = useState(false);
+  const [userLocaleSetting, setUserLocaleSetting] = useState<string>(() => {
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem(APP_LOCALE_SETTING_KEY) ?? "auto";
+    }
+    return "auto";
+  });
+  const handleUserLocaleSettingChange = useCallback((newSetting: string) => {
+    setUserLocaleSetting(newSetting);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(APP_LOCALE_SETTING_KEY, newSetting);
+    }
+  }, []);
+
   const backendEnabled = isBackendFallbackEnabled();
   const appLocale = useMemo(
-    () =>
-      detectAppLocale(
-        typeof navigator !== "undefined" ? navigator.language : "en",
-      ),
-    [],
+    () => resolveAppLocale(userLocaleSetting),
+    [userLocaleSetting],
   );
   const i18n = APP_I18N[appLocale];
   const isHeartLocked =
@@ -5953,7 +6205,7 @@ export default function App() {
               )}
               {!isVrmReady && !isPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
-                  <div>Drop VRM file here</div>
+                  <div>{i18n.dropVrmPlaceholder}</div>
                 </div>
               )}
               <button
@@ -6151,9 +6403,9 @@ export default function App() {
               </button>
               {!canOpenPmxMetadata && !isPmxPreviewing && (
                 <div className="vrm-drop-placeholder" aria-hidden="true">
-                  <div>Drop PMX/ZIP here</div>
+                  <div>{i18n.dropPmxPlaceholder}</div>
                   <div className="pmx-drop-subtext">
-                    Also, VMD(motion) / VPD(pose) view
+                    {i18n.dropPmxSubtext}
                   </div>
                 </div>
               )}
@@ -6227,7 +6479,7 @@ export default function App() {
             <div className="ta-pose-group">
               <div className="ta-pose-header">
                 <label htmlFor="ta-pose-angle" className="input-label">
-                  T/A Pose Convert
+                  {i18n.taPoseConvertLabel}
                 </label>
                 <span className="ta-pose-value">{taPoseAngle} deg</span>
               </div>
@@ -6260,7 +6512,7 @@ export default function App() {
                   className="pmx-tool-button"
                   onClick={onOrbitReset}
                 >
-                  Orbit Reset
+                  {i18n.orbitResetButton}
                 </button>
                 <label className="pmx-tool-checkbox">
                   <input
@@ -6271,7 +6523,7 @@ export default function App() {
                       setOrbitSyncEnabled(event.target.checked)
                     }
                   />
-                  <span>Orbit Sync</span>
+                  <span>{i18n.orbitSyncLabel}</span>
                 </label>
                 {/*
                   TODO: Grid toggle UI (debug feature)
@@ -6305,7 +6557,7 @@ export default function App() {
                     checked={logEnabled}
                     onChange={(event) => setLogEnabled(event.target.checked)}
                   />
-                  <span>Log</span>
+                  <span>{i18n.logLabel}</span>
                 </label>
               </div>
 
@@ -6320,7 +6572,7 @@ export default function App() {
                     }
                     disabled={status === "uploading"}
                   />
-                  <span>Auto convert</span>
+                  <span>{i18n.autoConvertLabel}</span>
                 </label>
                 {/* Ver 1.6.0 release */}
                 <label
@@ -6364,7 +6616,7 @@ export default function App() {
           </div>
           <div className="file-picker-row">
             <label htmlFor="vrm-input" className="input-label file-input-label">
-              Choose file
+              {i18n.chooseFileButton}
             </label>
             <input
               ref={vrmInputRef}
@@ -6382,7 +6634,7 @@ export default function App() {
               onClick={onPreviewVrm}
               disabled={!file || status === "uploading" || isPreviewing}
             >
-              {isPreviewing ? "Reloading..." : "Reload VRM"}
+              {isPreviewing ? i18n.reloadingVrmButton : i18n.reloadVrmButton}
             </button>
           </div>
 
@@ -6421,8 +6673,8 @@ export default function App() {
               disabled={!canConvert}
             >
               {status === "uploading"
-                ? `Converting... ${Math.round(convertProgressPercent)}%`
-                : "Convert"}
+                ? i18n.convertingButton(Math.round(convertProgressPercent))
+                : i18n.convertButton}
             </button>
             <button
               type="button"
@@ -6430,7 +6682,7 @@ export default function App() {
               onClick={onDownload}
               disabled={!canDownload}
             >
-              Download ZIP
+              {i18n.downloadZipButton}
             </button>
           </div>
           {status === "done" && convertedOutput && (
@@ -6474,7 +6726,7 @@ export default function App() {
           )}
           {status === "uploading" && (
             <button type="button" onClick={onCancel}>
-              Cancel
+              {i18n.cancelButton}
             </button>
           )}
         </form>
@@ -6482,14 +6734,14 @@ export default function App() {
         <p className={`status status-${status}`}>{message}</p>
         {status === "error" && errorDetail && (
           <details>
-            <summary>Show technical details</summary>
+            <summary>{i18n.showTechnicalDetails}</summary>
             <pre>{errorDetail}</pre>
           </details>
         )}
         {logEnabled && (
           <section className="log-panel" aria-label="Conversion log output">
             <div className="log-panel-header">
-              <h2 className="log-panel-title">Log View</h2>
+              <h2 className="log-panel-title">{i18n.logViewTitle}</h2>
               <button
                 type="button"
                 className="log-copy-button"
@@ -6677,6 +6929,11 @@ export default function App() {
         open={isAboutOpen}
         version={APP_VERSION}
         locale={appLocale}
+        userLocaleSetting={userLocaleSetting}
+        onUserLocaleSettingChange={handleUserLocaleSettingChange}
+        languageSettingLabel={i18n.languageSettingLabel}
+        languageAutoLabel={i18n.languageAutoLabel}
+        worldCounterSettingLabel={i18n.worldCounterSettingLabel}
         defaultTab={aboutDefaultTab}
         installControl={<PwaInstallControl i18n={i18n} />}
         worldCounterParticipationEnabled={worldCounterParticipationEnabled}

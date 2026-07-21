@@ -15,6 +15,11 @@ type AboutDialogProps = {
   open: boolean;
   version: string;
   locale: HistoryLocale;
+  userLocaleSetting?: string;
+  onUserLocaleSettingChange?: (setting: string) => void;
+  languageSettingLabel?: string;
+  languageAutoLabel?: string;
+  worldCounterSettingLabel?: string;
   defaultTab?: TabId;
   installControl?: ReactNode;
   worldCounterParticipationEnabled: boolean;
@@ -33,6 +38,22 @@ const HISTORY: Array<{
   date: string;
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
+  {
+    version: "v1.6.3",
+    date: "2026/07/21",
+    items: [
+      {
+        ja: "多言語対応の強化・言語設定UIの追加",
+        en: "Enhanced multilingual support & added language setting UI",
+        zh: "增强多语言支持并新增语言设置界面",
+        "zh-TW": "增強多語言支援並新增語言設定介面",
+        ko: "다국어 지원 강화 및 언어 설정 UI 추가",
+        id: "Peningkatan dukungan multibahasa & penambahan UI pengaturan bahasa",
+        es: "Soporte multilingüe mejorado y menú de configuración de idioma añadido",
+        "pt-BR": "Suporte multilíngue aprimorado e adicionada interface de configuração de idioma",
+      },
+    ],
+  },
   {
     version: "v1.6.2",
     date: "2026/07/16",
@@ -429,6 +450,11 @@ export default function AboutDialog({
   open,
   version,
   locale,
+  userLocaleSetting = "auto",
+  onUserLocaleSettingChange,
+  languageSettingLabel = "Display Language",
+  languageAutoLabel = "Auto (Browser language)",
+  worldCounterSettingLabel = "WORLD CONVERT COUNTER に参加する (外すと表示のみになります)",
   defaultTab,
   installControl,
   worldCounterParticipationEnabled,
@@ -554,6 +580,37 @@ export default function AboutDialog({
             <p>
               <strong>Setting</strong>
             </p>
+            <div className="about-settings-row" style={{ marginBottom: "1rem" }}>
+              <label htmlFor="language-setting" className="about-settings-label" style={{ display: "block", marginBottom: "0.25rem" }}>
+                <strong>{languageSettingLabel}:</strong>
+              </label>
+              <select
+                id="language-setting"
+                className="about-settings-select"
+                style={{
+                  padding: "0.4rem 0.6rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-color, #ccc)",
+                  background: "var(--bg-color, #fff)",
+                  color: "var(--text-color, inherit)",
+                  fontSize: "0.9rem",
+                  width: "100%",
+                  maxWidth: "300px",
+                }}
+                value={userLocaleSetting}
+                onChange={(event) => onUserLocaleSettingChange?.(event.target.value)}
+              >
+                <option value="auto">{languageAutoLabel}</option>
+                <option value="ja">日本語 (Japanese)</option>
+                <option value="en">English</option>
+                <option value="zh">简体中文 (Simplified Chinese)</option>
+                <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
+                <option value="ko">한국어 (Korean)</option>
+                <option value="id">Bahasa Indonesia</option>
+                <option value="es">Español</option>
+                <option value="pt-BR">Português (Brasil)</option>
+              </select>
+            </div>
             <label className="about-settings-toggle">
               <input
                 type="checkbox"
@@ -563,7 +620,7 @@ export default function AboutDialog({
                 }
               />
               <span>
-                WORLD CONVERT COUNTER に参加する (外すと表示のみになります)
+                {worldCounterSettingLabel}
               </span>
             </label>
 
