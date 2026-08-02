@@ -39,6 +39,22 @@ const HISTORY: Array<{
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
+    version: "v1.6.4",
+    date: "2026/08/02",
+    items: [
+      {
+        ja: "ニコダンリンク追加",
+        en: "Added NicoDan Chrome extension link",
+        zh: "新增 NicoDan 链接",
+        "zh-TW": "新增 NicoDan 連結",
+        ko: "NicoDan 링크 추가",
+        id: "Penambahan tautan NicoDan",
+        es: "Añadido enlace a NicoDan",
+        "pt-BR": "Adicionado link para o NicoDan",
+      },
+    ],
+  },
+  {
     version: "v1.6.3",
     date: "2026/07/21",
     items: [

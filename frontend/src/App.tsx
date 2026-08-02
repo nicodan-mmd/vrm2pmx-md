@@ -20,6 +20,7 @@ import { SiAfdian } from "react-icons/si";
 import { CiMaximize2 } from "react-icons/ci";
 import { IoCopyOutline } from "react-icons/io5";
 import { MdOutlineSettings } from "react-icons/md";
+import { AiFillThunderbolt } from "react-icons/ai";
 import CountUp from "react-countup";
 import Swal from "sweetalert2";
 import * as THREE from "three";
@@ -275,6 +276,7 @@ type AppI18n = {
   languageSettingLabel: string;
   languageAutoLabel: string;
   worldCounterSettingLabel: string;
+  nicodanReleaseLabel: string;
 };
 
 const LAST_LAUNCH_DATE_KEY = "vrm2pmx.last_launch_date";
@@ -477,6 +479,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "自動 (ブラウザ言語)",
     worldCounterSettingLabel:
       "WORLD CONVERT COUNTER に参加する (外すと表示のみになります)",
+    nicodanReleaseLabel: "ニコダン リリース",
   },
   en: {
     errorReportingModalTitle: "Error Reporting",
@@ -559,6 +562,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "Auto (Browser language)",
     worldCounterSettingLabel:
       "Participate in WORLD CONVERT COUNTER (Unchecking will make it display-only)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   zh: {
     errorReportingModalTitle: "错误报告发送",
@@ -636,6 +640,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "自动 (浏览器语言)",
     worldCounterSettingLabel:
       "参与 WORLD CONVERT COUNTER (取消勾选将仅作显示)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   "zh-TW": {
     errorReportingModalTitle: "錯誤回報傳送",
@@ -713,6 +718,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "自動 (瀏覽器語言)",
     worldCounterSettingLabel:
       "參與 WORLD CONVERT COUNTER (取消勾選將僅作顯示)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   id: {
     errorReportingModalTitle: "Kirim Laporan Error",
@@ -795,6 +801,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "Otomatis (Bahasa browser)",
     worldCounterSettingLabel:
       "Berpartisipasi dalam WORLD CONVERT COUNTER (Hapus centang untuk mode tampilan saja)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   es: {
     errorReportingModalTitle: "Enviar informe de error",
@@ -879,6 +886,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "Automático (Idioma del navegador)",
     worldCounterSettingLabel:
       "Participar en WORLD CONVERT COUNTER (Desmarcar será solo visualización)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   "pt-BR": {
     errorReportingModalTitle: "Enviar relatório de erro",
@@ -963,6 +971,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "Automático (Idioma do navegador)",
     worldCounterSettingLabel:
       "Participar do WORLD CONVERT COUNTER (Desmarcar será apenas exibição)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
   ko: {
     errorReportingModalTitle: "오류 리포트 전송",
@@ -1047,6 +1056,7 @@ const APP_I18N: Record<AppLocale, AppI18n> = {
     languageAutoLabel: "자동 (브라우저 언어)",
     worldCounterSettingLabel:
       "WORLD CONVERT COUNTER에 참여하기 (해제 시 표시 전용이 됩니다)",
+    nicodanReleaseLabel: "NicoDan Release",
   },
 };
 
@@ -6048,7 +6058,19 @@ export default function App() {
       <div className="halo" />
       <section className="card">
         <h1 className="app-title">
-          VRM to MMD Converter
+          <span className="app-title-text">
+            VRM to MMD Converter
+            <a
+              href="https://chrome.google.com/webstore/detail/cbhepliniekpjfjohhfknededmpoehcc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nicodan-release-badge"
+            >
+              <AiFillThunderbolt className="nicodan-badge-icon" />
+              <strong>{i18n.nicodanReleaseLabel}</strong>
+              <AiFillThunderbolt className="nicodan-badge-icon" />
+            </a>
+          </span>
           <span className="app-subtitle">
             A web-based modernization of vrm2pmx and vroid2pmx mix
           </span>

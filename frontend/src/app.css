@@ -82,6 +82,62 @@ h2 {
   color: #254466;
 }
 
+.app-title-text {
+  position: relative;
+  display: inline-block;
+}
+
+.nicodan-release-badge {
+  position: absolute;
+  left: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1a56db;
+  background-color: #f0f5ff;
+  border: 1.5px solid #2563eb;
+  border-radius: 9999px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease-in-out;
+}
+
+.nicodan-release-badge:hover {
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  transform: translateY(-50%) scale(1.03);
+}
+
+.nicodan-badge-icon {
+  color: #eab308;
+  font-size: 0.9em;
+  margin: 0 0.18rem;
+  flex-shrink: 0;
+}
+
+.nicodan-release-badge:hover .nicodan-badge-icon {
+  color: #facc15;
+}
+
+@media (max-width: 640px) {
+  .nicodan-release-badge {
+    position: static;
+    transform: none;
+    margin-left: 0.4rem;
+    display: inline-flex;
+    vertical-align: middle;
+  }
+  .nicodan-release-badge:hover {
+    transform: none;
+  }
+}
+
 .app-subtitle {
   display: block;
   margin-top: 0.28rem;
