@@ -1647,3 +1647,277 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Site Guide Section & Outer Footer (AdSense / Guide / Legal)
+   ========================================================================== */
+
+.site-guide-section {
+  width: min(860px, 100%);
+  margin-top: 24px;
+  z-index: 1;
+}
+
+.site-guide-card {
+  background: var(--card);
+  border: 1px solid #ffffff;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  border-radius: 22px;
+  padding: 32px 28px;
+  box-shadow: 0 10px 40px #1f2a3715;
+}
+
+.site-guide-header {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.site-guide-title {
+  margin: 0 0 12px;
+  font-size: clamp(1.3rem, 2.5vw, 1.7rem);
+  color: #254466;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.site-guide-lead {
+  margin: 0 auto;
+  max-width: 760px;
+  font-size: 0.96rem;
+  line-height: 1.75;
+  color: #4b6078;
+}
+
+.site-guide-lead strong {
+  color: #1a365d;
+}
+
+.site-guide-subtitle {
+  margin: 32px 0 16px;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #204162;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid #dbe6f2;
+  padding-bottom: 8px;
+}
+
+/* Features Grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.feature-item {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #e1ebf5;
+  border-radius: 14px;
+  padding: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(32, 65, 98, 0.08);
+}
+
+.feature-icon {
+  font-size: 1.6rem;
+  margin-bottom: 8px;
+}
+
+.feature-title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #1a365d;
+  margin-bottom: 6px;
+}
+
+.feature-desc {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #556c84;
+}
+
+/* Steps Container */
+.steps-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #e1ebf5;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.step-badge {
+  background: linear-gradient(135deg, #1f5fa5, #3a7cc2);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+.step-card-content h4 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+  color: #1a365d;
+}
+
+.step-card-content p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #556c84;
+}
+
+.step-card-content code {
+  background: #eaf1f8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: #1f5fa5;
+}
+
+/* FAQ Grid */
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.faq-item {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid #e1ebf5;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.faq-q {
+  font-weight: 700;
+  font-size: 0.94rem;
+  color: #1a365d;
+  margin-bottom: 6px;
+}
+
+.faq-a {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #556c84;
+}
+
+/* Outer Footer */
+.site-outer-footer {
+  width: min(860px, 100%);
+  margin-top: 18px;
+  padding: 20px 16px 68px;
+  text-align: center;
+  z-index: 1;
+}
+
+.site-outer-footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-outer-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.88rem;
+}
+
+.site-outer-footer-link {
+  color: #4b6480;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.site-outer-footer-link:hover,
+.site-outer-footer-link:focus-visible {
+  color: #1a56db;
+  text-decoration: underline;
+}
+
+.site-outer-footer-separator {
+  color: #a4b6c9;
+  font-size: 0.8rem;
+}
+
+.site-outer-footer-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 2px;
+}
+
+.site-outer-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #c9d7e6;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.site-outer-social-link:hover {
+  transform: translateY(-2px);
+  background: #ffffff;
+  border-color: #9cb6d3;
+}
+
+.site-outer-social-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.site-outer-social-icon-afdian {
+  font-size: 16px;
+  color: #946ce6;
+}
+
+.site-outer-footer-copy {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #72879e;
+}
+
+@media (max-width: 640px) {
+  .site-guide-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .steps-container,
+  .faq-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .site-outer-footer {
+    padding-bottom: 80px;
+  }
+}
+

@@ -35,6 +35,8 @@ import AboutDialog, {
   type TabId as AboutTabId,
 } from "./components/AboutDialog";
 import Dialog from "./components/Dialog";
+import { SiteGuideSection } from "./components/SiteGuideSection";
+import { SiteFooter } from "./components/SiteFooter";
 import { APP_VERSION } from "./constants/appInfo";
 import {
   type ConvertMode,
@@ -6862,28 +6864,6 @@ export default function App() {
             </div>
           </div>
           <div className="app-footer-actions">
-            <nav className="footer-legal-links" aria-label="Legal links">
-              <a
-                className="footer-legal-link"
-                href={`${import.meta.env.BASE_URL}${appLocale === "ja" ? "tokushoho_ja.html" : "tokushoho.html"}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={
-                  appLocale === "ja"
-                    ? "特定商取引法に基づく表記"
-                    : "Commercial Disclosure"
-                }
-                title={
-                  appLocale === "ja"
-                    ? "特定商取引法に基づく表記"
-                    : "Commercial Disclosure"
-                }
-              >
-                {appLocale === "ja"
-                  ? "特定商取引法に基づく表記"
-                  : "Commercial Disclosure"}
-              </a>
-            </nav>
             <button
               type="button"
               className="footer-settings-button"
@@ -6946,6 +6926,9 @@ export default function App() {
           </span>
         </div>
       </section>
+
+      <SiteGuideSection locale={appLocale} />
+      <SiteFooter locale={appLocale} />
 
       <AboutDialog
         open={isAboutOpen}

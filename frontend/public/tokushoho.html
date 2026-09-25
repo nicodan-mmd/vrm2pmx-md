@@ -77,6 +77,31 @@
         color: var(--sub);
       }
 
+      .nav-back {
+        margin-bottom: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .nav-back:hover {
+        text-decoration: underline;
+      }
+
+      .footer-links {
+        margin-top: 36px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 0.92rem;
+      }
+
       @media (max-width: 640px) {
         main {
           padding: 14px;
@@ -90,6 +115,7 @@
   </head>
   <body>
     <main>
+      <a href="./" class="nav-back">← Back to Home</a>
       <article class="card">
         <h1>Commercial Disclosure</h1>
         <p class="lead">
@@ -168,6 +194,12 @@
             Latest major browsers, including Chrome, Edge, Safari, and Firefox.
           </dd>
         </dl>
+
+        <div class="footer-links">
+          <a href="./">Home</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="contact.html">Contact Us</a>
+        </div>
 
         <p class="note">Last updated: 2026-07-10</p>
       </article>

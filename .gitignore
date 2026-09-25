@@ -75,6 +75,10 @@ executor.py.lprof
 !frontend/index.html
 !frontend/public/tokushoho.html
 !frontend/public/tokushoho_ja.html
+!frontend/public/privacy.html
+!frontend/public/privacy_ja.html
+!frontend/public/contact.html
+!frontend/public/contact_ja.html
 *.c
 *.pyd
 *.pyd

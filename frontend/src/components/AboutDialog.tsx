@@ -861,7 +861,20 @@ export default function AboutDialog({
             </p>
             <p>{privacyPolicyText[locale]}</p>
 
-            <p>
+            <p style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <a
+                href={`${import.meta.env.BASE_URL}${locale === "ja" ? "privacy_ja.html" : "privacy.html"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                {locale === "ja"
+                  ? "プライバシーポリシー"
+                  : locale === "zh"
+                    ? "隐私政策"
+                    : "Privacy Policy"}
+              </a>
+              <span>|</span>
               <a
                 href={`${import.meta.env.BASE_URL}${locale === "ja" ? "tokushoho_ja.html" : "tokushoho.html"}`}
                 target="_blank"
@@ -870,7 +883,22 @@ export default function AboutDialog({
               >
                 {locale === "ja"
                   ? "特定商取引法に基づく表記"
-                  : "Commercial Disclosure"}
+                  : locale === "zh"
+                    ? "商业信息披露"
+                    : "Commercial Disclosure"}
+              </a>
+              <span>|</span>
+              <a
+                href={`${import.meta.env.BASE_URL}${locale === "ja" ? "contact_ja.html" : "contact.html"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                {locale === "ja"
+                  ? "お問い合わせ"
+                  : locale === "zh"
+                    ? "联系我们"
+                    : "Contact Us"}
               </a>
             </p>
 
