@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tool Guide & Features | vrm2pmx-md</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f8fc;
+        --card: #ffffff;
+        --ink: #1f2a37;
+        --sub: #5f7187;
+        --line: #d7e1ee;
+        --accent: #1f5fa5;
+        --accent-hover: #17487d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.75;
+      }
+
+      main {
+        width: min(880px, 100%);
+        margin: 0 auto;
+        padding: 32px 24px 60px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 36px 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      }
+
+      .nav-back {
+        margin-bottom: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .nav-back:hover {
+        text-decoration: underline;
+        color: var(--accent-hover);
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: clamp(1.4rem, 3.2vw, 2rem);
+        line-height: 1.3;
+        color: #1a365d;
+        border-bottom: 2px solid var(--line);
+        padding-bottom: 14px;
+      }
+
+      .lead {
+        color: var(--sub);
+        font-size: 1.04rem;
+        line-height: 1.8;
+        margin-bottom: 24px;
+      }
+
+      .lead strong {
+        color: var(--ink);
+      }
+
+      .highlight-banner {
+        background: #f0f7ff;
+        border-left: 4px solid var(--accent);
+        padding: 16px 20px;
+        border-radius: 0 8px 8px 0;
+        margin: 20px 0 32px;
+        font-size: 0.98rem;
+      }
+
+      h2 {
+        margin: 36px 0 16px;
+        font-size: 1.3rem;
+        color: #2b4365;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1.5px solid #e2e8f0;
+        padding-bottom: 8px;
+      }
+
+      h2::before {
+        content: "";
+        display: inline-block;
+        width: 4px;
+        height: 1.1em;
+        background: var(--accent);
+        border-radius: 2px;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+      }
+
+      .feature-box {
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .feature-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      }
+
+      .feature-icon {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+      }
+
+      .feature-title {
+        font-weight: 700;
+        font-size: 1.02rem;
+        color: #1a365d;
+        margin-bottom: 6px;
+      }
+
+      .feature-desc {
+        font-size: 0.92rem;
+        color: var(--sub);
+        line-height: 1.6;
+      }
+
+      .steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 20px 0;
+      }
+
+      .step-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+
+      .step-number {
+        background: linear-gradient(135deg, #1f5fa5, #3a7cc2);
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        border-radius: 16px;
+        white-space: nowrap;
+      }
+
+      .step-detail h3 {
+        margin: 0 0 6px;
+        font-size: 1.05rem;
+        color: #1a365d;
+      }
+
+      .step-detail p {
+        margin: 0;
+        font-size: 0.94rem;
+        color: var(--sub);
+        line-height: 1.6;
+      }
+
+      .step-detail code {
+        background: #eaf1f8;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #1f5fa5;
+        font-size: 0.9em;
+      }
+
+      .faq-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin: 20px 0;
+      }
+
+      .faq-card {
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+      }
+
+      .faq-question {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #1a365d;
+        margin-bottom: 8px;
+      }
+
+      .faq-answer {
+        font-size: 0.93rem;
+        color: var(--sub);
+        line-height: 1.65;
+        margin: 0;
+      }
+
+      .cta-area {
+        margin: 40px 0 20px;
+        text-align: center;
+        padding: 28px;
+        background: linear-gradient(135deg, #eef5fc, #e3eef9);
+        border-radius: 14px;
+        border: 1px solid #c8dcf0;
+      }
+
+      .cta-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1a365d;
+        margin-bottom: 12px;
+      }
+
+      .cta-btn {
+        display: inline-block;
+        background: var(--accent);
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.98rem;
+        transition: background-color 0.2s, transform 0.2s;
+      }
+
+      .cta-btn:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+        text-decoration: none;
+      }
+
+      .footer-links {
+        margin-top: 36px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 0.92rem;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+
+      a:hover {
+        color: var(--accent-hover);
+      }
+
+      @media (max-width: 640px) {
+        main {
+          padding: 16px 12px 40px;
+        }
+
+        .card {
+          padding: 22px 18px;
+        }
+
+        .step-item {
+          flex-direction: column;
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="./" class="nav-back">← Back to Converter Tool</a>
+      <article class="card">
+        <h1>VRM to MMD Converter Guide & Features</h1>
+        <p class="lead">
+          <strong>vrm2pmx-md (VRM to MMD Converter)</strong> is a free, modern web application designed to convert <strong>VRM 3D avatar models</strong> (such as those from VRoid Studio) directly into <strong>MMD-compatible PMX format</strong> right in your browser.
+        </p>
+
+        <div class="highlight-banner">
+          🔒 <strong>100% Client-Side Privacy</strong><br />
+          All conversion algorithms run locally on your device via WebAssembly. Your 3D models and textures are never uploaded to any remote server, ensuring total privacy and intellectual property safety.
+        </div>
+
+        <h2>✨ Key Features</h2>
+        <div class="features-grid">
+          <div class="feature-box">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-title">Local Processing & Security</div>
+            <div class="feature-desc">
+              Your model files remain strictly on your local machine. No server uploads or data retention.
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">👁️</div>
+            <div class="feature-title">Real-Time 3D Previews</div>
+            <div class="feature-desc">
+              Side-by-side 3D viewports let you rotate, zoom, and inspect both VRM and PMX models instantly.
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">💃</div>
+            <div class="feature-title">VMD / VPD Motion Testing</div>
+            <div class="feature-desc">
+              Drag and drop VMD motion or VPD pose files directly onto the converted model to preview dance animations.
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">📐</div>
+            <div class="feature-title">T/A Pose Auto Conversion</div>
+            <div class="feature-desc">
+              Adjust arm angles automatically to convert VRM T-poses into MMD-ready A-poses for smooth animations.
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">🎭</div>
+            <div class="feature-title">Morphs & Physics Preserved</div>
+            <div class="feature-desc">
+              Maps blendshapes to MMD facial morphs and generates bone hierarchies, rigid bodies, and joints.
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">📦</div>
+            <div class="feature-title">ZIP Package Export</div>
+            <div class="feature-desc">
+              Bundles the converted PMX and all required textures into a single, ready-to-use ZIP file.
+            </div>
+          </div>
+        </div>
+
+        <h2>🚀 Step-by-Step Usage Guide</h2>
+        <div class="steps-list">
+          <div class="step-item">
+            <div class="step-number">Step 1</div>
+            <div class="step-detail">
+              <h3>Load Your VRM Model</h3>
+              <p>
+                Drag and drop your <code>.vrm</code> file into the left "VRM Preview" viewport or click "Choose file" to browse.
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 2</div>
+            <div class="step-detail">
+              <h3>Inspect & Configure</h3>
+              <p>
+                Rotate and inspect the model. If desired, adjust the "T/A Pose Convert" arm angle (optimal defaults provided).
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 3</div>
+            <div class="step-detail">
+              <h3>Start Conversion</h3>
+              <p>
+                Click "Convert". The high-speed browser engine converts your model into PMX format within seconds.
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 4</div>
+            <div class="step-detail">
+              <h3>Preview & Download</h3>
+              <p>
+                Verify the result in the "PMX Preview" viewport, then click "Download ZIP" to save your MMD model package.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <h2>❓ Frequently Asked Questions (FAQ)</h2>
+        <div class="faq-list">
+          <div class="faq-card">
+            <div class="faq-question">Q. Is this tool free?</div>
+            <p class="faq-answer">
+              A. Yes, all core conversion features are completely free to use.
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. Are my models stored on your servers?</div>
+            <p class="faq-answer">
+              A. Never. The entire conversion process occurs inside your web browser. No models or files are ever sent to an external server.
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. Which browsers are recommended?</div>
+            <p class="faq-answer">
+              A. Latest versions of Google Chrome, Microsoft Edge, Mozilla Firefox, and Apple Safari.
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. What about copyrights and license terms?</div>
+            <p class="faq-answer">
+              A. Always adhere to the original VRM creator's license guidelines. Rights to the converted model follow the original license.
+            </p>
+          </div>
+        </div>
+
+        <div class="cta-area">
+          <div class="cta-title">Ready to convert your 3D models?</div>
+          <a href="./" class="cta-btn">Open Converter Tool</a>
+        </div>
+
+        <div class="footer-links">
+          <a href="./">Home</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="tokushoho.html">Commercial Disclosure</a>
+          <a href="contact.html">Contact Us</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

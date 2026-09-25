@@ -863,6 +863,19 @@ export default function AboutDialog({
 
             <p style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <a
+                href={`${import.meta.env.BASE_URL}${locale === "ja" ? "guide_ja.html" : "guide.html"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="about-link"
+              >
+                {locale === "ja"
+                  ? "使い方・機能紹介"
+                  : locale === "zh"
+                    ? "使用指南"
+                    : "Tool Guide"}
+              </a>
+              <span>|</span>
+              <a
                 href={`${import.meta.env.BASE_URL}${locale === "ja" ? "privacy_ja.html" : "privacy.html"}`}
                 target="_blank"
                 rel="noopener noreferrer"

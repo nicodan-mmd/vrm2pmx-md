@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>使い方・機能紹介（ご利用ガイド） | vrm2pmx-md</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f8fc;
+        --card: #ffffff;
+        --ink: #1f2a37;
+        --sub: #5f7187;
+        --line: #d7e1ee;
+        --accent: #1f5fa5;
+        --accent-hover: #17487d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Yu Gothic UI", sans-serif;
+        line-height: 1.75;
+      }
+
+      main {
+        width: min(880px, 100%);
+        margin: 0 auto;
+        padding: 32px 24px 60px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 36px 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      }
+
+      .nav-back {
+        margin-bottom: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .nav-back:hover {
+        text-decoration: underline;
+        color: var(--accent-hover);
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: clamp(1.4rem, 3.2vw, 2rem);
+        line-height: 1.3;
+        color: #1a365d;
+        border-bottom: 2px solid var(--line);
+        padding-bottom: 14px;
+      }
+
+      .lead {
+        color: var(--sub);
+        font-size: 1.04rem;
+        line-height: 1.8;
+        margin-bottom: 24px;
+      }
+
+      .lead strong {
+        color: var(--ink);
+      }
+
+      .highlight-banner {
+        background: #f0f7ff;
+        border-left: 4px solid var(--accent);
+        padding: 16px 20px;
+        border-radius: 0 8px 8px 0;
+        margin: 20px 0 32px;
+        font-size: 0.98rem;
+      }
+
+      h2 {
+        margin: 36px 0 16px;
+        font-size: 1.3rem;
+        color: #2b4365;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1.5px solid #e2e8f0;
+        padding-bottom: 8px;
+      }
+
+      h2::before {
+        content: "";
+        display: inline-block;
+        width: 4px;
+        height: 1.1em;
+        background: var(--accent);
+        border-radius: 2px;
+      }
+
+      /* 特徴グリッド */
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+      }
+
+      .feature-box {
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .feature-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      }
+
+      .feature-icon {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+      }
+
+      .feature-title {
+        font-weight: 700;
+        font-size: 1.02rem;
+        color: #1a365d;
+        margin-bottom: 6px;
+      }
+
+      .feature-desc {
+        font-size: 0.92rem;
+        color: var(--sub);
+        line-height: 1.6;
+      }
+
+      /* ステップカード */
+      .steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 20px 0;
+      }
+
+      .step-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+
+      .step-number {
+        background: linear-gradient(135deg, #1f5fa5, #3a7cc2);
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        border-radius: 16px;
+        white-space: nowrap;
+      }
+
+      .step-detail h3 {
+        margin: 0 0 6px;
+        font-size: 1.05rem;
+        color: #1a365d;
+      }
+
+      .step-detail p {
+        margin: 0;
+        font-size: 0.94rem;
+        color: var(--sub);
+        line-height: 1.6;
+      }
+
+      .step-detail code {
+        background: #eaf1f8;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #1f5fa5;
+        font-size: 0.9em;
+      }
+
+      /* FAQ */
+      .faq-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin: 20px 0;
+      }
+
+      .faq-card {
+        background: #fbfcfe;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+      }
+
+      .faq-question {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #1a365d;
+        margin-bottom: 8px;
+      }
+
+      .faq-answer {
+        font-size: 0.93rem;
+        color: var(--sub);
+        line-height: 1.65;
+        margin: 0;
+      }
+
+      .cta-area {
+        margin: 40px 0 20px;
+        text-align: center;
+        padding: 28px;
+        background: linear-gradient(135deg, #eef5fc, #e3eef9);
+        border-radius: 14px;
+        border: 1px solid #c8dcf0;
+      }
+
+      .cta-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1a365d;
+        margin-bottom: 12px;
+      }
+
+      .cta-btn {
+        display: inline-block;
+        background: var(--accent);
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.98rem;
+        transition: background-color 0.2s, transform 0.2s;
+      }
+
+      .cta-btn:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+        text-decoration: none;
+      }
+
+      .footer-links {
+        margin-top: 36px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 0.92rem;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+
+      a:hover {
+        color: var(--accent-hover);
+      }
+
+      @media (max-width: 640px) {
+        main {
+          padding: 16px 12px 40px;
+        }
+
+        .card {
+          padding: 22px 18px;
+        }
+
+        .step-item {
+          flex-direction: column;
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="./" class="nav-back">← 変換ツール画面に戻る</a>
+      <article class="card">
+        <h1>VRM to MMD Converter 使い方・機能紹介</h1>
+        <p class="lead">
+          <strong>vrm2pmx-md (VRM to MMD Converter)</strong> は、VRoid Studioなどで作成された <strong>VRM 形式の 3D アバターモデル</strong> を、
+          MikuMikuDance（MMD）や各種互換ソフトで利用可能な <strong>PMX 形式へブラウザ上で高速・高品質に変換</strong> する無料Webアプリケーションです。
+        </p>
+
+        <div class="highlight-banner">
+          🔒 <strong>モデルデータの安全性について</strong><br />
+          当ツールの変換処理は、すべてお使いのWebブラウザ内部（クライアントサイド）で完結して実行されます。モデルファイルやテクスチャが外部サーバーにアップロード・保存されることは一切ありませんので、大切なアバターモデルも安心してご利用いただけます。
+        </div>
+
+        <h2>✨ 主な機能と特徴</h2>
+        <div class="features-grid">
+          <div class="feature-box">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-title">完全ローカル・プライバシー保証</div>
+            <div class="feature-desc">
+              WebAssembly（Wasm）技術を活用し、お使いの端末内で直接PMXへ変換。著作権や機密性のあるモデルでも安心です。
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">👁️</div>
+            <div class="feature-title">リアルタイム 3D プレビュー</div>
+            <div class="feature-desc">
+              変換前のVRMと変換後のPMXをブラウザ上で並べて3D表示。回転・拡大縮小しながら仕上がりを即座に確認できます。
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">💃</div>
+            <div class="feature-title">VMD / VPD モーション再生確認</div>
+            <div class="feature-desc">
+              変換後のPMXビューエリアにVMD（モーション）やVPD（ポーズ）ファイルをドラッグ＆ドロップして動作確認が可能です。
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">📐</div>
+            <div class="feature-title">T/A ポーズ自動変換機能</div>
+            <div class="feature-desc">
+              VRM特有のTスタンスから、MMDモーションに適した自然なAスタンスへ腕の角度を自動調整して変換できます。
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">🎭</div>
+            <div class="feature-title">モーフ・ボーン・物理演算の継承</div>
+            <div class="feature-desc">
+              表情ブレンドシェイプをMMDモーフへ自動変換。ボーン階層構造、剛体、Jointも適切に設定されます。
+            </div>
+          </div>
+          <div class="feature-box">
+            <div class="feature-icon">📦</div>
+            <div class="feature-title">ZIP 一括パッケージ出力</div>
+            <div class="feature-desc">
+              PMXファイル本体と必要なテクスチャ画像（PNG/JPG/スフィアマップ）を1つのZIPファイルにまとめてダウンロード可能です。
+            </div>
+          </div>
+        </div>
+
+        <h2>🚀 使い方・変換手順（簡単4ステップ）</h2>
+        <div class="steps-list">
+          <div class="step-item">
+            <div class="step-number">Step 1</div>
+            <div class="step-detail">
+              <h3>VRM ファイルを読み込む</h3>
+              <p>
+                トップ画面左側の「VRM Preview」エリアにお手持ちの <code>.vrm</code> ファイルをドラッグ＆ドロップするか、「Choose file」ボタンをクリックしてファイルを選択します。
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 2</div>
+            <div class="step-detail">
+              <h3>モデルの確認と変換設定</h3>
+              <p>
+                プレビュー画面でモデルの形状を確認します。必要に応じて「T/A Pose Convert」でお好みの腕の角度を指定します（標準推奨値が自動入力されています）。
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 3</div>
+            <div class="step-detail">
+              <h3>変換を実行する</h3>
+              <p>
+                「Convert」ボタンをクリックすると、ブラウザ内で高速変換エンジンが起動し、自動的にPMXへの変換処理が行われます。
+              </p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">Step 4</div>
+            <div class="step-detail">
+              <h3>プレビュー確認＆ZIPダウンロード</h3>
+              <p>
+                右側の「PMX Preview」画面に変換後のモデルが表示されます。仕上がりを確認したら、「Download ZIP」ボタンをクリックしてPMXモデルおよびテクスチャが同梱されたZIPファイルを保存します。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <h2>❓ よくあるご質問 (FAQ)</h2>
+        <div class="faq-list">
+          <div class="faq-card">
+            <div class="faq-question">Q. 利用料金はかかりますか？</div>
+            <p class="faq-answer">
+              A. いいえ、当ツールのすべての基本機能は<strong>完全無料</strong>でご利用いただけます。
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. アップロードした3Dモデルがサーバーに保存されることはありますか？</div>
+            <p class="faq-answer">
+              A. 一切ありません。本サービスはWebブラウザ（クライアントサイド）の技術のみで動作しており、外部サーバーにモデルデータが送信・保存されることはありません。
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. どのWebブラウザに対応していますか？</div>
+            <p class="faq-answer">
+              A. Google Chrome, Microsoft Edge, Mozilla Firefox, Apple Safari の各最新バージョンに対応しています。
+            </p>
+          </div>
+          <div class="faq-card">
+            <div class="faq-question">Q. 変換したモデルの著作権や利用条件はどうなりますか？</div>
+            <p class="faq-answer">
+              A. 変換元のVRMモデルの利用規約（商用利用、改変、再配布条件等）を必ず遵守してください。変換後のPMXモデルの権利関係も、元モデルのライセンス条項に準拠します。
+            </p>
+          </div>
+        </div>
+
+        <div class="cta-area">
+          <div class="cta-title">準備ができたら、さっそく変換を試してみましょう！</div>
+          <a href="./" class="cta-btn">変換ツールを開く</a>
+        </div>
+
+        <div class="footer-links">
+          <a href="./">トップページ</a>
+          <a href="privacy_ja.html">プライバシーポリシー</a>
+          <a href="tokushoho_ja.html">特定商取引法に基づく表記</a>
+          <a href="contact_ja.html">お問い合わせ</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

@@ -20,6 +20,7 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({ locale }) => {
   const isJa = locale === "ja";
   const baseUrl = import.meta.env.BASE_URL;
 
+  const guideUrl = `${baseUrl}${isJa ? "guide_ja.html" : "guide.html"}`;
   const privacyUrl = `${baseUrl}${isJa ? "privacy_ja.html" : "privacy.html"}`;
   const tokushohoUrl = `${baseUrl}${isJa ? "tokushoho_ja.html" : "tokushoho.html"}`;
   const contactUrl = `${baseUrl}${isJa ? "contact_ja.html" : "contact.html"}`;
@@ -35,7 +36,12 @@ export const SiteFooter: React.FC<SiteFooterProps> = ({ locale }) => {
     <footer className="site-outer-footer" aria-label="Site footer">
       <div className="site-outer-footer-content">
         <nav className="site-outer-footer-links" aria-label="Legal and information links">
-          <a href="#guide" className="site-outer-footer-link">
+          <a
+            href={guideUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="site-outer-footer-link"
+          >
             {labels.guide}
           </a>
           <span className="site-outer-footer-separator" aria-hidden="true">|</span>

@@ -35,7 +35,6 @@ import AboutDialog, {
   type TabId as AboutTabId,
 } from "./components/AboutDialog";
 import Dialog from "./components/Dialog";
-import { SiteGuideSection } from "./components/SiteGuideSection";
 import { SiteFooter } from "./components/SiteFooter";
 import { APP_VERSION } from "./constants/appInfo";
 import {
@@ -6927,7 +6926,6 @@ export default function App() {
         </div>
       </section>
 
-      <SiteGuideSection locale={appLocale} />
       <SiteFooter locale={appLocale} />
 
       <AboutDialog

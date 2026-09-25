@@ -79,6 +79,8 @@ executor.py.lprof
 !frontend/public/privacy_ja.html
 !frontend/public/contact.html
 !frontend/public/contact_ja.html
+!frontend/public/guide.html
+!frontend/public/guide_ja.html
 *.c
 *.pyd
 *.pyd
