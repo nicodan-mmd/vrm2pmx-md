@@ -5,8 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 const env =
   (globalThis as { process?: { env?: Record<string, string | undefined> } })
     .process?.env ?? {};
-const repoName = env.GITHUB_REPOSITORY?.split("/")[1];
-const pagesBase = env.GITHUB_ACTIONS && repoName ? `/${repoName}/` : "/";
+const pagesBase = env.VITE_BASE_PATH ?? "/";
 
 export default defineConfig({
   base: pagesBase,
