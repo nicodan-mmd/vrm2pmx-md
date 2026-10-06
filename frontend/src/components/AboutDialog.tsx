@@ -39,6 +39,22 @@ const HISTORY: Array<{
   items: Partial<Record<HistoryLocale, string>>[];
 }> = [
   {
+    version: "v1.6.5",
+    date: "2026/10/07",
+    items: [
+      {
+        ja: "画面調整、機能変更無し",
+        en: "UI adjustments, no functional changes",
+        zh: "界面微调，无功能变更",
+        "zh-TW": "介面微調，無功能變更",
+        ko: "화면 조정, 기능 변경 없음",
+        id: "Penyesuaian tampilan, tidak ada perubahan fungsi",
+        es: "Ajustes de interfaz, sin cambios en las funciones",
+        "pt-BR": "Ajustes de interface, sem alterações de funcionalidades",
+      },
+    ],
+  },
+  {
     version: "v1.6.4",
     date: "2026/08/02",
     items: [

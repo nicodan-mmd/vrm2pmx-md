@@ -36,6 +36,7 @@ import AboutDialog, {
 } from "./components/AboutDialog";
 import Dialog from "./components/Dialog";
 import { SiteFooter } from "./components/SiteFooter";
+import { SiteGuideSection } from "./components/SiteGuideSection";
 import { APP_VERSION } from "./constants/appInfo";
 import {
   type ConvertMode,
@@ -6925,6 +6926,8 @@ export default function App() {
           </span>
         </div>
       </section>
+
+      <SiteGuideSection locale={appLocale} />
 
       <SiteFooter locale={appLocale} />
 
